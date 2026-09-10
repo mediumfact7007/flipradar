@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flipradar/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('FlipRadar starts on home screen', (tester) async {
+  testWidgets('FlipRadar starts', (tester) async {
+    SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const FlipRadarApp());
+    await tester.pumpAndSettle();
     expect(find.text('FlipRadar'), findsOneWidget);
-    expect(find.text('1.284 €'), findsOneWidget);
+    expect(find.text('Schnellstart'), findsOneWidget);
   });
 }
