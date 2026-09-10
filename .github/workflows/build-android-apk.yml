@@ -16,6 +16,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check backend syntax
+        run: node --check server/index.js
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -29,12 +32,16 @@ jobs:
         shell: bash
         run: |
           cp lib/main.dart /tmp/flipradar_main.dart
+          cp lib/v06.dart /tmp/flipradar_v06.dart
+          cp lib/source_registry.dart /tmp/source_registry.dart
           cp pubspec.yaml /tmp/flipradar_pubspec.yaml
           rm -rf android
           flutter create . --platforms=android --org com.flipradar --project-name flipradar --no-pub
           cp /tmp/flipradar_main.dart lib/main.dart
+          cp /tmp/flipradar_v06.dart lib/v06.dart
+          cp /tmp/source_registry.dart lib/source_registry.dart
           cp /tmp/flipradar_pubspec.yaml pubspec.yaml
-          python3 - <<'PY'
+          python3 - <<'PY2'
           from pathlib import Path
           gradle = Path('android/app/build.gradle.kts')
           if gradle.exists():
@@ -53,7 +60,7 @@ jobs:
                   if permission not in text:
                       text = text.replace(marker, marker + '\n    ' + permission)
               manifest.write_text(text)
-          PY
+          PY2
 
       - name: Get packages
         run: flutter pub get
@@ -72,7 +79,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.5-APK
+          name: FlipRadar-V0.6-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
