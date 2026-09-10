@@ -38,7 +38,7 @@ class SourceListing {
       shipping: _toDouble(json['shipping']),
       url: json['url']?.toString() ?? '',
       condition: json['condition']?.toString() ?? '',
-      live: true,
+      live: json['live'] as bool? ?? true,
     );
   }
 
@@ -68,7 +68,7 @@ class PriceSource {
     this.enabled = true,
     this.builtIn = true,
     this.recommended = false,
-    this.colorHex = '5746E8',
+    this.colorHex = '5146E5',
   });
 
   bool get canFetchInApp => (adapterUrlTemplate ?? '').trim().isNotEmpty;
@@ -100,6 +100,7 @@ class PriceSource {
   }
 
   Map<String, dynamic> toJson() => {
+        'version': 1,
         'id': id,
         'name': name,
         'subtitle': subtitle,
@@ -115,7 +116,7 @@ class PriceSource {
     final name = json['name']?.toString().trim() ?? '';
     final search = json['search_url']?.toString().trim() ?? '';
     if (name.isEmpty || search.isEmpty || !search.contains('{query}')) {
-      throw const FormatException('Source manifest is missing name/search_url/{query}');
+      throw const FormatException('Source manifest needs name and search_url with {query}.');
     }
     final rawId = json['id']?.toString().trim();
     final generated = name
@@ -131,7 +132,7 @@ class PriceSource {
       enabled: json['enabled'] as bool? ?? true,
       builtIn: false,
       recommended: false,
-      colorHex: json['color']?.toString() ?? '5746E8',
+      colorHex: json['color']?.toString() ?? '5146E5',
     );
   }
 }
@@ -140,20 +141,20 @@ class SourceRegistry {
   static const _customKey = 'custom_sources_v05';
   static const _enabledKey = 'enabled_sources_v05';
 
-  static List<PriceSource> builtIns({String backendBase = ''}) {
-    String? adapter(String source) {
-      final b = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
-      if (b.isEmpty) return null;
-      return '$b/v1/market/search?source=$source&q={query}';
-    }
+  static String? _backendAdapter(String backendBase, String source) {
+    final b = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
+    if (b.isEmpty) return null;
+    return '$b/v1/market/search?source=$source&q={query}';
+  }
 
+  static List<PriceSource> builtIns({String backendBase = ''}) {
     return [
       PriceSource(
         id: 'ebay_de',
         name: 'eBay DE',
-        subtitle: 'Gebraucht & neu · Live-API möglich',
+        subtitle: 'Gebraucht & neu · offizielle Browse API',
         searchUrlTemplate: 'https://www.ebay.de/sch/i.html?_nkw={query}',
-        adapterUrlTemplate: adapter('ebay_de'),
+        adapterUrlTemplate: _backendAdapter(backendBase, 'ebay_de'),
         recommended: true,
         colorHex: '3665F3',
       ),
@@ -162,16 +163,15 @@ class SourceRegistry {
         name: 'Kleinanzeigen',
         subtitle: 'Lokale Deals · offizielle Suche',
         searchUrlTemplate: 'https://www.kleinanzeigen.de/s-{query}/k0',
-        adapterUrlTemplate: adapter('kleinanzeigen'),
         recommended: true,
         colorHex: '00A98F',
       ),
       PriceSource(
         id: 'amazon_de',
         name: 'Amazon DE',
-        subtitle: 'Neupreis-Referenz · Adapter/Keepa möglich',
+        subtitle: 'Amazon-Preisreferenz · Keepa-Adapter',
         searchUrlTemplate: 'https://www.amazon.de/s?k={query}',
-        adapterUrlTemplate: adapter('amazon_de'),
+        adapterUrlTemplate: _backendAdapter(backendBase, 'amazon_de'),
         recommended: true,
         colorHex: 'FF9900',
       ),
@@ -180,7 +180,6 @@ class SourceRegistry {
         name: 'MediaMarkt',
         subtitle: 'Neupreis & Angebote · offizielle Suche',
         searchUrlTemplate: 'https://www.mediamarkt.de/de/search.html?query={query}',
-        adapterUrlTemplate: adapter('mediamarkt'),
         colorHex: 'DF0000',
       ),
       PriceSource(
@@ -188,7 +187,6 @@ class SourceRegistry {
         name: 'SATURN',
         subtitle: 'Neupreis & Angebote · offizielle Suche',
         searchUrlTemplate: 'https://www.saturn.de/de/search.html?query={query}',
-        adapterUrlTemplate: adapter('saturn'),
         colorHex: '1454A3',
       ),
       PriceSource(
@@ -196,7 +194,6 @@ class SourceRegistry {
         name: 'idealo',
         subtitle: 'Preisvergleich · offizielle Suche',
         searchUrlTemplate: 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q={query}',
-        adapterUrlTemplate: adapter('idealo'),
         recommended: true,
         colorHex: 'FF6600',
       ),
@@ -205,7 +202,6 @@ class SourceRegistry {
         name: 'rebuy',
         subtitle: 'Ankauf/Refurbished als Referenz',
         searchUrlTemplate: 'https://www.rebuy.de/kaufen/suchen?q={query}',
-        adapterUrlTemplate: adapter('rebuy'),
         colorHex: '1B9E77',
       ),
       PriceSource(
@@ -213,7 +209,6 @@ class SourceRegistry {
         name: 'Back Market',
         subtitle: 'Refurbished-Preisreferenz',
         searchUrlTemplate: 'https://www.backmarket.de/de-de/search?q={query}',
-        adapterUrlTemplate: adapter('backmarket'),
         colorHex: '111111',
       ),
     ];
@@ -222,6 +217,7 @@ class SourceRegistry {
   static Future<List<PriceSource>> load({String backendBase = ''}) async {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getStringList(_enabledKey)?.toSet();
+
     final built = builtIns(backendBase: backendBase)
         .map((s) => s.copyWith(enabled: enabled == null ? s.enabled : enabled.contains(s.id)))
         .toList();
@@ -250,9 +246,14 @@ class SourceRegistry {
 
   static Future<PriceSource> importManifest(String manifestUrl) async {
     final uri = Uri.tryParse(manifestUrl.trim());
-    if (uri == null || !uri.hasScheme || (uri.scheme != 'https' && uri.scheme != 'http')) {
-      throw const FormatException('Bitte eine gültige http(s)-Adresse eingeben.');
+    if (uri == null || !uri.hasScheme) {
+      throw const FormatException('Bitte eine gültige HTTPS-Adresse eingeben.');
     }
+    final isLocal = uri.host == 'localhost' || uri.host == '127.0.0.1';
+    if (uri.scheme != 'https' && !(isLocal && uri.scheme == 'http')) {
+      throw const FormatException('Partner-Manifeste müssen HTTPS verwenden.');
+    }
+
     final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Manifest konnte nicht geladen werden (${response.statusCode}).');
@@ -266,14 +267,19 @@ class SourceRegistry {
   ) async {
     final target = source.adapterUrl(query);
     if (target == null) return [];
-    final response = await http.get(Uri.parse(target)).timeout(const Duration(seconds: 10));
+    final uri = Uri.tryParse(target);
+    if (uri == null || !uri.hasScheme) return [];
+
+    final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) return [];
+
     final decoded = jsonDecode(response.body);
     final items = decoded is Map<String, dynamic>
         ? (decoded['items'] as List<dynamic>? ?? const [])
         : decoded is List<dynamic>
             ? decoded
             : const <dynamic>[];
+
     return items
         .whereType<Map<String, dynamic>>()
         .map((e) => SourceListing.fromJson(e, source))
