@@ -45,9 +45,13 @@ jobs:
           if manifest.exists():
               text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
               marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-              permission = '<uses-permission android:name="android.permission.CAMERA" />'
-              if permission not in text:
-                  text = text.replace(marker, marker + '\n    ' + permission)
+              permissions = [
+                  '<uses-permission android:name="android.permission.INTERNET" />',
+                  '<uses-permission android:name="android.permission.CAMERA" />',
+              ]
+              for permission in permissions:
+                  if permission not in text:
+                      text = text.replace(marker, marker + '\n    ' + permission)
               manifest.write_text(text)
           PY
 
@@ -68,7 +72,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.3-APK
+          name: FlipRadar-V0.4-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
