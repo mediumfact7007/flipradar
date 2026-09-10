@@ -1,0 +1,70 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Generate Android project
+        shell: bash
+        run: |
+          cp lib/main.dart /tmp/flipradar_main.dart
+          cp pubspec.yaml /tmp/flipradar_pubspec.yaml
+          rm -rf android
+          flutter create . --platforms=android --org com.flipradar --project-name flipradar --no-pub
+          cp /tmp/flipradar_main.dart lib/main.dart
+          cp /tmp/flipradar_pubspec.yaml pubspec.yaml
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path('android/app/build.gradle.kts')
+          if gradle.exists():
+              text = gradle.read_text()
+              text = text.replace('applicationId = "com.flipradar.flipradar"', 'applicationId = "com.flipradar.app"')
+              gradle.write_text(text)
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          if manifest.exists():
+              text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
+              manifest.write_text(text)
+          PY
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Verify APK
+        run: |
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          sha256sum build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlipRadar-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
