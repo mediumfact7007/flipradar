@@ -1,0 +1,283 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class SourceListing {
+  final String sourceId;
+  final String sourceName;
+  final String title;
+  final double price;
+  final double shipping;
+  final String url;
+  final String condition;
+  final bool live;
+
+  const SourceListing({
+    required this.sourceId,
+    required this.sourceName,
+    required this.title,
+    required this.price,
+    required this.shipping,
+    required this.url,
+    required this.condition,
+    required this.live,
+  });
+
+  double get total => price + shipping;
+
+  factory SourceListing.fromJson(
+    Map<String, dynamic> json,
+    PriceSource source,
+  ) {
+    return SourceListing(
+      sourceId: source.id,
+      sourceName: source.name,
+      title: json['title']?.toString() ?? 'Listing',
+      price: _toDouble(json['price']),
+      shipping: _toDouble(json['shipping']),
+      url: json['url']?.toString() ?? '',
+      condition: json['condition']?.toString() ?? '',
+      live: true,
+    );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().replaceAll(',', '.') ?? '') ?? 0;
+  }
+}
+
+class PriceSource {
+  final String id;
+  final String name;
+  final String subtitle;
+  final String searchUrlTemplate;
+  final String? adapterUrlTemplate;
+  final bool enabled;
+  final bool builtIn;
+  final bool recommended;
+  final String colorHex;
+
+  const PriceSource({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+    required this.searchUrlTemplate,
+    this.adapterUrlTemplate,
+    this.enabled = true,
+    this.builtIn = true,
+    this.recommended = false,
+    this.colorHex = '5746E8',
+  });
+
+  bool get canFetchInApp => (adapterUrlTemplate ?? '').trim().isNotEmpty;
+
+  PriceSource copyWith({
+    bool? enabled,
+    String? adapterUrlTemplate,
+  }) {
+    return PriceSource(
+      id: id,
+      name: name,
+      subtitle: subtitle,
+      searchUrlTemplate: searchUrlTemplate,
+      adapterUrlTemplate: adapterUrlTemplate ?? this.adapterUrlTemplate,
+      enabled: enabled ?? this.enabled,
+      builtIn: builtIn,
+      recommended: recommended,
+      colorHex: colorHex,
+    );
+  }
+
+  String searchUrl(String query) =>
+      searchUrlTemplate.replaceAll('{query}', Uri.encodeQueryComponent(query));
+
+  String? adapterUrl(String query) {
+    final value = adapterUrlTemplate;
+    if (value == null || value.trim().isEmpty) return null;
+    return value.replaceAll('{query}', Uri.encodeQueryComponent(query));
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'subtitle': subtitle,
+        'search_url': searchUrlTemplate,
+        'adapter_url': adapterUrlTemplate,
+        'enabled': enabled,
+        'built_in': builtIn,
+        'recommended': recommended,
+        'color': colorHex,
+      };
+
+  factory PriceSource.fromJson(Map<String, dynamic> json) {
+    final name = json['name']?.toString().trim() ?? '';
+    final search = json['search_url']?.toString().trim() ?? '';
+    if (name.isEmpty || search.isEmpty || !search.contains('{query}')) {
+      throw const FormatException('Source manifest is missing name/search_url/{query}');
+    }
+    final rawId = json['id']?.toString().trim();
+    final generated = name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    return PriceSource(
+      id: (rawId == null || rawId.isEmpty) ? generated : rawId,
+      name: name,
+      subtitle: json['subtitle']?.toString() ?? 'Eigene Quelle',
+      searchUrlTemplate: search,
+      adapterUrlTemplate: json['adapter_url']?.toString(),
+      enabled: json['enabled'] as bool? ?? true,
+      builtIn: false,
+      recommended: false,
+      colorHex: json['color']?.toString() ?? '5746E8',
+    );
+  }
+}
+
+class SourceRegistry {
+  static const _customKey = 'custom_sources_v05';
+  static const _enabledKey = 'enabled_sources_v05';
+
+  static List<PriceSource> builtIns({String backendBase = ''}) {
+    String? adapter(String source) {
+      final b = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
+      if (b.isEmpty) return null;
+      return '$b/v1/market/search?source=$source&q={query}';
+    }
+
+    return [
+      PriceSource(
+        id: 'ebay_de',
+        name: 'eBay DE',
+        subtitle: 'Gebraucht & neu · Live-API möglich',
+        searchUrlTemplate: 'https://www.ebay.de/sch/i.html?_nkw={query}',
+        adapterUrlTemplate: adapter('ebay_de'),
+        recommended: true,
+        colorHex: '3665F3',
+      ),
+      PriceSource(
+        id: 'kleinanzeigen',
+        name: 'Kleinanzeigen',
+        subtitle: 'Lokale Deals · offizielle Suche',
+        searchUrlTemplate: 'https://www.kleinanzeigen.de/s-{query}/k0',
+        adapterUrlTemplate: adapter('kleinanzeigen'),
+        recommended: true,
+        colorHex: '00A98F',
+      ),
+      PriceSource(
+        id: 'amazon_de',
+        name: 'Amazon DE',
+        subtitle: 'Neupreis-Referenz · Adapter/Keepa möglich',
+        searchUrlTemplate: 'https://www.amazon.de/s?k={query}',
+        adapterUrlTemplate: adapter('amazon_de'),
+        recommended: true,
+        colorHex: 'FF9900',
+      ),
+      PriceSource(
+        id: 'mediamarkt',
+        name: 'MediaMarkt',
+        subtitle: 'Neupreis & Angebote · offizielle Suche',
+        searchUrlTemplate: 'https://www.mediamarkt.de/de/search.html?query={query}',
+        adapterUrlTemplate: adapter('mediamarkt'),
+        colorHex: 'DF0000',
+      ),
+      PriceSource(
+        id: 'saturn',
+        name: 'SATURN',
+        subtitle: 'Neupreis & Angebote · offizielle Suche',
+        searchUrlTemplate: 'https://www.saturn.de/de/search.html?query={query}',
+        adapterUrlTemplate: adapter('saturn'),
+        colorHex: '1454A3',
+      ),
+      PriceSource(
+        id: 'idealo',
+        name: 'idealo',
+        subtitle: 'Preisvergleich · offizielle Suche',
+        searchUrlTemplate: 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q={query}',
+        adapterUrlTemplate: adapter('idealo'),
+        recommended: true,
+        colorHex: 'FF6600',
+      ),
+      PriceSource(
+        id: 'rebuy',
+        name: 'rebuy',
+        subtitle: 'Ankauf/Refurbished als Referenz',
+        searchUrlTemplate: 'https://www.rebuy.de/kaufen/suchen?q={query}',
+        adapterUrlTemplate: adapter('rebuy'),
+        colorHex: '1B9E77',
+      ),
+      PriceSource(
+        id: 'backmarket',
+        name: 'Back Market',
+        subtitle: 'Refurbished-Preisreferenz',
+        searchUrlTemplate: 'https://www.backmarket.de/de-de/search?q={query}',
+        adapterUrlTemplate: adapter('backmarket'),
+        colorHex: '111111',
+      ),
+    ];
+  }
+
+  static Future<List<PriceSource>> load({String backendBase = ''}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getStringList(_enabledKey)?.toSet();
+    final built = builtIns(backendBase: backendBase)
+        .map((s) => s.copyWith(enabled: enabled == null ? s.enabled : enabled.contains(s.id)))
+        .toList();
+
+    final custom = <PriceSource>[];
+    for (final raw in prefs.getStringList(_customKey) ?? <String>[]) {
+      try {
+        final source = PriceSource.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        custom.add(source.copyWith(enabled: enabled == null ? source.enabled : enabled.contains(source.id)));
+      } catch (_) {}
+    }
+    return [...built, ...custom];
+  }
+
+  static Future<void> save(List<PriceSource> sources) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _enabledKey,
+      sources.where((s) => s.enabled).map((s) => s.id).toList(),
+    );
+    await prefs.setStringList(
+      _customKey,
+      sources.where((s) => !s.builtIn).map((s) => jsonEncode(s.toJson())).toList(),
+    );
+  }
+
+  static Future<PriceSource> importManifest(String manifestUrl) async {
+    final uri = Uri.tryParse(manifestUrl.trim());
+    if (uri == null || !uri.hasScheme || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      throw const FormatException('Bitte eine gültige http(s)-Adresse eingeben.');
+    }
+    final response = await http.get(uri).timeout(const Duration(seconds: 10));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Manifest konnte nicht geladen werden (${response.statusCode}).');
+    }
+    return PriceSource.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  static Future<List<SourceListing>> fetch(
+    PriceSource source,
+    String query,
+  ) async {
+    final target = source.adapterUrl(query);
+    if (target == null) return [];
+    final response = await http.get(Uri.parse(target)).timeout(const Duration(seconds: 10));
+    if (response.statusCode < 200 || response.statusCode >= 300) return [];
+    final decoded = jsonDecode(response.body);
+    final items = decoded is Map<String, dynamic>
+        ? (decoded['items'] as List<dynamic>? ?? const [])
+        : decoded is List<dynamic>
+            ? decoded
+            : const <dynamic>[];
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map((e) => SourceListing.fromJson(e, source))
+        .where((e) => e.price > 0)
+        .toList();
+  }
+}
