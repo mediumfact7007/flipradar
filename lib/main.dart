@@ -1,27 +1,94 @@
 import 'dart:convert';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'source_registry.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const FlipRadarApp());
 }
 
+enum UserPlan { free, pro, proPlus }
+
+class FlipItem {
+  final String id;
+  final String name;
+  final double buy;
+  final double sell;
+  final double costs;
+  final String status;
+  final String source;
+  final DateTime createdAt;
+
+  const FlipItem({
+    required this.id,
+    required this.name,
+    required this.buy,
+    required this.sell,
+    required this.costs,
+    required this.status,
+    required this.source,
+    required this.createdAt,
+  });
+
+  double get profit => sell - buy - costs;
+  double get roi => buy <= 0 ? 0 : profit / buy * 100;
+
+  FlipItem copyWith({String? status, double? sell}) => FlipItem(
+        id: id,
+        name: name,
+        buy: buy,
+        sell: sell ?? this.sell,
+        costs: costs,
+        status: status ?? this.status,
+        source: source,
+        createdAt: createdAt,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'buy': buy,
+        'sell': sell,
+        'costs': costs,
+        'status': status,
+        'source': source,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory FlipItem.fromJson(Map<String, dynamic> json) => FlipItem(
+        id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        name: json['name']?.toString() ?? 'Item',
+        buy: (json['buy'] as num?)?.toDouble() ?? 0,
+        sell: (json['sell'] as num?)?.toDouble() ?? 0,
+        costs: (json['costs'] as num?)?.toDouble() ?? 0,
+        status: json['status']?.toString() ?? 'Bought',
+        source: json['source']?.toString() ?? 'Manual',
+        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      );
+}
+
 class FlipRadarApp extends StatefulWidget {
   const FlipRadarApp({super.key});
+
   @override
   State<FlipRadarApp> createState() => _FlipRadarAppState();
 }
 
 class _FlipRadarAppState extends State<FlipRadarApp> {
-  bool en = false, ready = false;
-  String keepa = '', backend = '';
+  bool loading = true;
+  bool english = false;
+  bool onboardingDone = false;
+  String backend = '';
   double targetRoi = 35;
-  final flips = <FlipItem>[];
+  UserPlan plan = UserPlan.free;
+  List<FlipItem> flips = [];
+  List<PriceSource> sources = [];
 
   @override
   void initState() {
@@ -31,1039 +98,1402 @@ class _FlipRadarAppState extends State<FlipRadarApp> {
 
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
-    final restored = <FlipItem>[];
-    for (final s in p.getStringList('flips04') ?? <String>[]) {
+    final storedFlips = <FlipItem>[];
+    for (final raw in p.getStringList('flips_v05') ?? <String>[]) {
       try {
-        restored.add(FlipItem.fromJson(jsonDecode(s)));
+        storedFlips.add(FlipItem.fromJson(jsonDecode(raw) as Map<String, dynamic>));
       } catch (_) {}
     }
+    final loadedBackend = p.getString('backend_v05') ?? '';
+    final loadedSources = await SourceRegistry.load(backendBase: loadedBackend);
+    if (!mounted) return;
     setState(() {
-      en = p.getBool('en') ?? false;
-      keepa = p.getString('keepa') ?? '';
-      backend = p.getString('backend') ?? '';
-      targetRoi = p.getDouble('targetRoi') ?? 35;
-      flips.addAll(restored);
-      ready = true;
+      english = p.getBool('english_v05') ?? false;
+      onboardingDone = p.getBool('onboarding_v05') ?? false;
+      backend = loadedBackend;
+      targetRoi = p.getDouble('roi_v05') ?? 35;
+      plan = UserPlan.values[(p.getInt('plan_preview_v05') ?? 0).clamp(0, UserPlan.values.length - 1)];
+      flips = storedFlips;
+      sources = loadedSources;
+      loading = false;
     });
   }
 
-  Future<void> _save() async {
+  Future<void> _saveCore() async {
     final p = await SharedPreferences.getInstance();
-    await p.setBool('en', en);
-    await p.setString('keepa', keepa);
-    await p.setString('backend', backend);
-    await p.setDouble('targetRoi', targetRoi);
-    await p.setStringList(
-      'flips04',
-      flips.map((e) => jsonEncode(e.toJson())).toList(),
-    );
+    await p.setBool('english_v05', english);
+    await p.setBool('onboarding_v05', onboardingDone);
+    await p.setString('backend_v05', backend);
+    await p.setDouble('roi_v05', targetRoi);
+    await p.setInt('plan_preview_v05', plan.index);
+    await p.setStringList('flips_v05', flips.map((e) => jsonEncode(e.toJson())).toList());
+  }
+
+  Future<void> _reloadSources() async {
+    final loaded = await SourceRegistry.load(backendBase: backend);
+    if (!mounted) return;
+    setState(() => sources = loaded);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF5446E8),
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+      cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+    );
+
     return MaterialApp(
       title: 'FlipRadar',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF5746E8),
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-      home: ready
-          ? Shell(
-              en: en,
-              keepa: keepa,
-              backend: backend,
-              targetRoi: targetRoi,
-              flips: flips,
-              onEn: (v) {
-                setState(() => en = v);
-                _save();
-              },
-              onKeepa: (v) {
-                setState(() => keepa = v);
-                _save();
-              },
-              onBackend: (v) {
-                setState(() => backend = v);
-                _save();
-              },
-              onRoi: (v) {
-                setState(() => targetRoi = v);
-                _save();
-              },
-              onAddFlip: (f) {
-                setState(() => flips.insert(0, f));
-                _save();
-              },
-              onUpdateFlip: (i, f) {
-                setState(() => flips[i] = f);
-                _save();
-              },
-            )
-          : const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
+      theme: theme,
+      home: loading
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : onboardingDone
+              ? Shell(
+                  english: english,
+                  backend: backend,
+                  targetRoi: targetRoi,
+                  plan: plan,
+                  flips: flips,
+                  sources: sources,
+                  onLanguage: (v) {
+                    setState(() => english = v);
+                    _saveCore();
+                  },
+                  onBackend: (v) async {
+                    setState(() => backend = v.trim());
+                    await _saveCore();
+                    await _reloadSources();
+                  },
+                  onRoi: (v) {
+                    setState(() => targetRoi = v);
+                    _saveCore();
+                  },
+                  onPlanPreview: (v) {
+                    setState(() => plan = v);
+                    _saveCore();
+                  },
+                  onSources: (v) {
+                    setState(() => sources = v);
+                    SourceRegistry.save(v);
+                  },
+                  onAddFlip: (f) {
+                    setState(() => flips.insert(0, f));
+                    _saveCore();
+                  },
+                  onUpdateFlip: (f) {
+                    final i = flips.indexWhere((x) => x.id == f.id);
+                    if (i < 0) return;
+                    setState(() => flips[i] = f);
+                    _saveCore();
+                  },
+                )
+              : OnboardingPage(
+                  english: english,
+                  onLanguage: (v) {
+                    setState(() => english = v);
+                    _saveCore();
+                  },
+                  onFinish: () {
+                    setState(() => onboardingDone = true);
+                    _saveCore();
+                  },
+                ),
     );
   }
 }
 
-class FlipItem {
-  final String name, status;
-  final double buy, sell, costs;
-  const FlipItem(this.name, this.buy, this.sell, this.costs, this.status);
-  double get profit => sell - buy - costs;
-  double get roi => buy <= 0 ? 0 : profit / buy * 100;
-  FlipItem withStatus(String s) => FlipItem(name, buy, sell, costs, s);
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'buy': buy,
-        'sell': sell,
-        'costs': costs,
-        'status': status,
-      };
-  factory FlipItem.fromJson(Map<String, dynamic> j) => FlipItem(
-        j['name']?.toString() ?? 'Item',
-        (j['buy'] as num?)?.toDouble() ?? 0,
-        (j['sell'] as num?)?.toDouble() ?? 0,
-        (j['costs'] as num?)?.toDouble() ?? 0,
-        j['status']?.toString() ?? 'Bought',
-      );
+class OnboardingPage extends StatefulWidget {
+  final bool english;
+  final ValueChanged<bool> onLanguage;
+  final VoidCallback onFinish;
+
+  const OnboardingPage({
+    super.key,
+    required this.english,
+    required this.onLanguage,
+    required this.onFinish,
+  });
+
+  @override
+  State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class Snap {
-  final String source, title, detail;
-  final double? price, min, max, median;
-  final int count;
-  final bool live;
-  const Snap(
-    this.source,
-    this.title,
-    this.detail, {
-    this.price,
-    this.min,
-    this.max,
-    this.median,
-    this.count = 0,
-    this.live = true,
-  });
+class _OnboardingPageState extends State<OnboardingPage> {
+  int page = 0;
+  String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      (
+        Icons.qr_code_scanner,
+        t('1. Produkt scannen', '1. Scan a product'),
+        t('Barcode scannen oder Produktnamen eingeben. Mehr musst du nicht wissen.', 'Scan a barcode or type a product name. That is all you need to know.'),
+      ),
+      (
+        Icons.compare_arrows,
+        t('2. Preise vergleichen', '2. Compare prices'),
+        t('FlipRadar bündelt deine aktivierten Quellen und zeigt klar, wo Live-Daten direkt verfügbar sind.', 'FlipRadar groups your enabled sources and clearly shows where live in-app data is available.'),
+      ),
+      (
+        Icons.check_circle_outline,
+        t('3. Kaufen oder lassen', '3. Buy or skip'),
+        t('Du siehst Zielverkauf, maximalen Einkaufspreis, Gewinn, ROI und Risiken in einfacher Sprache.', 'You see target sale price, max buy price, profit, ROI and risks in plain language.'),
+      ),
+    ];
+    final current = cards[page];
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Text('FlipRadar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                  const Spacer(),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('DE')),
+                      ButtonSegment(value: true, label: Text('EN')),
+                    ],
+                    selected: {widget.english},
+                    onSelectionChanged: (v) => widget.onLanguage(v.first),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              CircleAvatar(
+                radius: 52,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Icon(current.$1, size: 54),
+              ),
+              const SizedBox(height: 28),
+              Text(current.$2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 12),
+              Text(current.$3, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, height: 1.45)),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (i) => Container(
+                  width: i == page ? 26 : 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: i == page ? Theme.of(context).colorScheme.primary : Colors.black12,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                )),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    if (page < 2) {
+                      setState(() => page++);
+                    } else {
+                      widget.onFinish();
+                    }
+                  },
+                  child: Text(page < 2 ? t('Weiter', 'Continue') : t('Loslegen', 'Get started')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class Shell extends StatefulWidget {
-  final bool en;
-  final String keepa, backend;
+  final bool english;
+  final String backend;
   final double targetRoi;
+  final UserPlan plan;
   final List<FlipItem> flips;
-  final ValueChanged<bool> onEn;
-  final ValueChanged<String> onKeepa, onBackend;
+  final List<PriceSource> sources;
+  final ValueChanged<bool> onLanguage;
+  final ValueChanged<String> onBackend;
   final ValueChanged<double> onRoi;
+  final ValueChanged<UserPlan> onPlanPreview;
+  final ValueChanged<List<PriceSource>> onSources;
   final ValueChanged<FlipItem> onAddFlip;
-  final void Function(int, FlipItem) onUpdateFlip;
+  final ValueChanged<FlipItem> onUpdateFlip;
+
   const Shell({
     super.key,
-    required this.en,
-    required this.keepa,
+    required this.english,
     required this.backend,
     required this.targetRoi,
+    required this.plan,
     required this.flips,
-    required this.onEn,
-    required this.onKeepa,
+    required this.sources,
+    required this.onLanguage,
     required this.onBackend,
     required this.onRoi,
+    required this.onPlanPreview,
+    required this.onSources,
     required this.onAddFlip,
     required this.onUpdateFlip,
   });
+
   @override
   State<Shell> createState() => _ShellState();
 }
 
 class _ShellState extends State<Shell> {
   int tab = 0;
-  String query = '';
-  String t(String de, String en) => widget.en ? en : de;
-  void market(String q) {
+  String pendingQuery = '';
+  String t(String de, String en) => widget.english ? en : de;
+
+  void goCheck([String query = '']) {
     setState(() {
-      query = q;
+      pendingQuery = query;
       tab = 1;
     });
   }
 
   @override
-  Widget build(BuildContext c) {
+  Widget build(BuildContext context) {
     final pages = [
-      Home(
-        en: widget.en,
+      HomePage(
+        english: widget.english,
+        plan: widget.plan,
         flips: widget.flips,
-        onMarket: market,
-        onScan: () => setState(() => tab = 2),
+        sources: widget.sources,
+        onCheck: goCheck,
+        onScan: () async {
+          final code = await Navigator.push<String>(
+            context,
+            MaterialPageRoute(builder: (_) => ScannerPage(english: widget.english)),
+          );
+          if (code != null && code.isNotEmpty) goCheck(code);
+        },
+        onSources: () => setState(() => tab = 2),
       ),
-      Market(
-        key: ValueKey(query),
-        en: widget.en,
-        initial: query,
-        keepa: widget.keepa,
-        backend: widget.backend,
+      CheckPage(
+        key: ValueKey('$pendingQuery-${widget.sources.length}-${widget.backend}'),
+        english: widget.english,
+        initialQuery: pendingQuery,
         targetRoi: widget.targetRoi,
+        sources: widget.sources,
         onAddFlip: widget.onAddFlip,
       ),
-      Scanner(en: widget.en, onCode: market),
-      Flips(
-        en: widget.en,
+      SourcesPage(
+        english: widget.english,
+        backend: widget.backend,
+        sources: widget.sources,
+        onChanged: widget.onSources,
+      ),
+      FlipsPage(
+        english: widget.english,
         flips: widget.flips,
         onUpdate: widget.onUpdateFlip,
       ),
-      Setup(
-        en: widget.en,
-        keepa: widget.keepa,
+      MorePage(
+        english: widget.english,
         backend: widget.backend,
         targetRoi: widget.targetRoi,
-        onEn: widget.onEn,
-        onKeepa: widget.onKeepa,
+        plan: widget.plan,
+        onLanguage: widget.onLanguage,
         onBackend: widget.onBackend,
         onRoi: widget.onRoi,
+        onPlanPreview: widget.onPlanPreview,
       ),
     ];
+
     return Scaffold(
       body: SafeArea(child: pages[tab]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (v) => setState(() => tab = v),
         destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            label: t('Start', 'Home'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.radar),
-            label: t('Markt', 'Market'),
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner),
-            label: 'Scan',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            label: 'Flips',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.tune),
-            label: t('Setup', 'Setup'),
-          ),
+          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: t('Start', 'Home')),
+          NavigationDestination(icon: const Icon(Icons.fact_check_outlined), selectedIcon: const Icon(Icons.fact_check), label: t('Prüfen', 'Check')),
+          NavigationDestination(icon: const Icon(Icons.hub_outlined), selectedIcon: const Icon(Icons.hub), label: t('Quellen', 'Sources')),
+          NavigationDestination(icon: const Icon(Icons.inventory_2_outlined), selectedIcon: const Icon(Icons.inventory_2), label: 'Flips'),
+          NavigationDestination(icon: const Icon(Icons.more_horiz), label: t('Mehr', 'More')),
         ],
       ),
     );
   }
 }
 
-class Home extends StatefulWidget {
-  final bool en;
+class HomePage extends StatefulWidget {
+  final bool english;
+  final UserPlan plan;
   final List<FlipItem> flips;
-  final ValueChanged<String> onMarket;
+  final List<PriceSource> sources;
+  final ValueChanged<String> onCheck;
   final VoidCallback onScan;
-  const Home({
+  final VoidCallback onSources;
+
+  const HomePage({
     super.key,
-    required this.en,
+    required this.english,
+    required this.plan,
     required this.flips,
-    required this.onMarket,
+    required this.sources,
+    required this.onCheck,
     required this.onScan,
+    required this.onSources,
   });
+
   @override
-  State<Home> createState() => _HomeState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomeState extends State<Home> {
-  final q = TextEditingController();
-  String t(String de, String en) => widget.en ? en : de;
+class _HomePageState extends State<HomePage> {
+  final search = TextEditingController();
+  String t(String de, String en) => widget.english ? en : de;
+
   @override
   void dispose() {
-    q.dispose();
+    search.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext c) {
-    final sold = widget.flips.where((e) => e.status == 'Sold');
+  Widget build(BuildContext context) {
+    final sold = widget.flips.where((e) => e.status == 'Sold').toList();
     final profit = sold.fold<double>(0, (a, b) => a + b.profit);
-    final capital = widget.flips
-        .where((e) => e.status != 'Sold')
-        .fold<double>(0, (a, b) => a + b.buy);
+    final capital = widget.flips.where((e) => e.status != 'Sold').fold<double>(0, (a, b) => a + b.buy);
+    final activeSources = widget.sources.where((e) => e.enabled).length;
+    final planName = widget.plan == UserPlan.free ? 'FREE' : widget.plan == UserPlan.pro ? 'PRO' : 'PRO+';
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        header('FlipRadar', t('Live Preisradar für Reselling', 'Live price radar for reselling')),
+        Row(
+          children: [
+            Expanded(child: header('FlipRadar', t('Einfach prüfen. Sicherer entscheiden.', 'Check simply. Decide with confidence.'))),
+            const SizedBox(width: 8),
+            Chip(label: Text(planName, style: const TextStyle(fontWeight: FontWeight.w800))),
+          ],
+        ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1B1746), Color(0xFF5947EC)],
-            ),
+            gradient: const LinearGradient(colors: [Color(0xFF1D1948), Color(0xFF5947EC)]),
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
             children: [
-              stat(t('Gewinn', 'Profit'), '${profit.toStringAsFixed(0)} €', true),
-              stat(t('Kapital', 'Capital'), '${capital.toStringAsFixed(0)} €', true),
-              stat('Flips', '${widget.flips.length}', true),
+              darkStat(t('Gewinn', 'Profit'), '${profit.toStringAsFixed(0)} €'),
+              darkStat(t('Kapital', 'Capital'), '${capital.toStringAsFixed(0)} €'),
+              darkStat(t('Quellen', 'Sources'), '$activeSources'),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
+        Text(t('Schnellstart', 'Quick start'), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 10),
         TextField(
-          controller: q,
+          controller: search,
           textInputAction: TextInputAction.search,
           onSubmitted: (v) {
-            if (v.trim().isNotEmpty) widget.onMarket(v.trim());
+            if (v.trim().isNotEmpty) widget.onCheck(v.trim());
           },
           decoration: InputDecoration(
-            hintText: t('Produkt, Modell, EAN oder ASIN', 'Product, model, EAN or ASIN'),
+            hintText: t('z. B. iPhone 15 Pro oder EAN', 'e.g. iPhone 15 Pro or EAN'),
             prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
-              onPressed: widget.onScan,
-              icon: const Icon(Icons.qr_code_scanner),
-            ),
+            suffixIcon: IconButton(onPressed: widget.onScan, icon: const Icon(Icons.qr_code_scanner)),
           ),
         ),
         const SizedBox(height: 10),
-        FilledButton.icon(
-          onPressed: () {
-            if (q.text.trim().isNotEmpty) widget.onMarket(q.text.trim());
-          },
-          icon: const Icon(Icons.travel_explore),
-          label: Text(t('Live Preise vergleichen', 'Compare live prices')),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () {
+                  if (search.text.trim().isNotEmpty) widget.onCheck(search.text.trim());
+                },
+                icon: const Icon(Icons.price_check),
+                label: Text(t('Preis prüfen', 'Check price')),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilledButton.tonalIcon(onPressed: widget.onScan, icon: const Icon(Icons.qr_code_scanner), label: const Text('Scan')),
+          ],
         ),
-        const SizedBox(height: 24),
-        Text(
-          t('Quellen', 'Sources'),
-          style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+        const SizedBox(height: 20),
+        _HowCard(
+          number: '1',
+          icon: Icons.qr_code_scanner,
+          title: t('Scannen oder suchen', 'Scan or search'),
+          text: t('Produktname, Modell oder Barcode reicht.', 'Product name, model or barcode is enough.'),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: ['eBay DE', 'Kleinanzeigen', 'Amazon DE', 'MediaMarkt', 'SATURN', 'idealo']
-              .map((e) => Chip(
-                    label: Text(e),
-                    avatar: const Icon(Icons.check_circle_outline, size: 17),
-                  ))
-              .toList(),
+        _HowCard(
+          number: '2',
+          icon: Icons.compare_arrows,
+          title: t('Quellen vergleichen', 'Compare sources'),
+          text: t('$activeSources Quellen sind aktiv. Du siehst sofort, welche direkt Live-Preise liefern.', '$activeSources sources are enabled. You immediately see which provide live in-app prices.'),
+          onTap: widget.onSources,
         ),
-        const SizedBox(height: 16),
-        note(t(
-          'Live-API-Preise werden nur angezeigt, wenn die jeweilige offizielle oder zulässige Datenquelle verbunden ist. Sonst öffnet FlipRadar die echte Suche des Portals.',
-          'Live API prices are only shown when an official or permitted data source is connected. Otherwise FlipRadar opens the portal’s real search.',
-        )),
+        const SizedBox(height: 8),
+        _HowCard(
+          number: '3',
+          icon: Icons.thumb_up_alt_outlined,
+          title: t('Kaufen oder lassen', 'Buy or skip'),
+          text: t('BUY MAX, Gewinn und ROI werden ohne Fachsprache erklärt.', 'BUY MAX, profit and ROI are explained without technical jargon.'),
+        ),
+        if (widget.plan == UserPlan.free) ...[
+          const SizedBox(height: 18),
+          SponsoredSlot(english: widget.english),
+        ],
       ],
     );
   }
 }
 
-class Scanner extends StatefulWidget {
-  final bool en;
-  final ValueChanged<String> onCode;
-  const Scanner({super.key, required this.en, required this.onCode});
+class _HowCard extends StatelessWidget {
+  final String number;
+  final IconData icon;
+  final String title;
+  final String text;
+  final VoidCallback? onTap;
+
+  const _HowCard({required this.number, required this.icon, required this.title, required this.text, this.onTap});
+
   @override
-  State<Scanner> createState() => _ScannerState();
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(child: Text(number, style: const TextStyle(fontWeight: FontWeight.w900))),
+              const SizedBox(width: 12),
+              Icon(icon),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(text, style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+              ),
+              if (onTap != null) const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _ScannerState extends State<Scanner> {
-  bool done = false;
-  String t(String de, String en) => widget.en ? en : de;
+class CheckPage extends StatefulWidget {
+  final bool english;
+  final String initialQuery;
+  final double targetRoi;
+  final List<PriceSource> sources;
+  final ValueChanged<FlipItem> onAddFlip;
+
+  const CheckPage({
+    super.key,
+    required this.english,
+    required this.initialQuery,
+    required this.targetRoi,
+    required this.sources,
+    required this.onAddFlip,
+  });
+
   @override
-  Widget build(BuildContext c) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: header(
-              t('Barcode scannen', 'Scan barcode'),
-              t('EAN oder UPC erfassen und direkt vergleichen', 'Capture EAN or UPC and compare instantly'),
-            ),
+  State<CheckPage> createState() => _CheckPageState();
+}
+
+class _CheckPageState extends State<CheckPage> {
+  late final TextEditingController query;
+  final buy = TextEditingController();
+  final manualSell = TextEditingController();
+  final costs = TextEditingController(text: '10');
+  bool loading = false;
+  bool searched = false;
+  List<SourceListing> listings = [];
+  final Map<String, String> errors = {};
+
+  String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  void initState() {
+    super.initState();
+    query = TextEditingController(text: widget.initialQuery);
+    if (widget.initialQuery.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+    }
+  }
+
+  @override
+  void dispose() {
+    query.dispose();
+    buy.dispose();
+    manualSell.dispose();
+    costs.dispose();
+    super.dispose();
+  }
+
+  double parse(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+
+  Future<void> _search() async {
+    final q = query.text.trim();
+    if (q.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      loading = true;
+      searched = true;
+      listings = [];
+      errors.clear();
+    });
+    final enabled = widget.sources.where((s) => s.enabled && s.canFetchInApp).toList();
+    final collected = <SourceListing>[];
+    for (final source in enabled) {
+      try {
+        collected.addAll(await SourceRegistry.fetch(source, q));
+      } catch (_) {
+        errors[source.id] = t('Keine Live-Antwort', 'No live response');
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      listings = collected..sort((a, b) => a.total.compareTo(b.total));
+      loading = false;
+    });
+  }
+
+  double? get marketMedian {
+    if (listings.isEmpty) return null;
+    final values = listings.map((e) => e.total).where((v) => v > 0).toList()..sort();
+    if (values.isEmpty) return null;
+    final middle = values.length ~/ 2;
+    return values.length.isOdd ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+  }
+
+  double? get targetSell {
+    final manual = parse(manualSell);
+    if (manual > 0) return manual;
+    return marketMedian;
+  }
+
+  double? get buyMax {
+    final sell = targetSell;
+    if (sell == null || sell <= 0) return null;
+    final c = parse(costs);
+    return math.max(0, (sell - c) / (1 + widget.targetRoi / 100));
+  }
+
+  Future<void> _open(PriceSource source) async {
+    final q = query.text.trim();
+    if (q.isEmpty) return;
+    await launchUrl(Uri.parse(source.searchUrl(q)), mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.sources.where((e) => e.enabled).toList();
+    final median = marketMedian;
+    final sell = targetSell;
+    final b = parse(buy);
+    final c = parse(costs);
+    final profit = sell == null ? null : sell - b - c;
+    final roi = profit == null || b <= 0 ? null : profit / b * 100;
+    final max = buyMax;
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        header(t('Deal prüfen', 'Check a deal'), t('Ein Produkt rein. Eine klare Entscheidung raus.', 'One product in. One clear decision out.')),
+        const SizedBox(height: 14),
+        TextField(
+          controller: query,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+          decoration: InputDecoration(
+            labelText: t('Was möchtest du prüfen?', 'What do you want to check?'),
+            hintText: t('Produkt, Modell, EAN oder ASIN', 'Product, model, EAN or ASIN'),
+            prefixIcon: const Icon(Icons.search),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  fit: StackFit.expand,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: loading ? null : _search, icon: const Icon(Icons.compare_arrows), label: Text(loading ? t('Suche läuft…', 'Searching…') : t('Jetzt vergleichen', 'Compare now')))),
+        const SizedBox(height: 12),
+        if (enabled.isEmpty)
+          infoBox(context, Icons.warning_amber_rounded, t('Keine Quelle aktiv. Öffne unten „Quellen“ und schalte mindestens eine Quelle ein.', 'No source enabled. Open Sources below and enable at least one source.'))
+        else
+          Text(t('${enabled.length} Quellen aktiv', '${enabled.length} sources enabled'), style: const TextStyle(color: Colors.black54)),
+        if (searched) ...[
+          const SizedBox(height: 18),
+          if (median != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MobileScanner(
-                      onDetect: (cap) {
-                        if (done || cap.barcodes.isEmpty) return;
-                        final v = cap.barcodes.first.rawValue?.trim();
-                        if (v == null || v.isEmpty) return;
-                        done = true;
-                        widget.onCode(v);
-                      },
+                    Row(children: [
+                      const Icon(Icons.bolt),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(t('Live-Auswertung', 'Live result'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
+                      const Chip(label: Text('LIVE')),
+                    ]),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: resultBox(t('Median', 'Median'), '${median.toStringAsFixed(0)} €')),
+                      Expanded(child: resultBox('BUY MAX', max == null ? '–' : '${max.toStringAsFixed(0)} €')),
+                      Expanded(child: resultBox(t('Treffer', 'Results'), '${listings.length}')),
+                    ]),
+                    const SizedBox(height: 8),
+                    Text(t('BUY MAX = maximaler Einkaufspreis für dein Ziel von ${widget.targetRoi.toStringAsFixed(0)} % ROI.', 'BUY MAX = maximum purchase price for your ${widget.targetRoi.toStringAsFixed(0)}% ROI target.'), style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+              ),
+            )
+          else
+            infoBox(
+              context,
+              Icons.info_outline,
+              t('Noch keine Live-Preise direkt in der App. Das ist kein Fehler: Quellen ohne freigeschaltete API bleiben trotzdem über ihre offizielle Live-Suche nutzbar.', 'No live prices inside the app yet. This is not an error: sources without an enabled API still work through their official live search.'),
+            ),
+          const SizedBox(height: 14),
+          Text(t('Quellen', 'Sources'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          ...enabled.map((source) {
+            final hits = listings.where((e) => e.sourceId == source.id).toList();
+            final direct = source.canFetchInApp;
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    sourceBadge(source),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(source.name, style: const TextStyle(fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 3),
+                          Text(
+                            hits.isNotEmpty
+                                ? t('${hits.length} Live-Treffer · ab ${hits.first.total.toStringAsFixed(2)} €', '${hits.length} live results · from €${hits.first.total.toStringAsFixed(2)}')
+                                : direct
+                                    ? (errors[source.id] ?? t('Adapter verbunden · aktuell keine Treffer', 'Adapter connected · no results right now'))
+                                    : t('Offizielle Live-Suche öffnen', 'Open official live search'),
+                            style: const TextStyle(color: Colors.black54),
+                          ),
+                        ],
+                      ),
                     ),
-                    Center(
-                      child: Container(
-                        width: 270,
-                        height: 170,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white, width: 3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                    TextButton.icon(onPressed: () => _open(source), icon: const Icon(Icons.open_in_new), label: Text(t('Öffnen', 'Open'))),
+                  ],
+                ),
+              ),
+            );
+          }),
+          if (listings.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(t('Günstigste Live-Treffer', 'Cheapest live results'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            ...listings.take(8).map((item) => Card(
+                  child: ListTile(
+                    title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('${item.sourceName}${item.condition.isEmpty ? '' : ' · ${item.condition}'}'),
+                    trailing: Text('${item.total.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.w900)),
+                    onTap: item.url.isEmpty ? null : () => launchUrl(Uri.parse(item.url), mode: LaunchMode.externalApplication),
+                  ),
+                )),
+          ],
+          const SizedBox(height: 18),
+          Text(t('Dein konkretes Angebot', 'Your actual deal'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: TextField(controller: buy, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t('Einkauf €', 'Buy €')))),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: costs, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t('Kosten €', 'Costs €')))),
+          ]),
+          const SizedBox(height: 10),
+          TextField(controller: manualSell, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t('Zielverkauf € (optional)', 'Target sale € (optional)'), helperText: t('Leer lassen = Live-Median verwenden', 'Leave empty = use live median'))),
+          const SizedBox(height: 12),
+          if (sell != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(children: [
+                      Expanded(child: resultBox(t('Zielverkauf', 'Target sale'), '${sell.toStringAsFixed(0)} €')),
+                      Expanded(child: resultBox(t('Gewinn', 'Profit'), profit == null ? '–' : '${profit.toStringAsFixed(0)} €')),
+                      Expanded(child: resultBox('ROI', roi == null ? '–' : '${roi.toStringAsFixed(1)} %')),
+                    ]),
+                    const SizedBox(height: 10),
+                    if (b > 0 && max != null)
+                      decisionBanner(context, b <= max, t),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: b <= 0
+                            ? null
+                            : () {
+                                widget.onAddFlip(FlipItem(
+                                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                  name: query.text.trim().isEmpty ? 'Item' : query.text.trim(),
+                                  buy: b,
+                                  sell: sell,
+                                  costs: c,
+                                  status: 'Bought',
+                                  source: 'FlipRadar',
+                                  createdAt: DateTime.now(),
+                                ));
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Zu Flips gespeichert', 'Saved to Flips'))));
+                              },
+                        icon: const Icon(Icons.inventory_2_outlined),
+                        label: Text(t('Als Kauf speichern', 'Save as purchase')),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
         ],
-      );
+      ],
+    );
+  }
 }
 
-class Market extends StatefulWidget {
-  final bool en;
-  final String initial, keepa, backend;
-  final double targetRoi;
-  final ValueChanged<FlipItem> onAddFlip;
-  const Market({
-    super.key,
-    required this.en,
-    required this.initial,
-    required this.keepa,
-    required this.backend,
-    required this.targetRoi,
-    required this.onAddFlip,
-  });
+class SourcesPage extends StatefulWidget {
+  final bool english;
+  final String backend;
+  final List<PriceSource> sources;
+  final ValueChanged<List<PriceSource>> onChanged;
+
+  const SourcesPage({super.key, required this.english, required this.backend, required this.sources, required this.onChanged});
+
   @override
-  State<Market> createState() => _MarketState();
+  State<SourcesPage> createState() => _SourcesPageState();
 }
 
-class _MarketState extends State<Market> {
-  late final TextEditingController q;
-  final buy = TextEditingController();
-  final fees = TextEditingController(text: '0');
-  final shipping = TextEditingController(text: '6');
-  final other = TextEditingController(text: '0');
-  final snaps = <Snap>[];
-  bool loading = false;
-  String? error;
-
-  String t(String de, String en) => widget.en ? en : de;
-  double n(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
+class _SourcesPageState extends State<SourcesPage> {
+  late List<PriceSource> items;
+  String t(String de, String en) => widget.english ? en : de;
 
   @override
   void initState() {
     super.initState();
-    q = TextEditingController(text: widget.initial);
-    if (widget.initial.trim().isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => lookup());
+    items = [...widget.sources];
+  }
+
+  void save() => widget.onChanged([...items]);
+
+  Future<void> _addCustom() async {
+    final result = await showModalBottomSheet<PriceSource>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => AddSourceSheet(english: widget.english),
+    );
+    if (result == null) return;
+    if (items.any((e) => e.id == result.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Diese Quelle gibt es bereits.', 'This source already exists.'))));
+      return;
     }
+    setState(() => items.add(result));
+    save();
   }
 
   @override
-  void dispose() {
-    for (final x in [q, buy, fees, shipping, other]) {
-      x.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> lookup() async {
-    final term = q.text.trim();
-    if (term.isEmpty) return;
-    setState(() {
-      loading = true;
-      error = null;
-      snaps.clear();
-    });
-    final errs = <String>[];
-    if (widget.keepa.trim().isNotEmpty) {
-      try {
-        final s = await keepa(term);
-        if (s != null) snaps.add(s);
-      } catch (e) {
-        errs.add('Amazon/Keepa: $e');
-      }
-    }
-    if (widget.backend.trim().isNotEmpty) {
-      try {
-        final s = await ebay(term);
-        if (s != null) snaps.add(s);
-      } catch (e) {
-        errs.add('eBay: $e');
-      }
-    }
-    setState(() {
-      loading = false;
-      if (errs.isNotEmpty) error = errs.join('\n');
-    });
-  }
-
-  Future<Snap?> keepa(String term) async {
-    final clean = term.trim();
-    final isAsin = RegExp(r'^[A-Z0-9]{10}$', caseSensitive: false).hasMatch(clean);
-    final isCode = RegExp(r'^\d{8,14}$').hasMatch(clean);
-    if (!isAsin && !isCode) {
-      return Snap(
-        'Amazon DE / Keepa',
-        clean,
-        t('Für Live-Keepa EAN, UPC oder ASIN verwenden.', 'Use EAN, UPC or ASIN for live Keepa.'),
-        live: false,
-      );
-    }
-    final params = <String, String>{
-      'key': widget.keepa.trim(),
-      'domain': '3',
-      'stats': '90',
-      'history': '0',
-    };
-    if (isAsin) {
-      params['asin'] = clean.toUpperCase();
-    } else {
-      params['code'] = clean;
-    }
-    final r = await http
-        .get(
-          Uri.https('api.keepa.com', '/product', params),
-          headers: {'Accept-Encoding': 'gzip'},
-        )
-        .timeout(const Duration(seconds: 12));
-    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
-    final d = jsonDecode(r.body) as Map<String, dynamic>;
-    final products = d['products'];
-    if (products is! List || products.isEmpty) {
-      throw Exception(t('kein Treffer', 'no match'));
-    }
-    final p = products.first as Map<String, dynamic>;
-    double? amazon, newPrice, used;
-    final st = p['stats'];
-    if (st is Map<String, dynamic> && st['current'] is List) {
-      final cur = st['current'] as List;
-      double? at(int i) {
-        if (i >= cur.length) return null;
-        final raw = cur[i];
-        if (raw is num && raw > 0) return raw.toDouble() / 100;
-        return null;
-      }
-      amazon = at(0);
-      newPrice = at(1);
-      used = at(2);
-    }
-    final vals = [amazon, newPrice, used].whereType<double>().toList()..sort();
-    double? med;
-    if (vals.isNotEmpty) {
-      med = vals.length.isOdd
-          ? vals[vals.length ~/ 2]
-          : (vals[vals.length ~/ 2 - 1] + vals[vals.length ~/ 2]) / 2;
-    }
-    return Snap(
-      'Amazon DE / Keepa',
-      p['title']?.toString() ?? clean,
-      t(
-        'Amazon: ${money(amazon)} · Neu: ${money(newPrice)} · Gebraucht: ${money(used)}',
-        'Amazon: ${money(amazon)} · New: ${money(newPrice)} · Used: ${money(used)}',
-      ),
-      price: amazon ?? newPrice ?? used,
-      min: vals.isEmpty ? null : vals.first,
-      max: vals.isEmpty ? null : vals.last,
-      median: med,
-      count: vals.length,
-    );
-  }
-
-  Future<Snap?> ebay(String term) async {
-    final base = widget.backend.trim().replaceAll(RegExp(r'/+$'), '');
-    final uri = Uri.parse('$base/api/market/ebay').replace(
-      queryParameters: {'q': term, 'marketplace': 'EBAY_DE'},
-    );
-    final r = await http.get(uri).timeout(const Duration(seconds: 12));
-    if (r.statusCode != 200) throw Exception('HTTP ${r.statusCode}');
-    final d = jsonDecode(r.body) as Map<String, dynamic>;
-    return Snap(
-      'eBay DE',
-      term,
-      t(
-        'Aktive eBay-Angebote via offiziellem Browse-API-Adapter.',
-        'Active eBay listings via official Browse API adapter.',
-      ),
-      price: (d['median'] as num?)?.toDouble(),
-      median: (d['median'] as num?)?.toDouble(),
-      min: (d['min'] as num?)?.toDouble(),
-      max: (d['max'] as num?)?.toDouble(),
-      count: (d['count'] as num?)?.toInt() ?? 0,
-    );
-  }
-
-  static String money(double? v) => v == null ? '—' : '${v.toStringAsFixed(2)} €';
-
-  double? get ref {
-    final v = snaps
-        .expand((s) => [s.median, s.price])
-        .whereType<double>()
-        .where((x) => x > 0)
-        .toList()
-      ..sort();
-    if (v.isEmpty) return null;
-    return v[v.length ~/ 2];
-  }
-
-  double? get buyMax {
-    if (ref == null) return null;
-    final fixed = n(fees) + n(shipping) + n(other);
-    return math.max(0.0, (ref! - fixed) / (1 + widget.targetRoi / 100)).toDouble();
-  }
-
-  String url(String source, String term) {
-    final e = Uri.encodeQueryComponent(term);
-    switch (source) {
-      case 'eBay DE':
-        return 'https://www.ebay.de/sch/i.html?_nkw=$e';
-      case 'Kleinanzeigen':
-        final slug = term
-            .toLowerCase()
-            .replaceAll(RegExp(r'[^a-z0-9äöüß]+'), '-')
-            .replaceAll(RegExp(r'^-+|-+$'), '');
-        return 'https://www.kleinanzeigen.de/s-$slug/k0';
-      case 'Amazon DE':
-        return 'https://www.amazon.de/s?k=$e';
-      case 'MediaMarkt':
-        return 'https://www.mediamarkt.de/de/search.html?query=$e';
-      case 'SATURN':
-        return 'https://www.saturn.de/de/search.html?query=$e';
-      default:
-        return 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=$e';
-    }
-  }
-
-  Future<void> open(String u) => launchUrl(Uri.parse(u), mode: LaunchMode.externalApplication);
-
-  @override
-  Widget build(BuildContext c) {
-    final sell = ref ?? 0;
-    final b = n(buy);
-    final cost = n(fees) + n(shipping) + n(other);
-    final profit = sell - b - cost;
-    final roi = b <= 0 ? 0 : profit / b * 100;
-    final sources = ['eBay DE', 'Kleinanzeigen', 'Amazon DE', 'MediaMarkt', 'SATURN', 'idealo'];
+  Widget build(BuildContext context) {
+    final enabled = items.where((e) => e.enabled).length;
+    final direct = items.where((e) => e.enabled && e.canFetchInApp).length;
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        header(
-          t('Live-Markt', 'Live market'),
-          t('Ein Produkt über mehrere Portale prüfen', 'Check one product across multiple portals'),
+        header(t('Quellen', 'Sources'), t('Wie Steckdosen: einschalten, fertig.', 'Like switches: turn on and go.')),
+        const SizedBox(height: 12),
+        infoBox(
+          context,
+          Icons.lightbulb_outline,
+          t('Grün = sofort nutzbar. „In-App Live“ bedeutet: FlipRadar kann Preise direkt einlesen. „Website“ bedeutet: ein Tippen öffnet die offizielle aktuelle Suche.', 'Green = ready now. “In-app live” means FlipRadar can read prices directly. “Website” means one tap opens the official current search.'),
         ),
-        const SizedBox(height: 14),
-        TextField(
-          controller: q,
-          onSubmitted: (_) => lookup(),
-          decoration: InputDecoration(
-            hintText: t('Produkt, EAN, UPC oder ASIN', 'Product, EAN, UPC or ASIN'),
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: loading
-                ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : IconButton(onPressed: lookup, icon: const Icon(Icons.refresh)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: loading ? null : lookup,
-          icon: const Icon(Icons.radar),
-          label: Text(t('API-Daten abrufen', 'Fetch API data')),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 8),
-          note(error!),
-        ],
-        const SizedBox(height: 18),
-        Text(
-          t('Live-Daten', 'Live data'),
-          style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        if (snaps.isEmpty)
-          note(t(
-            'Noch keine API verbunden oder kein Treffer. Die Portal-Suche darunter funktioniert trotzdem live.',
-            'No API connected or no match yet. Portal search below still works live.',
-          )),
-        ...snaps.map(
-          (s) => Padding(
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: metricCard(t('Aktiv', 'Enabled'), '$enabled')),
+          const SizedBox(width: 8),
+          Expanded(child: metricCard(t('In-App Live', 'In-app live'), '$direct')),
+        ]),
+        const SizedBox(height: 16),
+        ...items.asMap().entries.map((entry) {
+          final i = entry.key;
+          final source = entry.value;
+          final status = source.canFetchInApp ? t('In-App Live bereit', 'In-app live ready') : t('Website-Suche', 'Website search');
+          return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(
               child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.all(12),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(s.source, style: const TextStyle(fontWeight: FontWeight.w900)),
-                        ),
-                        Chip(label: Text(s.live ? 'LIVE' : 'INFO')),
-                      ],
+                    sourceBadge(source),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Flexible(child: Text(source.name, style: const TextStyle(fontWeight: FontWeight.w900))),
+                            if (source.recommended) ...[
+                              const SizedBox(width: 6),
+                              Chip(label: Text(t('Empfohlen', 'Recommended')), visualDensity: VisualDensity.compact),
+                            ],
+                          ]),
+                          Text(source.subtitle, style: const TextStyle(color: Colors.black54)),
+                          const SizedBox(height: 4),
+                          Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: source.canFetchInApp ? Colors.green.shade700 : Colors.blue.shade700)),
+                        ],
+                      ),
                     ),
-                    Text(s.title),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        stat(t('Preis', 'Price'), money(s.price)),
-                        stat('Median', money(s.median)),
-                        stat(t('Treffer', 'Count'), '${s.count}'),
-                      ],
+                    Switch(
+                      value: source.enabled,
+                      onChanged: (v) {
+                        setState(() => items[i] = source.copyWith(enabled: v));
+                        save();
+                      },
                     ),
-                    const SizedBox(height: 8),
-                    Text(s.detail, style: Theme.of(c).textTheme.bodySmall),
                   ],
                 ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 18),
+          );
+        }),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(onPressed: _addCustom, icon: const Icon(Icons.add_link), label: Text(t('Eigene Quelle hinzufügen', 'Add your own source'))),
+        const SizedBox(height: 10),
         Text(
-          t('Portale live öffnen', 'Open live portals'),
-          style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        ...sources.map(
-          (s) => Padding(
-            padding: const EdgeInsets.only(bottom: 7),
-            child: Card(
-              child: ListTile(
-                leading: const Icon(Icons.open_in_new),
-                title: Text(s, style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(
-                  s == 'eBay DE'
-                      ? t('API-ready + echte Websuche', 'API-ready + real web search')
-                      : s == 'Amazon DE'
-                          ? t('Keepa optional + echte Websuche', 'Optional Keepa + real web search')
-                          : t('Echte Websuche, keine inoffizielle API', 'Real web search, no unofficial API'),
-                ),
-                trailing: IconButton(
-                  onPressed: q.text.trim().isEmpty ? null : () => open(url(s, q.text.trim())),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          t('Deal-Rechner', 'Deal calculator'),
-          style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: moneyField(buy, t('Einkauf', 'Buy'), () => setState(() {}))),
-            const SizedBox(width: 8),
-            Expanded(child: moneyField(fees, t('Gebühren', 'Fees'), () => setState(() {}))),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(child: moneyField(shipping, t('Versand', 'Shipping'), () => setState(() {}))),
-            const SizedBox(width: 8),
-            Expanded(child: moneyField(other, t('Sonstiges', 'Other'), () => setState(() {}))),
-          ],
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                stat('BUY MAX', money(buyMax)),
-                stat(t('Gewinn', 'Profit'), ref == null ? '—' : '${profit.toStringAsFixed(2)} €'),
-                stat('ROI', ref == null || b <= 0 ? '—' : '${roi.toStringAsFixed(1)} %'),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          t(
-            'BUY MAX nutzt ${widget.targetRoi.toStringAsFixed(0)} % Ziel-ROI.',
-            'BUY MAX uses ${widget.targetRoi.toStringAsFixed(0)}% target ROI.',
-          ),
-          style: Theme.of(c).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: ref == null || q.text.trim().isEmpty
-              ? null
-              : () {
-                  widget.onAddFlip(FlipItem(q.text.trim(), b, ref!, cost, 'Bought'));
-                  ScaffoldMessenger.of(c).showSnackBar(
-                    SnackBar(content: Text(t('Flip gespeichert', 'Flip saved'))),
-                  );
-                },
-          icon: const Icon(Icons.inventory_2_outlined),
-          label: Text(t('Als Flip speichern', 'Save as flip')),
+          t('Für Entwickler & Partner: Eine Quelle kann über ein kleines FlipRadar-Manifest hinzugefügt werden. So ist kein App-Update nötig.', 'For developers & partners: a source can be added with a small FlipRadar manifest, so no app update is required.'),
+          style: const TextStyle(color: Colors.black54),
         ),
       ],
     );
   }
 }
 
-class Flips extends StatelessWidget {
-  final bool en;
-  final List<FlipItem> flips;
-  final void Function(int, FlipItem) onUpdate;
-  const Flips({super.key, required this.en, required this.flips, required this.onUpdate});
-  String t(String de, String en) => this.en ? en : de;
+class AddSourceSheet extends StatefulWidget {
+  final bool english;
+  const AddSourceSheet({super.key, required this.english});
+
   @override
-  Widget build(BuildContext c) => ListView(
-        padding: const EdgeInsets.all(18),
+  State<AddSourceSheet> createState() => _AddSourceSheetState();
+}
+
+class _AddSourceSheetState extends State<AddSourceSheet> {
+  final manifest = TextEditingController();
+  final name = TextEditingController();
+  final searchUrl = TextEditingController();
+  final adapterUrl = TextEditingController();
+  bool advanced = false;
+  bool importing = false;
+  String? error;
+  String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  void dispose() {
+    manifest.dispose();
+    name.dispose();
+    searchUrl.dispose();
+    adapterUrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _import() async {
+    if (manifest.text.trim().isEmpty) return;
+    setState(() {
+      importing = true;
+      error = null;
+    });
+    try {
+      final source = await SourceRegistry.importManifest(manifest.text.trim());
+      if (!mounted) return;
+      Navigator.pop(context, source);
+    } catch (e) {
+      setState(() => error = t('Import nicht möglich. Prüfe den Link und das Manifest.', 'Import failed. Check the link and manifest.'));
+    } finally {
+      if (mounted) setState(() => importing = false);
+    }
+  }
+
+  void _manual() {
+    try {
+      final source = PriceSource.fromJson({
+        'name': name.text.trim(),
+        'subtitle': widget.english ? 'Custom source' : 'Eigene Quelle',
+        'search_url': searchUrl.text.trim(),
+        'adapter_url': adapterUrl.text.trim().isEmpty ? null : adapterUrl.text.trim(),
+      });
+      Navigator.pop(context, source);
+    } catch (_) {
+      setState(() => error = t('Name und Such-Link sind nötig. Im Such-Link muss {query} stehen.', 'Name and search link are required. The search link must contain {query}.'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: ListView(
+        shrinkWrap: true,
         children: [
-          header(t('Meine Flips', 'My flips'), t('Bestand, Status und Marge', 'Inventory, status and margin')),
+          Text(t('Quelle hinzufügen', 'Add a source'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(t('Am einfachsten: einen FlipRadar-Manifest-Link einfügen. Für normale Nutzer reicht sonst Name + Such-Link.', 'Easiest: paste a FlipRadar manifest link. For regular users, name + search link is enough.'), style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 16),
+          TextField(controller: manifest, decoration: InputDecoration(labelText: t('Manifest-Link (optional)', 'Manifest link (optional)'), hintText: 'https://example.com/flipradar-source.json')),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(onPressed: importing ? null : _import, icon: const Icon(Icons.download), label: Text(importing ? t('Importiere…', 'Importing…') : t('Manifest importieren', 'Import manifest'))),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Divider()),
+          TextField(controller: name, decoration: InputDecoration(labelText: t('Name der Website', 'Website name'), hintText: 'Mein Shop')),
+          const SizedBox(height: 8),
+          TextField(controller: searchUrl, decoration: InputDecoration(labelText: t('Such-Link', 'Search link'), hintText: 'https://shop.de/search?q={query}', helperText: t('{query} wird automatisch durch das Produkt ersetzt.', '{query} is automatically replaced by the product.'))),
+          const SizedBox(height: 6),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t('Live-Adapter hinzufügen (für Entwickler)', 'Add live adapter (for developers)')),
+            subtitle: Text(t('Nur nötig, wenn Preise direkt in FlipRadar erscheinen sollen.', 'Only needed if prices should appear directly inside FlipRadar.')),
+            value: advanced,
+            onChanged: (v) => setState(() => advanced = v),
+          ),
+          if (advanced)
+            TextField(controller: adapterUrl, decoration: InputDecoration(labelText: t('Adapter-URL', 'Adapter URL'), hintText: 'https://api.example.com/search?q={query}')),
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w700)),
+          ],
           const SizedBox(height: 14),
-          if (flips.isEmpty) note(t('Noch keine Flips gespeichert.', 'No flips saved yet.')),
-          ...flips.asMap().entries.map((e) {
-            final f = e.value;
-            return Padding(
+          FilledButton.icon(onPressed: _manual, icon: const Icon(Icons.add), label: Text(t('Quelle speichern', 'Save source'))),
+        ],
+      ),
+    );
+  }
+}
+
+class FlipsPage extends StatelessWidget {
+  final bool english;
+  final List<FlipItem> flips;
+  final ValueChanged<FlipItem> onUpdate;
+  const FlipsPage({super.key, required this.english, required this.flips, required this.onUpdate});
+  String t(String de, String en) => english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    final soldProfit = flips.where((e) => e.status == 'Sold').fold<double>(0, (a, b) => a + b.profit);
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        header(t('Meine Flips', 'My Flips'), t('Was gekauft wurde und was wirklich verdient wurde.', 'What you bought and what you actually earned.')),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: metricCard(t('Gesamt', 'Total'), '${flips.length}')),
+          const SizedBox(width: 8),
+          Expanded(child: metricCard(t('Realisiert', 'Realized'), '${soldProfit.toStringAsFixed(0)} €')),
+        ]),
+        const SizedBox(height: 16),
+        if (flips.isEmpty)
+          infoBox(context, Icons.inventory_2_outlined, t('Noch keine Flips. Prüfe einen Deal und speichere ihn als Kauf.', 'No flips yet. Check a deal and save it as a purchase.')),
+        ...flips.map((f) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(
-                child: ListTile(
-                  title: Text(f.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text(
-                    '${f.buy.toStringAsFixed(0)} € → ${f.sell.toStringAsFixed(0)} € · ${f.profit >= 0 ? '+' : ''}${f.profit.toStringAsFixed(0)} € · ${f.roi.toStringAsFixed(0)} %',
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (s) => onUpdate(e.key, f.withStatus(s)),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(value: 'Bought', child: Text(t('Gekauft', 'Bought'))),
-                      PopupMenuItem(value: 'Listed', child: Text(t('Inseriert', 'Listed'))),
-                      PopupMenuItem(value: 'Sold', child: Text(t('Verkauft', 'Sold'))),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Expanded(child: Text(f.name, style: const TextStyle(fontWeight: FontWeight.w900))),
+                        Chip(label: Text(f.status)),
+                      ]),
+                      Text('${f.buy.toStringAsFixed(0)} € → ${f.sell.toStringAsFixed(0)} € · ${t('Gewinn', 'Profit')} ${f.profit.toStringAsFixed(0)} € · ROI ${f.roi.toStringAsFixed(0)} %'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (f.status == 'Bought') OutlinedButton(onPressed: () => onUpdate(f.copyWith(status: 'Listed')), child: Text(t('Als inseriert markieren', 'Mark listed'))),
+                          if (f.status != 'Sold') FilledButton.tonal(onPressed: () => onUpdate(f.copyWith(status: 'Sold')), child: Text(t('Als verkauft markieren', 'Mark sold'))),
+                        ],
+                      ),
                     ],
-                    child: Chip(label: Text(f.status)),
                   ),
                 ),
               ),
-            );
-          }),
-        ],
-      );
+            )),
+      ],
+    );
+  }
 }
 
-class Setup extends StatefulWidget {
-  final bool en;
-  final String keepa, backend;
+class MorePage extends StatefulWidget {
+  final bool english;
+  final String backend;
   final double targetRoi;
-  final ValueChanged<bool> onEn;
-  final ValueChanged<String> onKeepa, onBackend;
+  final UserPlan plan;
+  final ValueChanged<bool> onLanguage;
+  final ValueChanged<String> onBackend;
   final ValueChanged<double> onRoi;
-  const Setup({
+  final ValueChanged<UserPlan> onPlanPreview;
+
+  const MorePage({
     super.key,
-    required this.en,
-    required this.keepa,
+    required this.english,
     required this.backend,
     required this.targetRoi,
-    required this.onEn,
-    required this.onKeepa,
+    required this.plan,
+    required this.onLanguage,
     required this.onBackend,
     required this.onRoi,
+    required this.onPlanPreview,
   });
+
   @override
-  State<Setup> createState() => _SetupState();
+  State<MorePage> createState() => _MorePageState();
 }
 
-class _SetupState extends State<Setup> {
-  late final TextEditingController k, b;
-  String t(String de, String en) => widget.en ? en : de;
+class _MorePageState extends State<MorePage> {
+  late final TextEditingController backend;
+  String t(String de, String en) => widget.english ? en : de;
+
   @override
   void initState() {
     super.initState();
-    k = TextEditingController(text: widget.keepa);
-    b = TextEditingController(text: widget.backend);
+    backend = TextEditingController(text: widget.backend);
   }
 
   @override
   void dispose() {
-    k.dispose();
-    b.dispose();
+    backend.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext c) => ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          header(
-            t('Datenquellen & Setup', 'Data sources & setup'),
-            t('Live-Zugänge verbinden', 'Connect live data access'),
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        header(t('Mehr', 'More'), t('Einstellungen ohne Technik-Chaos.', 'Settings without tech chaos.')),
+        const SizedBox(height: 14),
+        PaywallCard(
+          english: widget.english,
+          plan: widget.plan,
+          onOpen: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaywallPage(english: widget.english, current: widget.plan, onPreview: widget.onPlanPreview))),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: Text(t('English', 'Deutsch')),
+                subtitle: Text(t('App auf Englisch umstellen', 'Switch app to German')),
+                value: widget.english,
+                onChanged: widget.onLanguage,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                title: Text(t('Ziel-ROI', 'Target ROI')),
+                subtitle: Slider(
+                  min: 10,
+                  max: 100,
+                  divisions: 18,
+                  label: '${widget.targetRoi.toStringAsFixed(0)} %',
+                  value: widget.targetRoi.clamp(10, 100),
+                  onChanged: widget.onRoi,
+                ),
+                trailing: Text('${widget.targetRoi.toStringAsFixed(0)} %', style: const TextStyle(fontWeight: FontWeight.w900)),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          Card(
-            child: SwitchListTile(
-              title: const Text('English'),
-              value: widget.en,
-              onChanged: widget.onEn,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
+        ),
+        const SizedBox(height: 12),
+        ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          collapsedBackgroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: const Icon(Icons.settings_ethernet),
+          title: Text(t('Live-Daten-Zentrale', 'Live data hub'), style: const TextStyle(fontWeight: FontWeight.w800)),
+          subtitle: Text(t('Nur nötig für direkte API-Preise', 'Only needed for direct API prices')),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Amazon DE via Keepa', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-                  const SizedBox(height: 6),
-                  Text(t(
-                    'Optional: Keepa liefert Amazon-Preis- und Historiedaten. Der Key bleibt lokal auf diesem Testgerät.',
-                    'Optional: Keepa supplies Amazon price and history data. The key stays locally on this test device.',
-                  )),
+                  Text(t('Für normale Nutzung musst du hier nichts einstellen. Wenn dein FlipRadar-Server läuft, genügt eine einzige Serveradresse – die einzelnen Portale werden dort verwaltet.', 'For normal use you do not need to set anything here. When your FlipRadar server is running, one server address is enough; individual portals are managed there.'), style: const TextStyle(color: Colors.black54)),
                   const SizedBox(height: 10),
-                  TextField(
-                    controller: k,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Keepa API key',
-                      prefixIcon: Icon(Icons.key),
-                    ),
-                  ),
+                  TextField(controller: backend, decoration: const InputDecoration(labelText: 'FlipRadar API URL', hintText: 'https://api.deine-domain.de')),
                   const SizedBox(height: 8),
-                  FilledButton.tonal(
-                    onPressed: () => widget.onKeepa(k.text.trim()),
-                    child: Text(t('Speichern', 'Save')),
-                  ),
+                  SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => widget.onBackend(backend.text), child: Text(t('Server speichern', 'Save server')))),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('eBay DE Backend', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-                  const SizedBox(height: 6),
-                  Text(t(
-                    'eBay-Secret gehört nicht in die APK. Trage die URL des FlipRadar-Backends ein.',
-                    'The eBay secret must not be stored in the APK. Enter the FlipRadar backend URL.',
-                  )),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: b,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
-                      labelText: 'Backend URL',
-                      hintText: 'https://api.example.com',
-                      prefixIcon: Icon(Icons.cloud_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.tonal(
-                    onPressed: () => widget.onBackend(b.text.trim()),
-                    child: Text(t('Speichern', 'Save')),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(t('Ziel-ROI', 'Target ROI'), style: const TextStyle(fontWeight: FontWeight.w900)),
-                  Slider(
-                    value: widget.targetRoi.clamp(10, 100).toDouble(),
-                    min: 10,
-                    max: 100,
-                    divisions: 18,
-                    label: '${widget.targetRoi.toStringAsFixed(0)} %',
-                    onChanged: widget.onRoi,
-                  ),
-                  Text('${widget.targetRoi.toStringAsFixed(0)} %'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          note(t(
-            'MediaMarkt und SATURN: Partner- und Produktfeeds sind vorbereitet, aber erst nach Freigabe des jeweiligen Partnerprogramms automatisch abrufbar. Kleinanzeigen wird bewusst nicht über private oder reverse-engineerte APIs gescraped.',
-            'MediaMarkt and SATURN: partner and product feeds are prepared, but automated retrieval requires partner-program approval. Kleinanzeigen is intentionally not scraped through private or reverse-engineered APIs.',
-          )),
-        ],
-      );
+          ],
+        ),
+        const SizedBox(height: 12),
+        infoBox(context, Icons.security_outlined, t('API-Schlüssel gehören auf den Server, nicht in die App. Das macht eBay, Amazon/Keepa und spätere Partnerquellen leichter austauschbar und sicherer.', 'API keys belong on the server, not in the app. This makes eBay, Amazon/Keepa and future partner sources easier to swap and safer.')),
+      ],
+    );
+  }
 }
 
-Widget header(String title, String sub) => Column(
+class PaywallCard extends StatelessWidget {
+  final bool english;
+  final UserPlan plan;
+  final VoidCallback onOpen;
+  const PaywallCard({super.key, required this.english, required this.plan, required this.onOpen});
+  String t(String de, String en) => english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFree = plan == UserPlan.free;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(isFree ? Icons.workspace_premium_outlined : Icons.workspace_premium),
+              const SizedBox(width: 8),
+              Expanded(child: Text(isFree ? 'FlipRadar FREE' : plan == UserPlan.pro ? 'FlipRadar PRO' : 'FlipRadar PRO+', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
+            ]),
+            const SizedBox(height: 6),
+            Text(isFree ? t('Kostenlos mit dezenten Werbeplätzen. Pro entfernt Werbung und schaltet Komfortfunktionen frei.', 'Free with subtle ad placements. Pro removes ads and unlocks convenience features.') : t('Pro-Vorschau ist aktiv. In dieser Test-APK wurde nichts berechnet.', 'Pro preview is active. No charge was made in this test APK.')),
+            const SizedBox(height: 10),
+            SizedBox(width: double.infinity, child: FilledButton.tonal(onPressed: onOpen, child: Text(t('Pläne ansehen', 'View plans')))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PaywallPage extends StatelessWidget {
+  final bool english;
+  final UserPlan current;
+  final ValueChanged<UserPlan> onPreview;
+  const PaywallPage({super.key, required this.english, required this.current, required this.onPreview});
+  String t(String de, String en) => english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(t('FlipRadar Pläne', 'FlipRadar plans'))),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Text(t('Monetarisierung, ohne die App nervig zu machen', 'Monetization without making the app annoying'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Text(t('In der Test-APK kannst du die Pläne nur ansehen und als Vorschau umschalten. Echte Käufe werden erst über Google Play/App Store aktiviert.', 'In this test APK you can only preview plans. Real purchases will be enabled through Google Play/App Store.'), style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 16),
+          planCard(context, title: 'FREE', price: '0 €', bullets: [t('Preisvergleich & Websuchen', 'Price comparison & web searches'), t('Barcode-Scan', 'Barcode scan'), t('Flips lokal speichern', 'Save flips locally'), t('Dezente Werbung', 'Subtle ads')], selected: current == UserPlan.free, onTap: () => onPreview(UserPlan.free)),
+          const SizedBox(height: 10),
+          planCard(context, title: 'PRO', price: '9,99 € / Monat', bullets: [t('Keine Werbung', 'No ads'), t('Unbegrenzte Live-Checks', 'Unlimited live checks'), t('Watchlists & Preisalarme', 'Watchlists & price alerts'), t('Erweiterte Marktwerte', 'Advanced market values')], selected: current == UserPlan.pro, onTap: () => onPreview(UserPlan.pro), recommended: true),
+          const SizedBox(height: 10),
+          planCard(context, title: 'PRO+', price: '19,99 € / Monat', bullets: [t('Alles aus Pro', 'Everything in Pro'), t('Eigene/Partner-Quellen', 'Custom/partner sources'), t('Cross-Border & mehr Länder', 'Cross-border & more countries'), t('Export & Profi-Auswertung', 'Export & pro analytics')], selected: current == UserPlan.proPlus, onTap: () => onPreview(UserPlan.proPlus)),
+          const SizedBox(height: 14),
+          infoBox(context, Icons.ads_click_outlined, t('Werbestrategie: Banner/native Werbeplätze an ruhigen Stellen. Keine zufälligen Vollbildanzeigen mitten beim Prüfen eines Deals.', 'Ad strategy: banner/native placements in calm areas. No random full-screen ads while checking a deal.')),
+          const SizedBox(height: 10),
+          Text(t('Hinweis: „Vorschau aktivieren“ ist nur zum Testen des Designs und löst keine Zahlung aus.', 'Note: “Enable preview” is only for testing the design and does not trigger a payment.'), style: const TextStyle(color: Colors.black54)),
+        ],
+      ),
+    );
+  }
+}
+
+Widget planCard(BuildContext context, {required String title, required String price, required List<String> bullets, required bool selected, required VoidCallback onTap, bool recommended = false}) {
+  return Card(
+    color: recommended ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45) : null,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+            if (recommended) ...[const SizedBox(width: 8), const Chip(label: Text('BEST VALUE'))],
+            const Spacer(),
+            Text(price, style: const TextStyle(fontWeight: FontWeight.w900)),
+          ]),
+          const SizedBox(height: 8),
+          ...bullets.map((b) => Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: Row(children: [const Icon(Icons.check, size: 18), const SizedBox(width: 7), Expanded(child: Text(b))]))),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: selected ? FilledButton(onPressed: null, child: const Text('AKTIV / ACTIVE')) : OutlinedButton(onPressed: onTap, child: const Text('VORSCHAU AKTIVIEREN / ENABLE PREVIEW'))),
+        ],
+      ),
+    ),
+  );
+}
+
+class SponsoredSlot extends StatelessWidget {
+  final bool english;
+  const SponsoredSlot({super.key, required this.english});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.black12)),
+      child: Row(
+        children: [
+          const Icon(Icons.campaign_outlined),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(english ? 'Ad space' : 'Werbeplatz', style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(english ? 'Reserved for a subtle banner/native ad in the Free plan.' : 'Reserviert für eine dezente Banner-/Native-Anzeige im Free-Tarif.', style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          ])),
+          const Text('AD', style: TextStyle(fontSize: 11, color: Colors.black45)),
+        ],
+      ),
+    );
+  }
+}
+
+class ScannerPage extends StatefulWidget {
+  final bool english;
+  const ScannerPage({super.key, required this.english});
+
+  @override
+  State<ScannerPage> createState() => _ScannerPageState();
+}
+
+class _ScannerPageState extends State<ScannerPage> {
+  bool done = false;
+  String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(t('Barcode scannen', 'Scan barcode'))),
+      body: Stack(
+        children: [
+          MobileScanner(
+            onDetect: (capture) {
+              if (done) return;
+              final value = capture.barcodes.firstOrNull?.rawValue;
+              if (value == null || value.isEmpty) return;
+              done = true;
+              Navigator.pop(context, value);
+            },
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              color: Colors.black87,
+              child: Text(t('Barcode in die Mitte halten. FlipRadar übernimmt den Code automatisch.', 'Hold the barcode in the center. FlipRadar captures it automatically.'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget header(String title, String subtitle) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
         const SizedBox(height: 3),
-        Text(sub, style: const TextStyle(color: Colors.black54)),
+        Text(subtitle, style: const TextStyle(color: Colors.black54)),
       ],
     );
 
-Widget stat(String label, String value, [bool dark = false]) => Expanded(
+Widget darkStat(String label, String value) => Expanded(
       child: Column(
-        children: [
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: dark ? Colors.white60 : Colors.black54,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: dark ? Colors.white : null,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-
-Widget note(String text) => Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5D8),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 20),
-          const SizedBox(width: 9),
-          Expanded(child: Text(text)),
+          Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          const SizedBox(height: 3),
+          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
         ],
       ),
     );
 
-Widget moneyField(
-  TextEditingController c,
-  String label,
-  VoidCallback changed,
-) =>
-    Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextField(
-        controller: c,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (_) => changed(),
-        decoration: InputDecoration(labelText: '$label €'),
+Widget metricCard(String label, String value) => Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 21)),
+        ]),
       ),
+    );
+
+Widget resultBox(String label, String value) => Column(
+      children: [
+        Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(value, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+      ],
+    );
+
+Widget infoBox(BuildContext context, IconData icon, String text) => Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.38), borderRadius: BorderRadius.circular(16)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ]),
+    );
+
+Widget sourceBadge(PriceSource source) {
+  Color c;
+  try {
+    c = Color(int.parse('FF${source.colorHex.replaceAll('#', '')}', radix: 16));
+  } catch (_) {
+    c = const Color(0xFF5746E8);
+  }
+  return CircleAvatar(backgroundColor: c.withValues(alpha: 0.13), child: Text(source.name.substring(0, 1).toUpperCase(), style: TextStyle(color: c, fontWeight: FontWeight.w900)));
+}
+
+Widget decisionBanner(BuildContext context, bool buy, String Function(String, String) t) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: buy ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: buy ? Colors.green.shade200 : Colors.orange.shade200),
+      ),
+      child: Row(children: [
+        Icon(buy ? Icons.thumb_up_alt : Icons.pan_tool_alt, color: buy ? Colors.green.shade800 : Colors.orange.shade800),
+        const SizedBox(width: 10),
+        Expanded(child: Text(buy ? t('PREIS PASST – liegt innerhalb deines BUY MAX.', 'PRICE FITS – it is within your BUY MAX.') : t('EHER LASSEN – Preis liegt über deinem BUY MAX.', 'BETTER SKIP – price is above your BUY MAX.'), style: const TextStyle(fontWeight: FontWeight.w900))),
+      ]),
     );
