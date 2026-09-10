@@ -140,10 +140,11 @@ class PriceSource {
 class SourceRegistry {
   static const _customKey = 'custom_sources_v05';
   static const _enabledKey = 'enabled_sources_v05';
+  static const defaultBackend = 'https://flipradar-api-production-ec00.up.railway.app';
 
   static String? _backendAdapter(String backendBase, String source) {
-    final b = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
-    if (b.isEmpty) return null;
+    final manual = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
+    final b = manual.isEmpty ? defaultBackend : manual;
     return '$b/v1/market/search?source=$source&q={query}';
   }
 
