@@ -36,24 +36,18 @@ jobs:
           cp /tmp/flipradar_pubspec.yaml pubspec.yaml
           python3 - <<'PY'
           from pathlib import Path
-
-          main = Path('lib/main.dart')
-          text = main.read_text()
-          text = text.replace(
-              'final r = b <= 0 ? 0 : p / b * 100;',
-              'final double r = b <= 0 ? 0.0 : p / b * 100;',
-          )
-          main.write_text(text)
-
           gradle = Path('android/app/build.gradle.kts')
           if gradle.exists():
               text = gradle.read_text()
               text = text.replace('applicationId = "com.flipradar.flipradar"', 'applicationId = "com.flipradar.app"')
               gradle.write_text(text)
-
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           if manifest.exists():
               text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
+              marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+              permission = '<uses-permission android:name="android.permission.CAMERA" />'
+              if permission not in text:
+                  text = text.replace(marker, marker + '\n    ' + permission)
               manifest.write_text(text)
           PY
 
@@ -74,7 +68,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-APK
+          name: FlipRadar-V0.3-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
