@@ -8,7 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'source_registry.dart';
 
-part 'v06_home_check.dart';
+part 'v06_home.dart';
+part 'v06_check.dart';
 part 'v06_watch_flips.dart';
 part 'v06_sources_more.dart';
 part 'v06_scanner_helpers.dart';
