@@ -31,15 +31,13 @@ jobs:
       - name: Generate Android project
         shell: bash
         run: |
-          cp lib/main.dart /tmp/flipradar_main.dart
-          cp lib/v06.dart /tmp/flipradar_v06.dart
-          cp lib/source_registry.dart /tmp/source_registry.dart
+          rm -rf /tmp/flipradar_lib
+          cp -r lib /tmp/flipradar_lib
           cp pubspec.yaml /tmp/flipradar_pubspec.yaml
           rm -rf android
           flutter create . --platforms=android --org com.flipradar --project-name flipradar --no-pub
-          cp /tmp/flipradar_main.dart lib/main.dart
-          cp /tmp/flipradar_v06.dart lib/v06.dart
-          cp /tmp/source_registry.dart lib/source_registry.dart
+          rm -rf lib
+          cp -r /tmp/flipradar_lib lib
           cp /tmp/flipradar_pubspec.yaml pubspec.yaml
           python3 - <<'PY2'
           from pathlib import Path
@@ -79,7 +77,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.6-APK
+          name: FlipRadar-V0.7-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
