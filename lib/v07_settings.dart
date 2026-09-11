@@ -38,7 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    roi = widget.targetRoi;
+    roi = widget.targetRoi.clamp(10, 100).toDouble();
     english = widget.english;
   }
 
@@ -51,7 +51,10 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          _SettingsSectionTitle(title: t('Dein Gewinnziel', 'Your profit target'), subtitle: t('Bestimmt, wie günstig du einkaufen solltest.', 'Defines how cheaply you should buy.')),
+          _SettingsSectionTitle(
+            title: t('Dein Gewinnziel', 'Your profit target'),
+            subtitle: t('Bestimmt, wie günstig du einkaufen solltest.', 'Defines how cheaply you should buy.'),
+          ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
@@ -95,7 +98,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 22),
-          _SettingsSectionTitle(title: t('Preisquellen', 'Price sources'), subtitle: t('Wo FlipRadar Preise prüft.', 'Where FlipRadar checks prices.')),
+          _SettingsSectionTitle(
+            title: t('Preisquellen', 'Price sources'),
+            subtitle: t('Wo FlipRadar Preise prüft.', 'Where FlipRadar checks prices.'),
+          ),
           const SizedBox(height: 9),
           Material(
             color: Colors.white,
@@ -280,6 +286,8 @@ class _SourcesPageState extends State<SourcesPage> {
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
           Text(t('Nur einschalten, wo du vergleichen möchtest.', 'Only enable where you want to compare.'), style: const TextStyle(fontSize: 13, color: Color(0xFF6F7482))),
+          const SizedBox(height: 4),
+          Text(t('AUTO = automatische Daten, sobald der Zugang verbunden ist. WEB = öffnet die echte Webseite.', 'AUTO = automatic data once access is connected. WEB = opens the real website.'), style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A8E9C))),
           const SizedBox(height: 14),
           ...items.asMap().entries.map((entry) {
             final i = entry.key;
@@ -305,7 +313,7 @@ class _SourcesPageState extends State<SourcesPage> {
                         children: [
                           Text(source.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                           const SizedBox(height: 2),
-                          Text('${roleText(source.role)} · ${source.canFetchInApp ? 'LIVE' : 'WEB'}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B7F8D))),
+                          Text('${roleText(source.role)} · ${source.canFetchInApp ? 'AUTO' : 'WEB'}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B7F8D))),
                         ],
                       ),
                     ),
@@ -361,14 +369,22 @@ class _SourcesPageState extends State<SourcesPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Abbrechen', 'Cancel'))),
           FilledButton(
             onPressed: () {
-              if (name.text.trim().isEmpty || !url.text.contains('{query}')) return;
+              final rawName = name.text.trim();
+              final rawUrl = url.text.trim();
+              final testUri = Uri.tryParse(rawUrl.replaceAll('{query}', 'flipradar'));
+              final valid = rawName.isNotEmpty &&
+                  rawUrl.contains('{query}') &&
+                  testUri != null &&
+                  {'http', 'https'}.contains(testUri.scheme.toLowerCase()) &&
+                  testUri.host.isNotEmpty;
+              if (!valid) return;
               Navigator.pop(
                 context,
                 PriceSource(
                   id: 'custom-${DateTime.now().millisecondsSinceEpoch}',
-                  name: name.text.trim(),
+                  name: rawName,
                   subtitle: t('Eigene Webseite', 'Custom website'),
-                  searchUrlTemplate: url.text.trim(),
+                  searchUrlTemplate: rawUrl,
                   role: 'reference',
                   builtIn: false,
                   enabled: true,
@@ -412,7 +428,7 @@ class _SourcesPageState extends State<SourcesPage> {
       });
       commit();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Quelle hinzugefügt.', 'Source added.'))));
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Import fehlgeschlagen.', 'Import failed.'))));
     }
