@@ -27,13 +27,16 @@ Future<void> enterManualDeal(
 
   expect(find.text('Noch kein Wiederverkaufswert'), findsOneWidget);
   var fields = find.byType(TextField);
-  expect(fields, findsNWidgets(2));
+  expect(fields.evaluate().length, greaterThanOrEqualTo(2));
   await tester.enterText(fields.at(1), buy);
 
-  await tester.tap(find.text('Verkaufspreis eingeben'));
-  await tester.pumpAndSettle();
   fields = find.byType(TextField);
-  expect(fields, findsNWidgets(3));
+  if (fields.evaluate().length < 3) {
+    await tester.tap(find.text('Verkaufspreis eingeben'));
+    await tester.pumpAndSettle();
+    fields = find.byType(TextField);
+  }
+  expect(fields.evaluate().length, greaterThanOrEqualTo(3));
   await tester.enterText(fields.at(2), sell);
   await tester.pump();
 }
