@@ -8,8 +8,16 @@ const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || '';
 const KEEPA_API_KEY = process.env.KEEPA_API_KEY || '';
 
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = Number(process.env.RATE_LIMIT_PER_MINUTE || 90);
+const CACHE_TTL_MS = 45_000;
+const CACHE_MAX = 400;
+const ALLOWED_SOURCES = new Set(['ebay_de', 'amazon_de', 'all']);
+
 let ebayToken = null;
 let ebayTokenExpiresAt = 0;
+const rateBuckets = new Map();
+const searchCache = new Map();
 
 function json(res, status, body) {
   const data = JSON.stringify(body);
@@ -17,7 +25,8 @@ function json(res, status, body) {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(data),
     'access-control-allow-origin': '*',
-    'cache-control': 'public, max-age=30',
+    'cache-control': status >= 200 && status < 300 ? 'public, max-age=30' : 'no-store',
+    'x-content-type-options': 'nosniff',
   });
   res.end(data);
 }
@@ -25,6 +34,55 @@ function json(res, status, body) {
 function money(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeQuery(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+function clientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || req.socket.remoteAddress || 'unknown';
+}
+
+function allowRequest(req) {
+  const now = Date.now();
+  const key = clientIp(req);
+  const current = rateBuckets.get(key);
+  if (!current || now - current.startedAt >= RATE_WINDOW_MS) {
+    rateBuckets.set(key, { startedAt: now, count: 1 });
+    return true;
+  }
+  current.count += 1;
+  return current.count <= RATE_MAX;
+}
+
+function pruneRateBuckets() {
+  if (rateBuckets.size < 1000) return;
+  const cutoff = Date.now() - RATE_WINDOW_MS * 2;
+  for (const [key, value] of rateBuckets) {
+    if (value.startedAt < cutoff) rateBuckets.delete(key);
+  }
+}
+
+function cacheGet(source, q) {
+  const key = `${source}:${q.toLowerCase()}`;
+  const entry = searchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.createdAt > CACHE_TTL_MS) {
+    searchCache.delete(key);
+    return null;
+  }
+  return entry.items;
+}
+
+function cacheSet(source, q, items) {
+  const key = `${source}:${q.toLowerCase()}`;
+  if (searchCache.size >= CACHE_MAX) {
+    const oldest = searchCache.keys().next().value;
+    if (oldest) searchCache.delete(oldest);
+  }
+  searchCache.set(key, { createdAt: Date.now(), items });
 }
 
 async function getEbayToken() {
@@ -61,8 +119,16 @@ async function getEbayToken() {
 async function searchEbay(q) {
   const token = await getEbayToken();
   const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
-  url.searchParams.set('q', q);
-  url.searchParams.set('limit', '20');
+  if (/^\d{8,14}$/.test(q)) {
+    url.searchParams.set('gtin', q);
+  } else {
+    url.searchParams.set('q', q);
+  }
+  url.searchParams.set('limit', '30');
+  // FlipRadar's beginner resale estimate deliberately uses used, fixed-price
+  // listings. Auction bids and new retail inventory would distort the asking
+  // price median used by the mobile app.
+  url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');
 
   const response = await fetch(url, {
     headers: {
@@ -85,7 +151,7 @@ async function searchEbay(q) {
       price: money(item.price?.value),
       shipping: money(shipping),
       currency: item.price?.currency || 'EUR',
-      condition: item.condition || '',
+      condition: item.condition || 'USED',
       url: item.itemWebUrl || '',
       live: true,
     };
@@ -171,15 +237,25 @@ async function marketSearch(source, q) {
   }
 }
 
+async function marketSearchCached(source, q) {
+  const cached = cacheGet(source, q);
+  if (cached) return { items: cached, cached: true };
+  const items = await marketSearch(source, q);
+  cacheSet(source, q, items);
+  return { items, cached: false };
+}
+
 function sourceStatus() {
   return {
     ebay_de: {
       configured: Boolean(EBAY_CLIENT_ID && EBAY_CLIENT_SECRET),
       mode: 'official_api',
+      estimate: 'used_fixed_price_active_listings',
     },
     amazon_de: {
       configured: Boolean(KEEPA_API_KEY),
       mode: 'keepa',
+      estimate: 'retail_reference',
     },
     kleinanzeigen: { configured: false, mode: 'official_search_link' },
     mediamarkt: { configured: false, mode: 'official_search_link' },
@@ -202,7 +278,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return json(res, 200, { ok: true, service: 'flipradar-api', version: '0.6.0' });
+      return json(res, 200, { ok: true, service: 'flipradar-api', version: '0.9.0' });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/status') {
@@ -210,27 +286,36 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/market/search') {
-      const source = (url.searchParams.get('source') || '').trim();
-      const q = (url.searchParams.get('q') || '').trim();
-      if (!source || !q) {
-        return json(res, 400, { error: 'source and q are required', items: [] });
+      pruneRateBuckets();
+      if (!allowRequest(req)) {
+        return json(res, 429, { error: 'rate_limit', items: [] });
+      }
+
+      const source = String(url.searchParams.get('source') || '').trim();
+      const q = normalizeQuery(url.searchParams.get('q'));
+      if (!ALLOWED_SOURCES.has(source)) {
+        return json(res, 400, { error: 'unsupported_source', items: [] });
+      }
+      if (!q) {
+        return json(res, 400, { error: 'q is required', items: [] });
       }
 
       const started = Date.now();
       try {
-        const items = await marketSearch(source, q);
+        const result = await marketSearchCached(source, q);
         return json(res, 200, {
           source,
           query: q,
-          live: items.length > 0,
-          items,
+          live: result.items.length > 0,
+          items: result.items,
           meta: {
-            count: items.length,
+            count: result.items.length,
             elapsed_ms: Date.now() - started,
+            cached: result.cached,
             note: source === 'ebay_de'
-              ? 'eBay Browse returns active listings, not verified sold prices.'
+              ? 'eBay Browse: used fixed-price active listings, not verified sold prices.'
               : source === 'amazon_de'
-                ? 'Amazon data is provided through Keepa when configured.'
+                ? 'Amazon reference data is provided through Keepa when configured.'
                 : '',
           },
         });
