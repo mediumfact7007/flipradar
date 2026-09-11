@@ -33,7 +33,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late double roi;
   late bool english;
-
   String t(String de, String en) => english ? en : de;
 
   @override
@@ -46,17 +45,14 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.sources.where((s) => s.enabled).length;
-    final direct = widget.sources.where((s) => s.enabled && s.canFetchInApp).length;
 
     return Scaffold(
       appBar: AppBar(title: Text(t('Einstellungen', 'Settings'), style: const TextStyle(fontWeight: FontWeight.w900))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          Text(t('Dein Gewinnziel', 'Your profit target'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
-          Text(t('FlipRadar berechnet danach deinen maximalen Einkaufspreis.', 'FlipRadar uses this to calculate your maximum buy price.'), style: const TextStyle(color: Color(0xFF777B89), fontSize: 13)),
-          const SizedBox(height: 12),
+          _SettingsSectionTitle(title: t('Dein Gewinnziel', 'Your profit target'), subtitle: t('Bestimmt, wie günstig du einkaufen solltest.', 'Defines how cheaply you should buy.')),
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: const Color(0xFFEDEDFC), borderRadius: BorderRadius.circular(22)),
@@ -64,9 +60,9 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Row(
                   children: [
-                    Text(t('Mindest-ROI', 'Minimum ROI'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(t('Mindest-Rendite', 'Minimum return'), style: const TextStyle(fontWeight: FontWeight.w900)),
                     const Spacer(),
-                    Text('${roi.toStringAsFixed(0)} %', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF4B4CB8))),
+                    Text('${roi.toStringAsFixed(0)} %', style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: Color(0xFF4B4CB8))),
                   ],
                 ),
                 Slider(
@@ -74,20 +70,24 @@ class _SettingsPageState extends State<SettingsPage> {
                   min: 10,
                   max: 100,
                   divisions: 18,
-                  label: '${roi.toStringAsFixed(0)} %',
                   onChanged: (v) => setState(() => roi = v),
                   onChangeEnd: widget.onRoi,
                 ),
-                Wrap(
-                  spacing: 7,
+                Row(
                   children: [25.0, 35.0, 50.0].map((v) {
-                    return ChoiceChip(
-                      label: Text(v == 25 ? t('25 % locker', '25% light') : v == 35 ? t('35 % standard', '35% standard') : t('50 % hoch', '50% high')),
-                      selected: (roi - v).abs() < 1,
-                      onSelected: (_) {
-                        setState(() => roi = v);
-                        widget.onRoi(v);
-                      },
+                    final selected = (roi - v).abs() < 1;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: ChoiceChip(
+                          label: Center(child: Text(v == 25 ? t('Locker', 'Light') : v == 35 ? t('Standard', 'Standard') : t('Hoch', 'High'))),
+                          selected: selected,
+                          onSelected: (_) {
+                            setState(() => roi = v);
+                            widget.onRoi(v);
+                          },
+                        ),
+                      ),
                     );
                   }).toList(),
                 ),
@@ -95,31 +95,27 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 22),
-          Text(t('Preisquellen', 'Price sources'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
+          _SettingsSectionTitle(title: t('Preisquellen', 'Price sources'), subtitle: t('Wo FlipRadar Preise prüft.', 'Where FlipRadar checks prices.')),
+          const SizedBox(height: 9),
           Material(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               leading: Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(color: const Color(0xFFE8F8F2), borderRadius: BorderRadius.circular(14)),
-                child: const Icon(Icons.hub_outlined, color: Color(0xFF0A8F6A)),
+                child: const Icon(Icons.storefront_outlined, color: Color(0xFF0A8F6A)),
               ),
               title: Text(t('$enabled Quellen aktiv', '$enabled sources enabled'), style: const TextStyle(fontWeight: FontWeight.w900)),
-              subtitle: Text(t('$direct können Live-Daten direkt in FlipRadar liefern', '$direct can provide live data inside FlipRadar'), style: const TextStyle(fontSize: 12)),
+              subtitle: Text(t('Antippen zum Ein-/Ausschalten', 'Tap to enable or disable'), style: const TextStyle(fontSize: 12)),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () async {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SourcesPage(
-                      english: english,
-                      sources: widget.sources,
-                      onChanged: widget.onSources,
-                    ),
+                    builder: (_) => SourcesPage(english: english, sources: widget.sources, onChanged: widget.onSources),
                   ),
                 );
                 if (mounted) setState(() {});
@@ -127,8 +123,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 22),
-          Text(t('Sprache', 'Language'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
+          _SettingsSectionTitle(title: t('Sprache', 'Language')),
+          const SizedBox(height: 9),
           SegmentedButton<bool>(
             segments: const [
               ButtonSegment(value: false, label: Text('Deutsch')),
@@ -145,34 +141,52 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 18),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(t('Erweitert', 'Advanced'), style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text(t('Nur für Tests und Entwickler', 'For testing and developers only'), style: const TextStyle(fontSize: 12)),
+            leading: const Icon(Icons.build_outlined),
+            title: Text(t('Für Profis & Entwickler', 'For pros & developers'), style: const TextStyle(fontWeight: FontWeight.w900)),
+            subtitle: Text(t('Im Alltag nicht nötig', 'Not needed for normal use'), style: const TextStyle(fontSize: 12)),
             children: [
               const SizedBox(height: 8),
               TextFormField(
                 initialValue: widget.backend,
-                decoration: InputDecoration(
-                  labelText: t('Eigene Server-Adresse', 'Custom server URL'),
-                  hintText: SourceRegistry.defaultBackend,
-                ),
+                decoration: InputDecoration(labelText: t('Eigener Server', 'Custom server'), hintText: SourceRegistry.defaultBackend),
                 onFieldSubmitted: widget.onBackend,
               ),
               const SizedBox(height: 12),
-              Text(t('Tarif-Vorschau', 'Plan preview'), style: const TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
+              Align(alignment: Alignment.centerLeft, child: Text(t('Tarif testen', 'Preview plan'), style: const TextStyle(fontWeight: FontWeight.w800))),
+              const SizedBox(height: 7),
               SegmentedButton<UserPlan>(
                 segments: const [
                   ButtonSegment(value: UserPlan.free, label: Text('FREE')),
                   ButtonSegment(value: UserPlan.pro, label: Text('PRO')),
-                  ButtonSegment(value: UserPlan.proPlus, label: Text('PRO+')),
                 ],
-                selected: {widget.plan},
+                selected: {widget.plan == UserPlan.proPlus ? UserPlan.pro : widget.plan},
                 onSelectionChanged: (v) => widget.onPlanPreview(v.first),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SettingsSectionTitle extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  const _SettingsSectionTitle({required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 3),
+          Text(subtitle!, style: const TextStyle(color: Color(0xFF777B89), fontSize: 12.5)),
+        ],
+      ],
     );
   }
 }
@@ -205,17 +219,13 @@ class _PremiumCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(active ? (english ? 'Premium active' : 'Premium aktiv') : 'FlipRadar PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
+                Text(active ? (english ? 'PRO active' : 'PRO aktiv') : 'FlipRadar PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
                 const SizedBox(height: 3),
-                Text(
-                  english ? 'No ads · more live checks · price alerts' : 'Keine Werbung · mehr Live-Checks · Preisalarme',
-                  style: const TextStyle(color: Color(0xFFD3D3EE), fontSize: 12),
-                ),
+                Text(english ? 'No ads · more checks · price alerts' : 'Keine Werbung · mehr Checks · Preisalarme', style: const TextStyle(color: Color(0xFFD3D3EE), fontSize: 12)),
               ],
             ),
           ),
-          if (!active)
-            TinyLabel(text: english ? 'SOON' : 'BALD', color: const Color(0xFF403F82), background: Colors.white),
+          if (!active) TinyLabel(text: english ? 'SOON' : 'BALD', color: const Color(0xFF403F82), background: Colors.white),
         ],
       ),
     );
@@ -227,12 +237,7 @@ class SourcesPage extends StatefulWidget {
   final List<PriceSource> sources;
   final ValueChanged<List<PriceSource>> onChanged;
 
-  const SourcesPage({
-    super.key,
-    required this.english,
-    required this.sources,
-    required this.onChanged,
-  });
+  const SourcesPage({super.key, required this.english, required this.sources, required this.onChanged});
 
   @override
   State<SourcesPage> createState() => _SourcesPageState();
@@ -248,8 +253,23 @@ class _SourcesPageState extends State<SourcesPage> {
     items = [...widget.sources];
   }
 
-  void commit() {
-    widget.onChanged([...items]);
+  void commit() => widget.onChanged([...items]);
+
+  String roleText(String role) {
+    switch (role) {
+      case 'resale':
+        return t('Wiederverkauf', 'Resale');
+      case 'local':
+        return t('Lokal', 'Local');
+      case 'retail':
+        return t('Neupreis', 'Retail');
+      case 'refurb':
+        return 'Refurbished';
+      case 'buyback':
+        return t('Sofort-Ankauf', 'Buyback');
+      default:
+        return t('Referenz', 'Reference');
+    }
   }
 
   @override
@@ -259,18 +279,8 @@ class _SourcesPageState extends State<SourcesPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(color: const Color(0xFFEFF7FF), borderRadius: BorderRadius.circular(20)),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline_rounded, color: Color(0xFF2C6A9F)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(t('Einfach einschalten, wo FlipRadar suchen soll.', 'Simply enable where FlipRadar should search.'), style: const TextStyle(color: Color(0xFF355F80), fontSize: 13, fontWeight: FontWeight.w700))),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          Text(t('Nur einschalten, wo du vergleichen möchtest.', 'Only enable where you want to compare.'), style: const TextStyle(fontSize: 13, color: Color(0xFF6F7482))),
+          const SizedBox(height: 14),
           ...items.asMap().entries.map((entry) {
             final i = entry.key;
             final source = entry.value;
@@ -278,39 +288,24 @@ class _SourcesPageState extends State<SourcesPage> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 9),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                 child: Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(color: c.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(14)),
-                      child: Icon(sourceIcon(source.id), color: c),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(color: c.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(13)),
+                      child: Icon(sourceIcon(source.id), color: c, size: 21),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 11),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Flexible(child: Text(source.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900))),
-                              const SizedBox(width: 6),
-                              TinyLabel(
-                                text: source.canFetchInApp ? 'LIVE' : 'WEB',
-                                color: source.canFetchInApp ? const Color(0xFF0A8F6A) : const Color(0xFF727684),
-                                background: source.canFetchInApp ? const Color(0xFFE8F8F2) : const Color(0xFFF0F1F5),
-                              ),
-                            ],
-                          ),
+                          Text(source.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                           const SizedBox(height: 2),
-                          Text(
-                            source.canFetchInApp
-                                ? t('Direkt in FlipRadar möglich', 'Can work inside FlipRadar')
-                                : t('Öffnet die echte Webseite', 'Opens the real website'),
-                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B7F8D)),
-                          ),
+                          Text('${roleText(source.role)} · ${source.canFetchInApp ? 'LIVE' : 'WEB'}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B7F8D))),
                         ],
                       ),
                     ),
@@ -329,26 +324,15 @@ class _SourcesPageState extends State<SourcesPage> {
           const SizedBox(height: 12),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(t('Eigene Quelle hinzufügen', 'Add your own source'), style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text(t('Für Shops oder Partner', 'For shops or partners'), style: const TextStyle(fontSize: 12)),
+            leading: const Icon(Icons.integration_instructions_outlined),
+            title: Text(t('Partner / eigene Quelle', 'Partner / custom source'), style: const TextStyle(fontWeight: FontWeight.w900)),
+            subtitle: Text(t('Nur wenn du eine weitere Webseite anbinden willst', 'Only to add another website'), style: const TextStyle(fontSize: 12)),
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _addSimpleWebsite,
-                      icon: const Icon(Icons.add_link_rounded),
-                      label: Text(t('Webseite', 'Website')),
-                    ),
-                  ),
+                  Expanded(child: OutlinedButton.icon(onPressed: _addSimpleWebsite, icon: const Icon(Icons.add_link_rounded), label: Text(t('Webseite', 'Website')))),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _importManifest,
-                      icon: const Icon(Icons.integration_instructions_outlined),
-                      label: Text(t('Partner-Link', 'Partner link')),
-                    ),
-                  ),
+                  Expanded(child: OutlinedButton.icon(onPressed: _importManifest, icon: const Icon(Icons.code_rounded), label: Text(t('Partner-Link', 'Partner link')))),
                 ],
               ),
             ],
@@ -370,15 +354,7 @@ class _SourcesPageState extends State<SourcesPage> {
           children: [
             TextField(controller: name, decoration: InputDecoration(labelText: t('Name', 'Name'))),
             const SizedBox(height: 10),
-            TextField(
-              controller: url,
-              decoration: InputDecoration(
-                labelText: t('Such-Link', 'Search URL'),
-                hintText: 'https://shop.de/search?q={query}',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(t('{query} wird automatisch durch den Suchbegriff ersetzt.', '{query} is replaced by the search term.'), style: const TextStyle(fontSize: 11, color: Color(0xFF7B7F8D))),
+            TextField(controller: url, decoration: const InputDecoration(labelText: 'Such-Link', hintText: 'https://shop.de/search?q={query}')),
           ],
         ),
         actions: [
@@ -393,8 +369,8 @@ class _SourcesPageState extends State<SourcesPage> {
                   name: name.text.trim(),
                   subtitle: t('Eigene Webseite', 'Custom website'),
                   searchUrlTemplate: url.text.trim(),
+                  role: 'reference',
                   builtIn: false,
-                  recommended: false,
                   enabled: true,
                 ),
               );
@@ -417,7 +393,7 @@ class _SourcesPageState extends State<SourcesPage> {
     final url = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(t('Partner-Link einfügen', 'Paste partner link')),
+        title: Text(t('Partner-Link', 'Partner link')),
         content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'https://…/flipradar-source.json')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Abbrechen', 'Cancel'))),
@@ -430,12 +406,15 @@ class _SourcesPageState extends State<SourcesPage> {
     try {
       final source = await SourceRegistry.importManifest(url);
       if (!mounted) return;
-      setState(() => items.add(source));
+      setState(() {
+        items.removeWhere((x) => x.id == source.id);
+        items.add(source);
+      });
       commit();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Quelle hinzugefügt.', 'Source added.'))));
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Partner-Link konnte nicht geladen werden.', 'Could not load partner link.'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Import fehlgeschlagen.', 'Import failed.'))));
     }
   }
 }
