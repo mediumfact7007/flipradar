@@ -1,9 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "example-shop",
   "name": "Example Shop",
   "subtitle": "Live prices in FlipRadar",
   "search_url": "https://example.com/search?q={query}",
   "adapter_url": "https://adapter.example.com/search?q={query}",
+  "role": "retail",
   "color": "5146E5"
 }
