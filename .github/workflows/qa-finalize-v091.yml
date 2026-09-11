@@ -200,15 +200,18 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Commit validated fixes
+      - name: Commit validated source fixes
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm .github/workflows/qa-finalize-v091.yml tools/finalize_v091.py
-          git add lib server test pubspec.yaml .github/workflows/build-android-apk.yml
-          git commit -m 'Finalize V0.9.1 QA and bug fixes'
-          git push origin main
+          git add lib server test pubspec.yaml
+          if git diff --cached --quiet; then
+            echo 'No source changes to commit.'
+          else
+            git commit -m 'Finalize V0.9.1 QA and bug fixes'
+            git push origin main
+          fi
 
       - name: Upload validated APK
         uses: actions/upload-artifact@v4
