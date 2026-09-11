@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -123,8 +126,8 @@ class _FlipRadarAppState extends State<FlipRadarApp> {
     final storedFlips = <FlipItem>[];
     final storedWatch = <WatchItem>[];
 
-    final flipRaw = p.getStringList('flips_v07') ?? p.getStringList('flips_v06') ?? <String>[];
-    final watchRaw = p.getStringList('watch_v07') ?? p.getStringList('watch_v06') ?? <String>[];
+    final flipRaw = p.getStringList('flips_v08') ?? p.getStringList('flips_v07') ?? p.getStringList('flips_v06') ?? <String>[];
+    final watchRaw = p.getStringList('watch_v08') ?? p.getStringList('watch_v07') ?? p.getStringList('watch_v06') ?? <String>[];
 
     for (final raw in flipRaw) {
       try {
@@ -137,18 +140,18 @@ class _FlipRadarAppState extends State<FlipRadarApp> {
       } catch (_) {}
     }
 
-    final loadedBackend = p.getString('backend_v07') ?? p.getString('backend_v06') ?? '';
+    final loadedBackend = p.getString('backend_v08') ?? p.getString('backend_v07') ?? p.getString('backend_v06') ?? '';
     final loadedSources = await SourceRegistry.load(backendBase: loadedBackend);
     if (!mounted) return;
 
     setState(() {
-      english = p.getBool('english_v07') ?? p.getBool('english_v06') ?? false;
+      english = p.getBool('english_v08') ?? p.getBool('english_v07') ?? p.getBool('english_v06') ?? false;
       backend = loadedBackend;
-      targetRoi = p.getDouble('roi_v07') ?? p.getDouble('roi_v06') ?? 35;
-      plan = UserPlan.values[(p.getInt('plan_preview_v07') ?? 0).clamp(0, UserPlan.values.length - 1)];
+      targetRoi = p.getDouble('roi_v08') ?? p.getDouble('roi_v07') ?? p.getDouble('roi_v06') ?? 35;
+      plan = UserPlan.values[(p.getInt('plan_preview_v08') ?? p.getInt('plan_preview_v07') ?? 0).clamp(0, UserPlan.values.length - 1)];
       flips = storedFlips;
       watchlist = storedWatch;
-      history = p.getStringList('history_v07') ?? p.getStringList('history_v06') ?? <String>[];
+      history = p.getStringList('history_v08') ?? p.getStringList('history_v07') ?? p.getStringList('history_v06') ?? <String>[];
       sources = loadedSources;
       loading = false;
     });
@@ -156,13 +159,13 @@ class _FlipRadarAppState extends State<FlipRadarApp> {
 
   Future<void> _save() async {
     final p = await SharedPreferences.getInstance();
-    await p.setBool('english_v07', english);
-    await p.setString('backend_v07', backend);
-    await p.setDouble('roi_v07', targetRoi);
-    await p.setInt('plan_preview_v07', plan.index);
-    await p.setStringList('flips_v07', flips.map((e) => jsonEncode(e.toJson())).toList());
-    await p.setStringList('watch_v07', watchlist.map((e) => jsonEncode(e.toJson())).toList());
-    await p.setStringList('history_v07', history.take(12).toList());
+    await p.setBool('english_v08', english);
+    await p.setString('backend_v08', backend);
+    await p.setDouble('roi_v08', targetRoi);
+    await p.setInt('plan_preview_v08', plan.index);
+    await p.setStringList('flips_v08', flips.map((e) => jsonEncode(e.toJson())).toList());
+    await p.setStringList('watch_v08', watchlist.map((e) => jsonEncode(e.toJson())).toList());
+    await p.setStringList('history_v08', history.take(12).toList());
   }
 
   Future<void> _reloadSources() async {
@@ -343,7 +346,73 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int tab = 0;
+  StreamSubscription<List<SharedMediaFile>>? _shareSub;
   String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  void initState() {
+    super.initState();
+    _startShareReceiver();
+  }
+
+  void _startShareReceiver() {
+    try {
+      _shareSub = ReceiveSharingIntent.instance.getMediaStream().listen(
+        _handleSharedMedia,
+        onError: (_) {},
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final initial = await ReceiveSharingIntent.instance.getInitialMedia();
+          if (initial.isNotEmpty) _handleSharedMedia(initial);
+          await ReceiveSharingIntent.instance.reset();
+        } catch (_) {}
+      });
+    } catch (_) {}
+  }
+
+  void _handleSharedMedia(List<SharedMediaFile> items) {
+    if (!mounted || items.isEmpty) return;
+    final textItem = items.cast<SharedMediaFile?>().firstWhere(
+          (e) => e != null && (e.type == SharedMediaType.text || e.type == SharedMediaType.url || (e.mimeType ?? '').startsWith('text/')),
+          orElse: () => null,
+        );
+    if (textItem == null) return;
+    final q = _queryFromShared(textItem.path);
+    if (q.isEmpty) return;
+    Future.microtask(() => openCheck(q));
+  }
+
+  String _queryFromShared(String raw) {
+    final source = raw.trim();
+    if (source.isEmpty) return '';
+    var cleaned = source.replaceAll(RegExp(r'https?://\S+', caseSensitive: false), ' ');
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    cleaned = cleaned.replaceFirst(RegExp(r'^(schau dir|sieh dir|check out|look at)\s+', caseSensitive: false), '');
+    if (cleaned.isEmpty) {
+      final match = RegExp(r'https?://\S+', caseSensitive: false).firstMatch(source);
+      final url = match?.group(0);
+      final uri = url == null ? null : Uri.tryParse(url);
+      if (uri != null) {
+        for (final segment in uri.pathSegments.reversed) {
+          final decoded = Uri.decodeComponent(segment).replaceAll(RegExp(r'[-_]+'), ' ').trim();
+          if (decoded.length >= 5 && !RegExp(r'^\d+$').hasMatch(decoded)) {
+            cleaned = decoded;
+            break;
+          }
+        }
+      }
+    }
+    if (cleaned.isEmpty) cleaned = source;
+    if (cleaned.length > 140) cleaned = cleaned.substring(0, 140);
+    return cleaned.trim();
+  }
+
+  @override
+  void dispose() {
+    _shareSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> openCheck([String query = '']) async {
     await Navigator.push(
