@@ -41,11 +41,37 @@ jobs:
           cp /tmp/flipradar_pubspec.yaml pubspec.yaml
           python3 - <<'PY2'
           from pathlib import Path
-          gradle = Path('android/app/build.gradle.kts')
-          if gradle.exists():
-              text = gradle.read_text()
+
+          app_gradle = Path('android/app/build.gradle.kts')
+          if app_gradle.exists():
+              text = app_gradle.read_text()
               text = text.replace('applicationId = "com.flipradar.flipradar"', 'applicationId = "com.flipradar.app"')
-              gradle.write_text(text)
+              app_gradle.write_text(text)
+
+          root_gradle = Path('android/build.gradle.kts')
+          if root_gradle.exists():
+              text = root_gradle.read_text()
+              marker = '// FlipRadar: align Java tasks with Flutter/Kotlin 17'
+              if marker not in text:
+                  text += '''
+
+          // FlipRadar: align Java tasks with Flutter/Kotlin 17
+          subprojects {
+              tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+                  sourceCompatibility = "17"
+                  targetCompatibility = "17"
+              }
+          }
+          '''
+              root_gradle.write_text(text)
+
+          props = Path('android/gradle.properties')
+          if props.exists():
+              text = props.read_text()
+              if 'kotlin.jvm.target.validation.mode=' not in text:
+                  text += '\nkotlin.jvm.target.validation.mode=warning\n'
+              props.write_text(text)
+
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           if manifest.exists():
               text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
