@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SourceListing {
   final String sourceId;
   final String sourceName;
+  final String role;
   final String title;
   final double price;
   final double shipping;
@@ -16,6 +17,7 @@ class SourceListing {
   const SourceListing({
     required this.sourceId,
     required this.sourceName,
+    required this.role,
     required this.title,
     required this.price,
     required this.shipping,
@@ -26,13 +28,11 @@ class SourceListing {
 
   double get total => price + shipping;
 
-  factory SourceListing.fromJson(
-    Map<String, dynamic> json,
-    PriceSource source,
-  ) {
+  factory SourceListing.fromJson(Map<String, dynamic> json, PriceSource source) {
     return SourceListing(
       sourceId: source.id,
       sourceName: source.name,
+      role: source.role,
       title: json['title']?.toString() ?? 'Listing',
       price: _toDouble(json['price']),
       shipping: _toDouble(json['shipping']),
@@ -54,6 +54,7 @@ class PriceSource {
   final String subtitle;
   final String searchUrlTemplate;
   final String? adapterUrlTemplate;
+  final String role;
   final bool enabled;
   final bool builtIn;
   final bool recommended;
@@ -65,6 +66,7 @@ class PriceSource {
     required this.subtitle,
     required this.searchUrlTemplate,
     this.adapterUrlTemplate,
+    this.role = 'reference',
     this.enabled = true,
     this.builtIn = true,
     this.recommended = false,
@@ -72,17 +74,18 @@ class PriceSource {
   });
 
   bool get canFetchInApp => (adapterUrlTemplate ?? '').trim().isNotEmpty;
+  bool get isResaleMarket => role == 'resale' || role == 'local';
+  bool get isRetailReference => role == 'retail' || role == 'refurb';
+  bool get isBuyback => role == 'buyback';
 
-  PriceSource copyWith({
-    bool? enabled,
-    String? adapterUrlTemplate,
-  }) {
+  PriceSource copyWith({bool? enabled, String? adapterUrlTemplate}) {
     return PriceSource(
       id: id,
       name: name,
       subtitle: subtitle,
       searchUrlTemplate: searchUrlTemplate,
       adapterUrlTemplate: adapterUrlTemplate ?? this.adapterUrlTemplate,
+      role: role,
       enabled: enabled ?? this.enabled,
       builtIn: builtIn,
       recommended: recommended,
@@ -100,12 +103,13 @@ class PriceSource {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 1,
+        'version': 2,
         'id': id,
         'name': name,
         'subtitle': subtitle,
         'search_url': searchUrlTemplate,
         'adapter_url': adapterUrlTemplate,
+        'role': role,
         'enabled': enabled,
         'built_in': builtIn,
         'recommended': recommended,
@@ -129,6 +133,7 @@ class PriceSource {
       subtitle: json['subtitle']?.toString() ?? 'Eigene Quelle',
       searchUrlTemplate: search,
       adapterUrlTemplate: json['adapter_url']?.toString(),
+      role: json['role']?.toString() ?? 'reference',
       enabled: json['enabled'] as bool? ?? true,
       builtIn: false,
       recommended: false,
@@ -142,7 +147,7 @@ class SourceRegistry {
   static const _enabledKey = 'enabled_sources_v05';
   static const defaultBackend = 'https://flipradar-api-production-ec00.up.railway.app';
 
-  static String? _backendAdapter(String backendBase, String source) {
+  static String _backendAdapter(String backendBase, String source) {
     final manual = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
     final b = manual.isEmpty ? defaultBackend : manual;
     return '$b/v1/market/search?source=$source&q={query}';
@@ -153,63 +158,71 @@ class SourceRegistry {
       PriceSource(
         id: 'ebay_de',
         name: 'eBay DE',
-        subtitle: 'Gebraucht & neu · offizielle Browse API',
+        subtitle: 'Wiederverkauf · aktuelle Angebote',
         searchUrlTemplate: 'https://www.ebay.de/sch/i.html?_nkw={query}',
         adapterUrlTemplate: _backendAdapter(backendBase, 'ebay_de'),
+        role: 'resale',
         recommended: true,
         colorHex: '3665F3',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'kleinanzeigen',
         name: 'Kleinanzeigen',
-        subtitle: 'Lokale Deals · offizielle Suche',
+        subtitle: 'Lokaler Wiederverkauf',
         searchUrlTemplate: 'https://www.kleinanzeigen.de/s-{query}/k0',
+        role: 'local',
         recommended: true,
         colorHex: '00A98F',
       ),
       PriceSource(
         id: 'amazon_de',
         name: 'Amazon DE',
-        subtitle: 'Amazon-Preisreferenz · Keepa-Adapter',
+        subtitle: 'Neupreis-Referenz · Keepa',
         searchUrlTemplate: 'https://www.amazon.de/s?k={query}',
         adapterUrlTemplate: _backendAdapter(backendBase, 'amazon_de'),
+        role: 'retail',
         recommended: true,
         colorHex: 'FF9900',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'mediamarkt',
         name: 'MediaMarkt',
-        subtitle: 'Neupreis & Angebote · offizielle Suche',
+        subtitle: 'Neupreis-Referenz',
         searchUrlTemplate: 'https://www.mediamarkt.de/de/search.html?query={query}',
+        role: 'retail',
         colorHex: 'DF0000',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'saturn',
         name: 'SATURN',
-        subtitle: 'Neupreis & Angebote · offizielle Suche',
+        subtitle: 'Neupreis-Referenz',
         searchUrlTemplate: 'https://www.saturn.de/de/search.html?query={query}',
+        role: 'retail',
         colorHex: '1454A3',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'idealo',
         name: 'idealo',
-        subtitle: 'Preisvergleich · offizielle Suche',
+        subtitle: 'Neupreis-Vergleich',
         searchUrlTemplate: 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q={query}',
+        role: 'retail',
         recommended: true,
         colorHex: 'FF6600',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'rebuy',
         name: 'rebuy',
-        subtitle: 'Ankauf/Refurbished als Referenz',
+        subtitle: 'Sofort-Ankauf / Refurbished',
         searchUrlTemplate: 'https://www.rebuy.de/kaufen/suchen?q={query}',
+        role: 'buyback',
         colorHex: '1B9E77',
       ),
-      PriceSource(
+      const PriceSource(
         id: 'backmarket',
         name: 'Back Market',
-        subtitle: 'Refurbished-Preisreferenz',
+        subtitle: 'Refurbished-Referenz',
         searchUrlTemplate: 'https://www.backmarket.de/de-de/search?q={query}',
+        role: 'refurb',
         colorHex: '111111',
       ),
     ];
@@ -262,10 +275,7 @@ class SourceRegistry {
     return PriceSource.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  static Future<List<SourceListing>> fetch(
-    PriceSource source,
-    String query,
-  ) async {
+  static Future<List<SourceListing>> fetch(PriceSource source, String query) async {
     final target = source.adapterUrl(query);
     if (target == null) return [];
     final uri = Uri.tryParse(target);
