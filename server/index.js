@@ -12,6 +12,7 @@ const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = Number(process.env.RATE_LIMIT_PER_MINUTE || 90);
 const CACHE_TTL_MS = 45_000;
 const CACHE_MAX = 400;
+const FETCH_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS || 8_000);
 const ALLOWED_SOURCES = new Set(['ebay_de', 'amazon_de', 'all']);
 
 let ebayToken = null;
@@ -38,6 +39,16 @@ function money(value) {
 
 function normalizeQuery(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function clientIp(req) {
@@ -97,7 +108,7 @@ async function getEbayToken() {
     scope: 'https://api.ebay.com/oauth/api_scope',
   });
 
-  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+  const response = await fetchWithTimeout('https://api.ebay.com/identity/v1/oauth2/token', {
     method: 'POST',
     headers: {
       authorization: `Basic ${auth}`,
@@ -106,9 +117,7 @@ async function getEbayToken() {
     body,
   });
 
-  if (!response.ok) {
-    throw new Error(`eBay OAuth failed (${response.status})`);
-  }
+  if (!response.ok) throw new Error(`eBay OAuth failed (${response.status})`);
 
   const data = await response.json();
   ebayToken = data.access_token;
@@ -124,13 +133,12 @@ async function searchEbay(q) {
   } else {
     url.searchParams.set('q', q);
   }
-  url.searchParams.set('limit', '30');
-  // FlipRadar's beginner resale estimate deliberately uses used, fixed-price
-  // listings. Auction bids and new retail inventory would distort the asking
-  // price median used by the mobile app.
-  url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');
+  url.searchParams.set('limit', '40');
+  // eBay documents that buyingOptions filtering is category-sensitive. Filter
+  // broad USED here, then enforce FIXED_PRICE on the returned item summaries.
+  url.searchParams.set('filter', 'conditions:{USED}');
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       authorization: `Bearer ${token}`,
       'x-ebay-c-marketplace-id': 'EBAY_DE',
@@ -138,24 +146,33 @@ async function searchEbay(q) {
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`eBay Browse failed (${response.status})`);
-  }
+  if (!response.ok) throw new Error(`eBay Browse failed (${response.status})`);
 
   const data = await response.json();
-  return (data.itemSummaries || []).map((item) => {
-    const shipping = item.shippingOptions?.[0]?.shippingCost?.value || 0;
-    return {
-      source: 'ebay_de',
-      title: item.title || 'eBay listing',
-      price: money(item.price?.value),
-      shipping: money(shipping),
-      currency: item.price?.currency || 'EUR',
-      condition: item.condition || 'USED',
-      url: item.itemWebUrl || '',
-      live: true,
-    };
-  }).filter((x) => x.price > 0);
+  return (data.itemSummaries || [])
+    .map((item) => {
+      const buyingOptions = Array.isArray(item.buyingOptions) ? item.buyingOptions : [];
+      if (!buyingOptions.includes('FIXED_PRICE')) return null;
+      const currency = item.price?.currency || 'EUR';
+      if (currency !== 'EUR') return null;
+
+      const shippingValues = (item.shippingOptions || [])
+        .map((option) => Number(option?.shippingCost?.value))
+        .filter((value) => Number.isFinite(value) && value >= 0);
+      const shipping = shippingValues.length > 0 ? Math.min(...shippingValues) : 0;
+
+      return {
+        source: 'ebay_de',
+        title: item.title || 'eBay listing',
+        price: money(item.price?.value),
+        shipping,
+        currency,
+        condition: item.condition || 'USED',
+        url: item.itemWebUrl || '',
+        live: true,
+      };
+    })
+    .filter((item) => item && item.price > 0);
 }
 
 function keepaRequestUrl(q) {
@@ -179,17 +196,33 @@ function keepaRequestUrl(q) {
   return url;
 }
 
+function keepaCondition(value) {
+  const labels = {
+    0: 'Unknown',
+    1: 'New',
+    2: 'Used - Like New',
+    3: 'Used - Very Good',
+    4: 'Used - Good',
+    5: 'Used - Acceptable',
+    6: 'Refurbished',
+    7: 'Collectible - Like New',
+    8: 'Collectible - Very Good',
+    9: 'Collectible - Good',
+    10: 'Collectible - Acceptable',
+    11: 'Rental',
+  };
+  return labels[Number(value)] || 'Unknown';
+}
+
 async function searchAmazon(q) {
   const url = keepaRequestUrl(q);
   if (!url) return [];
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { 'accept-encoding': 'gzip' },
   });
 
-  if (!response.ok) {
-    throw new Error(`Keepa request failed (${response.status})`);
-  }
+  if (!response.ok) throw new Error(`Keepa request failed (${response.status})`);
 
   const data = await response.json();
   const product = data.products?.[0];
@@ -198,22 +231,30 @@ async function searchAmazon(q) {
   const asin = product.asin || '';
   const title = product.title || `Amazon ${asin}`;
   const offers = Array.isArray(product.offers) ? product.offers : [];
+  const liveOrder = new Set(Array.isArray(product.liveOffersOrder) ? product.liveOffersOrder : []);
   const items = [];
 
-  for (const offer of offers) {
+  for (let index = 0; index < offers.length; index += 1) {
+    const offer = offers[index];
+    if (liveOrder.size > 0 && !liveOrder.has(index)) continue;
+    if (offer.isShippable === false || offer.isPreorder === true) continue;
+
     const csv = offer.offerCSV;
     if (!Array.isArray(csv) || csv.length < 2) continue;
     const rawPrice = Number(csv[csv.length - 2]);
     const rawShipping = Number(csv[csv.length - 1]);
     if (!Number.isFinite(rawPrice) || rawPrice <= 0) continue;
+    // Keepa uses -1/-2 for unknown/unavailable shipping. Do not turn that into
+    // free shipping, because that would understate the comparison total.
+    if (!Number.isFinite(rawShipping) || rawShipping < 0) continue;
 
     items.push({
       source: 'amazon_de',
       title,
       price: rawPrice / 100,
-      shipping: Number.isFinite(rawShipping) && rawShipping > 0 ? rawShipping / 100 : 0,
+      shipping: rawShipping / 100,
       currency: 'EUR',
-      condition: `Amazon marketplace · condition ${offer.condition ?? ''}`.trim(),
+      condition: `Amazon marketplace · ${keepaCondition(offer.condition)}`,
       url: asin ? `https://www.amazon.de/dp/${encodeURIComponent(asin)}` : 'https://www.amazon.de/',
       live: true,
     });
@@ -320,12 +361,12 @@ const server = http.createServer(async (req, res) => {
           },
         });
       } catch (error) {
-        return json(res, 503, {
-          source,
-          query: q,
-          items: [],
-          error: error instanceof Error ? error.message : String(error),
-        });
+        const message = error?.name === 'AbortError'
+          ? 'upstream_timeout'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        return json(res, 503, { source, query: q, items: [], error: message });
       }
     }
 
