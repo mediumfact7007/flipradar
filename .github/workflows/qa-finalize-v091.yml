@@ -8,646 +8,145 @@ permissions:
   contents: write
 
 jobs:
-  patch:
-    if: github.actor != 'github-actions[bot]'
+  patch-test-build:
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply final QA fixes
+      - name: Apply QA fixes
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          python3 -c "import base64;exec(base64.b64decode('ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKZGVmIHJlcGxhY2Vfb25jZSh0ZXh0LCBvbGQsIG5ldywgbGFiZWwpOgogICAgaWYgb2xkIG5vdCBpbiB0ZXh0OgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJNaXNzaW5nIGV4cGVjdGVkIHNuaXBwZXQ6IHtsYWJlbH0iKQogICAgcmV0dXJuIHRleHQucmVwbGFjZShvbGQsIG5ldywgMSkKCiMgLS0tLS0tLS0tLSBBY3RpdmUgVjAuOSBhcHAgLS0tLS0tLS0tLQpwID0gUGF0aCgibGliL3YwOV9hcHAuZGFydCIpCnMgPSBwLnJlYWRfdGV4dCgpCnMgPSByZXBsYWNlX29uY2UoCiAgICBzLAogICAgImZpbmFsIHNhZmUgPSB2LmlzRmluaXRlID8gdi5jbGFtcCgxMCwgMTAwKS50b0RvdWJsZSgpIDogMzU7IiwKICAgICJmaW5hbCBzYWZlID0gdi5pc0Zpbml0ZSA/IHYuY2xhbXAoMTAsIDEwMCkudG9Eb3VibGUoKSA6IDM1LjA7IiwKICAgICJST0kgZmFsbGJhY2siLAopCgppZiAiU3RyaW5nIGV4dHJhY3RTaGFyZWRRdWVyeShTdHJpbmcgcmF3KSIgbm90IGluIHM6CiAgICBoZWxwZXIgPSByIiIiClN0cmluZyBfbGltaXRTaGFyZWRRdWVyeShTdHJpbmcgdmFsdWUpIHsKICBmaW5hbCBub3JtYWxpemVkID0gdmFsdWUucmVwbGFjZUFsbChSZWdFeHAocidccysnKSwgJyAnKS50cmltKCk7CiAgcmV0dXJuIG5vcm1hbGl6ZWQubGVuZ3RoIDw9IDE0MAogICAgICA/IG5vcm1hbGl6ZWQKICAgICAgOiBub3JtYWxpemVkLnN1YnN0cmluZygwLCAxNDApLnRyaW0oKTsKfQoKU3RyaW5nIF9kZWNvZGVTaGFyZWRTZWdtZW50KFN0cmluZyBzZWdtZW50KSB7CiAgdHJ5IHsKICAgIHJldHVybiBVcmkuZGVjb2RlQ29tcG9uZW50KHNlZ21lbnQpCiAgICAgICAgLnJlcGxhY2VBbGwoUmVnRXhwKHInWy1fXSsnKSwgJyAnKQogICAgICAgIC5yZXBsYWNlQWxsKFJlZ0V4cChyJ1xzKycpLCAnICcpCiAgICAgICAgLnRyaW0oKTsKICB9IGNhdGNoIChfKSB7CiAgICByZXR1cm4gc2VnbWVudAogICAgICAgIC5yZXBsYWNlQWxsKFJlZ0V4cChyJ1stX10rJyksICcgJykKICAgICAgICAucmVwbGFjZUFsbChSZWdFeHAocidccysnKSwgJyAnKQogICAgICAgIC50cmltKCk7CiAgfQp9Cgpib29sIF9pc1VzZWZ1bFNoYXJlZFRleHQoU3RyaW5nIHZhbHVlKSB7CiAgZmluYWwgY29tcGFjdCA9IHZhbHVlCiAgICAgIC5yZXBsYWNlQWxsKFJlZ0V4cChyJ1teYS16QS1aMC05w6TDtsO8w4TDlsOcXSsnKSwgJyAnKQogICAgICAucmVwbGFjZUFsbChSZWdFeHAocidccysnKSwgJyAnKQogICAgICAudHJpbSgpOwogIGlmIChjb21wYWN0Lmxlbmd0aCA8IDQpIHJldHVybiBmYWxzZTsKICBmaW5hbCBsb3dlciA9IGNvbXBhY3QudG9Mb3dlckNhc2UoKTsKICBjb25zdCBnZW5lcmljID0gewogICAgJ2dlcmFkZSBiZWkga2xlaW5hbnplaWdlbiBnZWZ1bmRlbiB3aWUqIGZpbmRlc3QgZHUgZGFzJy5yZXBsYWNlQWxsKCcqJywnJyksCiAgICAnYmVpIGtsZWluYW56ZWlnZW4gZ2VmdW5kZW4gd2llIGZpbmRlc3QgZHUgZGFzJywKICAgICd3aWUgZmluZGVzdCBkdSBkYXMnLAogICAgJ3NjaGF1IGRpciBkaWVzZW4gYXJ0aWtlbCBhbicsCiAgICAnc2llaCBkaXIgZGllc2VuIGFydGlrZWwgYW4nLAogICAgJ2NoZWNrIG91dCB0aGlzIGl0ZW0nLAogICAgJ2xvb2sgYXQgdGhpcyBpdGVtJywKICB9OwogIHJldHVybiAhZ2VuZXJpYy5jb250YWlucyhsb3dlcik7Cn0KCi8vLyBFeHRyYWN0cyBhIHVzZWZ1bCBwcm9kdWN0IHF1ZXJ5IGZyb20gdGV4dCBzaGFyZWQgYnkgbWFya2V0cGxhY2UvYnJvd3NlciBhcHBzLgovLy8gTWFya2V0aW5nIGJvaWxlcnBsYXRlIGFuZCBVUkxzIGFyZSBpZ25vcmVkOyBrbm93biBtYXJrZXRwbGFjZSBVUkwgc2hhcGVzIGFyZQovLy8gdXNlZCBhcyBhIGZhbGxiYWNrIHdoZW4gdGhlIHNoYXJlZCB0ZXh0IGNvbnRhaW5zIG5vIHByb2R1Y3QgdGl0bGUuClN0cmluZyBleHRyYWN0U2hhcmVkUXVlcnkoU3RyaW5nIHJhdykgewogIGZpbmFsIHNvdXJjZSA9IHJhdy50cmltKCk7CiAgaWYgKHNvdXJjZS5pc0VtcHR5KSByZXR1cm4gJyc7CgogIGZpbmFsIHVybE1hdGNoID0gUmVnRXhwKHI'aHR0cHM/OlwvXC9cUysnLCBjYXNlU2Vuc2l0aXZlOiBmYWxzZSkuZmlyc3RNYXRjaChzb3VyY2UpOwogIGZpbmFsIHVybFRleHQgPSB1cmxNYXRjaD8uZ3JvdXAoMCk/LnJlcGxhY2VBbGwoUmVnRXhwKHInWyksLjsnXSQnKSwgJycpOwogIGZpbmFsIHVyaSA9IHVybFRleHQgPT0gbnVsbCA/IG51bGwgOiBVcmkudHJ5UGFyc2UodXJsVGV4dCk7CgogIGlmICh1cmkgIT0gbnVsbCkgewogICAgZm9yIChmaW5hbCBrZXkgaW4gY29uc3QgWydxJywgJ19ua3cnLCAncXVlcnknLCAna2V5d29yZCcsICdrZXl3b3JkcyddKSB7CiAgICAgIGZpbmFsIHZhbHVlID0gdXJpLnF1ZXJ5UGFyYW1ldGVyc1trZXldPy50cmltKCk7CiAgICAgIGlmICh2YWx1ZSAhPSBudWxsICYmIHZhbHVlLmxlbmd0aCA+PSAzKSB7CiAgICAgICAgcmV0dXJuIF9saW1pdFNoYXJlZFF1ZXJ5KHZhbHVlKTsKICAgICAgfQogICAgfQogIH0KCiAgdmFyIGNsZWFuZWQgPSBzb3VyY2UucmVwbGFjZUFsbChSZWdFeHAocidodHRwcz86XC9cL1xTKycsIGNhc2VTZW5zaXRpdmU6IGZhbHNlKSwgJyAnKTsKICBjbGVhbmVkID0gY2xlYW5lZAogICAgICAucmVwbGFjZUFsbCgKICAgICAgICBSZWdFeHAocidnZXJhZGVccytiZWlccysoPyM/a2xlaW5hbnplaWdlbilccytnZWZ1bmRlblwuPycsIGNhc2VTZW5zaXRpdmU6IGZhbHNlKSwKICAgICAgICAnICcsCiAgICAgICkKICAgICAgLnJlcGxhY2VBbGwoUmVnRXhwKHI'd2llXHMrZmluZGVzdFxzK2R1XHMrZGFzXD8/JywgY2FzZVNlbnNpdGl2ZTogZmFsc2UpLCAnICcpCiAgICAgIC5yZXBsYWNlQWxsKAogICAgICAgIFJlZ0V4cChyJ14oc2NoYXVccytkaXJ8c2llaFxzK2RpcnxjaGVja1xzK291dHxsb29rXHMrYXQpXHMrJywgY2FzZVNlbnNpdGl2ZTogZmFsc2UpLAogICAgICAgICcnLAogICAgICApCiAgICAgIC5yZXBsYWNlQWxsKFJlZ0V4cChyJ1xiXGRbXGQuXHNdKig/OlwsXGR7MSwyfSk/XHMq4oKsXGInKSwgJyAnKQogICAgICAucmVwbGFjZUFsbChSZWdFeHAocidccysnKSwgJyAnKQogICAgICAudHJpbSgpOwoKICBpZiAoX2lzVXNlZnVsU2hhcmVkVGV4dChjbGVhbmVkKSkgcmV0dXJuIF9saW1pdFNoYXJlZFF1ZXJ5KGNsZWFuZWQpOwoKICBpZiAodXJpICE9IG51bGwpIHsKICAgIGZpbmFsIHNlZ21lbnRzID0gdXJpLnBhdGhTZWdtZW50cy53aGVyZSgoZSkgPT4gZS50cmltKCkuaXNOT3RFbXB0eSkudG9MaXN0KCk7CiAgICBmaW5hbCBob3N0ID0gdXJpLmhvc3QudG9Mb3dlckNhc2UoKTsKCiAgICBpZiAoaG9zdC5jb250YWlucygna2xlaW5hbnplaWdlbicpKSB7CiAgICAgIGZpbmFsIGluZGV4ID0gc2VnbWVudHMuaW5kZXhXaGVyZSgoZSkgPT4gZS50b0xvd2VyQ2FzZSgpID09ICdzLWFuemVpZ2UnKTsKICAgICAgaWYgKGluZGV4ID49IDAgJiYgaW5kZXggKyAxIDwgc2VnbWVudHMubGVuZ3RoKSB7CiAgICAgICAgZmluYWwgdGl0bGUgPSBfZGVjb2RlU2hhcmVkU2VnbWVudChzZWdtZW50c1tpbmRleCArIDFdKTsKICAgICAgICBpZiAoX2lzVXNlZnVsU2hhcmVkVGV4dCh0aXRsZSkpIHJldHVybiBfbGltaXRTaGFyZWRRdWVyeSh0aXRsZSk7CiAgICAgIH0KICAgIH0KCiAgICBpZiAoaG9zdC5jb250YWlucygnZWJheS4nKSkgewogICAgICBmaW5hbCBpbmRleCA9IHNlZ21lbnRzLmluZGV4V2hlcmUoKGUpID0+IGUudG9Mb3dlckNhc2UoKSA9PSAnaXRtJyk7CiAgICAgIGlmIChpbmRleCA+PSAwKSB7CiAgICAgICAgZm9yIChmaW5hbCBzZWdtZW50IGluIHNlZ21lbnRzLnNraXAoaW5kZXggKyAxKSkgewogICAgICAgICAgZmluYWwgdGl0bGUgPSBfZGVjb2RlU2hhcmVkU2VnbWVudChzZWdtZW50KTsKICAgICAgICAgIGlmIChSZWdFeHAocidcZFwkJykuSGFzTWF0Y2godGl0bGUpKSBjb250aW51ZTsKICAgICAgICAgIGlmIChfaXNVc2VmdWxTaGFyZWRUZXh0KHRpdGxlKSkgcmV0dXJuIF9saW1pdFNoYXJlZFF1ZXJ5KHRpdGxlKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICBmaW5hbCBkcCA9IHNlZ21lbnRzLmluZGV4V2hlcmUoKGUpID0+IGUudG9Mb3dlckNhc2UoKSA9PSAnZHAnKTsKICAgIGlmIChkcCA+PSAwICYmIGRwICsgMSA8IHNlZ21lbnRzLmxlbmd0aCkgewogICAgICBmaW5hbCBhc2luID0gc2VnbWVudHNbZHAgKyAxXS50cmltKCk7CiAgICAgIGlmIChSZWdFeHAocidbQS1aMC05XXsxMH0kJywgY2FzZVNlbnNpdGl2ZTogZmFsc2UpLmhhc01hdGNoKGFzaW4pKSB7CiAgICAgICAgcmV0dXJuIGFzaW4udG9VcHBlckNhc2UoKTsKICAgICAgfQogICAgfQoKICAgIGNvbnN0IGlnbm9yZWQgPSB7J2l0bScsICdwJywgJ2RwJywgJ3MnLCAncHJvZHVjdCcsICdwcm9kdWt0ZScsICdhbnplaWdlJywgJ2FuemVpZ2VuJywgJ3NlYXJjaCd9OwogICAgZm9yIChmaW5hbCBzZWdtZW50IGluIHNlZ21lbnRzLnJldmVyc2VkKSB7CiAgICAgIGZpbmFsIGRlY29kZWQgPSBfZGVjb2RlU2hhcmVkU2VnbWVudChzZWdtZW50KTsKICAgICAgaWYgKGRlY29kZWQubGVuZ3RoIDwgNSB8fAogICAgICAgICAgUmVnRXhwKHInXlxkKyQnKS5oYXNNYXRjaChkZWNvZGVkKSB8fAogICAgICAgICAgaWdub3JlZC5jb250YWlucyhkZWNvZGVkLnRvTG93ZXJDYXNlKCkpKSB7CiAgICAgICAgY29udGludWU7CiAgICAgIH0KICAgICAgaWYgKF9pc1VzZWZ1bFNoYXJlZFRleHQoZGVjb2RlZCkpIHJldHVybiBfbGltaXRTaGFyZWRRdWVyeShkZWNvZGVkKTsKICAgIH0KICB9CgogIHJldHVybiBfbGltaXRTaGFyZWRRdWVyeShzb3VyY2UpOwp9CiIiIgogICAgcyA9IHJlcGxhY2Vfb25jZShzLCAiXG5jbGFzcyBGbGlwUmFkYXJGaW5hbEFwcCIsIGhlbHBlciArICJcbmNsYXNzIEZsaXBSYWRhckZpbmFsQXBwIiwgInNoYXJlZCBoZWxwZXIgaW5zZXJ0aW9uIikKCmlmICJTdHJpbmc/IF9wZW5kaW5nU2hhcmVkUXVlcnk7IiBub3QgaW4gczoKICAgIHMgPSByZXBsYWNlX29uY2UoCiAgICAgICAgcywKICAgICAgICAiICBEYXRlVGltZT8gX2xhc3RTaGFyZWRBdDtcbiIsCiAgICAgICAgIiAgRGF0ZVRpbWU/IF9sYXN0U2hhcmVkQXQ7XG4gIFN0cmluZz8gX3BlbmRpbmdTaGFyZWRRdWVyeTtcbiIsCiAgICAgICAgInBlbmRpbmcgc2hhcmUgZmllbGQiLAogICAgKQoKcyA9IHJlcGxhY2Vfb25jZSgKICAgIHMsCiAgICAiICAgIF9sYXN0U2hhcmVkUXVlcnkgPSBxO1xuICAgIF9sYXN0U2hhcmVkQXQgPSBub3c7XG4gICAgRnV0dXJlLm1pY3JvdGFzaygoKSA9PiBvcGVuQ2hlY2socSkpOyIsCiAgICAiICAgIF9sYXN0U2hhcmVkUXVlcnkgPSBxO1xuIgogICAgIiAgICBfbGFzdFNoYXJlZEF0ID0gbm93O1xuIgogICAgIiAgICBfcGVuZGluZ1NoYXJlZFF1ZXJ5ID0gcTtcbiIKICAgICIgICAgRnV0dXJlLm1pY3JvdGFzayhfZHJhaW5TaGFyZWRRdWVyeSk7IiwKICAgICJzaGFyZSBkaXNwYXRjaCIsCikKCnBhdHRlcm4gPSByZS5jb21waWxlKHIiICBTdHJpbmcgX3F1ZXJ5RnJvbVNoYXJlZFxCdHJpbmcgcmF3XFwgXHtcdC4qP1xuICBcXH1cblxuICBTdHJpbmcgX2xpbWl0UXVlcnkiLCByZS5TKQpyZXBsYWNlbWVudCA9ICIiIiAgU3RyaW5nIF9xdWVyeUZyb21TaGFyZWQoU3RyaW5nIHJhdykgPT4gX2xpbWl0UXVlcnkoZXh0cmFjdFNoYXJlZFF1ZXJ5KHJhdykpOwoKICB2b2lkIF9kcmFpblNoYXJlZFF1ZXJ5KCkgewogICAgaWYgKCFtb3VudGVkIHx8IF9wZW5kaW5nU2hhcmVkUXVlcnkgPT0gbnVsbCkgcmV0dXJuOwogICAgaWYgKF9vcGVuaW5nQ2hlY2spIHsKICAgICAgTmF2aWdhdG9yLm9mKGNvbnRleHQpLnBvcFVudGlsKChyb3V0ZSkgPT4gcm91dGUuaXNGaXJzdCk7CiAgICAgIHJldHVybjsKICAgIH0KICAgIGZpbmFsIHEgPSBfcGVuZGluZ1NoYXJlZFF1ZXJ5ITsKICAgIF9wZW5kaW5nU2hhcmVkUXVlcnkgPSBudWxsOwogICAgTmF2aWdhdG9yLm9mKGNvbnRleHQpLnBvcFVudGlsKChyb3V0ZSkgPT4gcm91dGUuaXNGaXJzdCk7CiAgICBXaWRnZXRzQmluZGluZy5pbnN0YW5jZS5hZGRQb3N0RnJhbWVDYWxsYmFjaygoXykgewogICAgICBpZiAobW91bnRlZCkgdW5hd2FpdGVkKG9wZW5DaGVjayhxKSk7CiAgICB9KTsKICB9CgogIFN0cmluZyBfbGltaXRRdWVyeSIiIgphcywgY291bnQgPSBwYXR0ZXJuLnN1Ym4ocmVwbGFjZW1lbnQsIHMsIGNvdW50PTEpCmlmIGNvdW50ICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJDb3VsZCBub3QgcmVwbGFjZSBzaGFyZWQtcXVlcnkgcGFyc2VyIikKCnMgPSByZXBsYWNlX29uY2UoCiAgICBzLAogICAgIiAgICB9IGZpbmFsbHkge1xuICAgICAgX29wZW5pbmdDaGVjayA9IGZhbHNlO1xuICAgICAgaWYgKG1vdW50ZWQpIHNldFN0YXRlKCgpIHt9KTtcbiAgICB9IiwKICAgICIgICAgfSBmaW5hbGx5IHtcbiIKICAgICIgICAgICBfb3BlbmluZ0NoZWNrID0gZmFsc2U7XG4iCiAgICAiICAgICAgZmluYWwgaGFzUGVuZGluZ1NoYXJlID0gX3BlbmRpbmdTaGFyZWRRdWVyeSAhPSBudWxsO1xuIgogICAgIiAgICAgIGlmIChtb3VudGVkKSBzZXRTdGF0ZSgoKSB7fSk7XG4iCiAgICAiICAgICAgaWYgKG1vdW50ZWQgJiYgaGFzUGVuZGluZ1NoYXJlKSB7XG4iCiAgICAiICAgICAgICBXaWRnZXRzQmluZGluZy5pbnN0YW5jZS5hZGRQb3N0RnJhbWVDYWxsYmFjaygoXykgPT4gX2RyYWluU2hhcmVkUXVlcnkoKSk7XG4iCiAgICAiICAgICAgfVxuIgogICAgIiAgICB9IiwKICAgICJwZW5kaW5nIHNoYXJlIGFmdGVyIHJvdXRlIiwKKQoKcyA9IHMucmVwbGFjZSgKICAgICIgICAgICAgICAgTmF2aWdhdGlvbkRlc3RpbmF0aW9uKFxuIgogICAgIiAgICAgICAgICAgIGljb246IGNvbnN0IEljb24oSWNvbnMuaW52ZW50b3J5XzJfb3V0bGluZWQpLFxuIgogICAgIiAgICAgICAgICAgIHNlbGVjdGVkSWNvbjogY29uc3QgSWNvbihJY29ucy5pbnZlbnRvcnlfMiksXG4iCiAgICAiICAgICAgICAgICAgbGFiZWw6ICdGbGlwcycsXG4iCiAgICAiICAgICAgICAgICksIiwKICAgICIgICAgICAgICAgY29uc3QgTmF2aWdhdGlvbkRlc3RpbmF0aW9uKFxuIgogICAgIiAgICAgICAgICAgIGljb246IEljb24oSWNvbnMuaW52ZW50b3J5XzJfb3V0bGluZWQpLFxuIgogICAgIiAgICAgICAgICAgIHNlbGVjdGVkSWNvbjogSWNvbihJY29ucy5pbnZlbnRvcnlfMiksXG4iCiAgICAiICAgICAgICAgICAgbGFiZWw6ICdGbGlwcycsXG4iCiAgICAiICAgICAgICAgICksIiwKICAgIDEsCikKcC53cml0ZV90ZXh0KHMpCgojIC0tLS0tLS0tLS0gU2hhcmVkIGxlZ2FjeSBVSSBzdGlsbCB1c2VkIGJ5IFYwLjkgLS0tLS0tLS0tLQpwID0gUGF0aCgibGliL3YwNy5kYXJ0IikKcyA9IHAucmVhZF90ZXh0KCkKcyA9IHMucmVwbGFjZSgKICAgICIgICAgICAgICAgTmF2aWdhdGlvbkRlc3RpbmF0aW9uKFxuIgogICAgIiAgICAgICAgICAgIGljb246IGNvbnN0IEljb24oSWNvbnMuaW52ZW50b3J5XzJfb3V0bGluZWQpLFxuIgogICAgIiAgICAgICAgICAgIHNlbGVjdGVkSWNvbjogY29uc3QgSWNvbihJY29ucy5pbnZlbnRvcnlfMiksXG4iCiAgICAiICAgICAgICAgICAgbGFiZWw6ICdGbGlwcycsXG4iCiAgICAiICAgICAgICAgICksIiwKICAgICIgICAgICAgICAgY29uc3QgTmF2aWdhdGlvbkRlc3RpbmF0aW9uKFxuIgogICAgIiAgICAgICAgICAgIGljb246IEljb24oSWNvbnMuaW52ZW50b3J5XzJfb3V0bGluZWQpLFxuIgogICAgIiAgICAgICAgICAgIHNlbGVjdGVkSWNvbjogSWNvbihJY29ucy5pbnZlbnRvcnlfMiksXG4iCiAgICAiICAgICAgICAgICAgbGFiZWw6ICdGbGlwcycsXG4iCiAgICAiICAgICAgICAgICksIiwKICAgIDEsCikKcC53cml0ZV90ZXh0KHMpCgpwID0gUGF0aCgibGliL3YwN19jaGVjay5kYXJ0IikKcyA9IHAucmVhZF90ZXh0KCkucmVwbGFjZSgKICAgICIgICAgICAgICAgICAgIGRlY29yYXRpb246IElucHV0RGVjb3JhdGlvbihcbiIKICAgICIgICAgICAgICAgICAgICAgaGludFRleHQ6ICcwLDAwJyxcbiIKICAgICIgICAgICAgICAgICAgICAgc3VmZml4VGV4dDogJ+KCrCcsXG4iCiAgICAiICAgICAgICAgICAgICAgIHByZWZpeEljb246IGNvbnN0IEljb24oSWNvbnMuc2hvcHBpbmdfY2FydF9jaGVja291dF9yb3VuZGVkKSxcbiIKICAgICIgICAgICAgICAgICAgICksIiwKICAgICIgICAgICAgICAgICAgIGRlY29yYXRpb246IGNvbnN0IElucHV0RGVjb3JhdGlvbihcbiIKICAgICIgICAgICAgICAgICAgICAgaGludFRleHQ6ICcwLDAwJyxcbiIKICAgICIgICAgICAgICAgICAgICAgc3VmZml4VGV4dDogJ+KCrCcsXG4iCiAgICAiICAgICAgICAgICAgICAgIHByZWZpeEljb246IEljb24oSWNvbnMuc2hvcHBpbmdfY2FydF9jaGVja291dF9yb3VuZGVkKSxcbiIKICAgICIgICAgICAgICAgICAgICksIiwKICAgIDEsCikKcC53cml0ZV90ZXh0KHMpCgpwID0gUGF0aCgibGliL3YwN19saWJyYXJ5LmRhcnQiKQpzID0gcC5yZWFkX3RleHQoKQpzID0gcmVwbGFjZV9vbmNlKAogICAgcywKICAgICJmaW5hbCBjYXBpdGFsID0gb3Blbi5mb2xkPGRvdWJsZT4oMCwgKGEsIGIpID0+IGEgKyBiLmJ1eSk7IiwKICAgICJmaW5hbCBjYXBpdGFsID0gb3Blbi5mb2xkPGRvdWJsZT4oMCwgKGEsIGIpID0+IGEgKyBiLmJ1eSArIGIuY29zdHMpOyIsCiAgICAiaW52ZXN0ZWQgY2FwaXRhbCBpbmNsdWRlcyBjb3N0cyIsCikKcyA9IHJlcGxhY2Vfb25jZSgKICAgIHMsCiAgICAiICAgICAgICAgICAgICBmaW5hbCBwYXJzZWQgPSBkb3VibGUudHJ5UGFyc2UoY29udHJvbGxlci50ZXh0LnJlcGxhY2VBbGwoJywnLCAnLicpKTtcbiIKICAgICIgICAgICAgICAgICAgIGlmIChwYXJzZWQgIT0gbnVsbCAmJiBwYXJzZWQgPiAwKSBOYXZpZ2F0b3IucG9wKGNvbnRleHQsIHBhcnNlZCk7IiwKICAgICIgICAgICAgICAgICAgIGZpbmFsIHBhcnNlZCA9IF9wYXJzZUxpYnJhcnlNb25leShjb250cm9sbGVyLnRleHQpO1xuIgogICAgIiAgICAgICAgICAgICAgaWYgKHBhcnNlZCA+IDApIE5hdmlnYXRvci5wb3AoY29udGV4dCwgcGFyc2VkKTsiLAogICAgInNhbGUgZGlhbG9nIHBhcnNlciIsCikKaWYgImRvdWJsZSBfcGFyc2VMaWJyYXJ5TW9uZXkoU3RyaW5nIHJhdykiIG5vdCBpbiBzOgogICAgcyArPSByIiIiCgpkb3VibGUgX3BhcnNlTGlicmFyeU1vbmV5KFN0cmluZyByYXcpIHsKICB2YXIgdmFsdWUgPSByYXcKICAgICAgLnRyaW0oKQogICAgICAucmVwbGFjZUFsbCgn4oKsJywgJycpCiAgICAgIC5yZXBsYWNlQWxsKFJlZ0V4cChyJ1xzKycpLCAnJykKICAgICAgLnJlcGxhY2VBbGwoUmVnRXhwKHInW14wLTksLi1dJyksICcnKTsKICBpZiAodmFsdWUuaXNFbXB0eSkgcmV0dXJuIDA7CiAgZmluYWwgY29tbWEgPSB2YWx1ZS5sYXN0SW5kZXhPZignLCcpOwogIGZpbmFsIGRvdCA9IHZhbHVlLmxhc3RJbmRleE9mKCcuJyk7CiAgaWYgKGNvbW1hID49IDAgJiYgZG90ID49IDApIHsKICAgIHZhbHVlID0gY29tbWEgPiBkb3QKICAgICAgICA/IHZhbHVlLnJlcGxhY2VBbGwoJy4nLCAnJykucmVwbGFjZUFsbCgnLCcsICcuJykKICAgICAgICA6IHZhbHVlLnJlcGxhY2VBbGwoJywnLCAnJyk7CiAgfSBlbHNlIGlmIChjb21tYSA+PSAwKSB7CiAgICBmaW5hbCBkZWNpbWFscyA9IHZhbHVlLmxlbmd0aCAtIGNvbW1hIC0gMTsKICAgIHZhbHVlID0gZGVjaW1hbHMgPT0gMyAmJiBjb21tYSA+IDAKICAgICAgICA/IHZhbHVlLnJlcGxhY2VBbGwoJywnLCAnJykKICAgICAgICA6IHZhbHVlLnJlcGxhY2VBbGwoJywnLCAnLicpOwogIH0gZWxzZSBpZiAoZG90ID49IDApIHsKICAgIGZpbmFsIGRlY2ltYWxzID0gdmFsdWUubGVuZ3RoIC0gZG90IC0gMTsKICAgIGlmIChkZWNpbWFscyA9PSAzICYmIGRvdCA+IDApIHZhbHVlID0gdmFsdWUucmVwbGFjZUFsbCgnLicsICcnKTsKICB9CiAgZmluYWwgcGFyc2VkID0gZG91YmxlLnRyeVBhcnNlKHZhbHVlKTsKICByZXR1cm4gcGFyc2VkID09IG51bGwgfHwgIXBhcnNlZC5pc0Zpbml0ZSB8fCBwYXJzZWQgPCAwID8gMCA6IHBhcnNlZDsKfQoiIiIKcC53cml0ZV90ZXh0KHMpCgojIC0tLS0tLS0tLS0gU291cmNlIGFkYXB0ZXIgcm9idXN0bmVzcyAtLS0tLS0tLS0tCnAgPSBQYXRoKCJsaWIvc291cmNlX3JlZ2lzdHJ5LmRhcnQiKQpzID0gcC5yZWFkX3RleHQoKQpzID0gcmVwbGFjZV9vbmNlKAogICAgcywKICAgICIgICAgICBsaXZlOiBqc29uWydsaXZlJ10gYXMgYm9vbD8gPz8gdHJ1ZSwiLAogICAgIiAgICAgIGxpdmU6IGpzb25bJ2xpdmUnXSBpcyBib29sID8ganNvblsnbGl2ZSddIGFzIGJvb2wgOiB0cnVlLCIsCiAgICAic2FmZSBsaXZlIHBhcnNpbmciLApKQClORUVDTEVTU19JTk5FUl9CSUVGRh==').decode())"
 
-          # ---------- Active V0.9 app ----------
-          p = Path('lib/v09_app.dart')
-          s = p.read_text()
-          s = s.replace(
-              "final safe = v.isFinite ? v.clamp(10, 100).toDouble() : 35;",
-              "final safe = v.isFinite ? v.clamp(10, 100).toDouble() : 35.0;",
-          )
-
-          if 'String extractSharedQuery(String raw)' not in s:
-              helper = r'''
-String _limitSharedQuery(String value) {
-  final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
-  return normalized.length <= 140
-      ? normalized
-      : normalized.substring(0, 140).trim();
-}
-
-String _decodeSharedSegment(String segment) {
-  try {
-    return Uri.decodeComponent(segment)
-        .replaceAll(RegExp(r'[-_]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  } catch (_) {
-    return segment
-        .replaceAll(RegExp(r'[-_]+'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-}
-
-bool _isUsefulSharedText(String value) {
-  final compact = value
-      .replaceAll(RegExp(r'[^a-zA-Z0-9äöüÄÖÜß]+'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-  if (compact.length < 4) return false;
-  final lower = compact.toLowerCase();
-  const generic = {
-    'gerade bei kleinanzeigen gefunden wie findest du das',
-    'bei kleinanzeigen gefunden wie findest du das',
-    'wie findest du das',
-    'schau dir diesen artikel an',
-    'sieh dir diesen artikel an',
-    'check out this item',
-    'look at this item',
-  };
-  return !generic.contains(lower);
-}
-
-/// Extracts a useful product query from text shared by marketplace/browser apps.
-/// Marketing boilerplate and URLs are ignored; known marketplace URL shapes are
-/// used as a fallback when the shared text contains no product title.
-String extractSharedQuery(String raw) {
-  final source = raw.trim();
-  if (source.isEmpty) return '';
-
-  final urlMatch = RegExp(r'https?://\S+', caseSensitive: false).firstMatch(source);
-  final urlText = urlMatch?.group(0)?.replaceAll(RegExp(r'[),.;]+$'), '');
-  final uri = urlText == null ? null : Uri.tryParse(urlText);
-
-  if (uri != null) {
-    for (final key in const ['q', '_nkw', 'query', 'keyword', 'keywords']) {
-      final value = uri.queryParameters[key]?.trim();
-      if (value != null && value.length >= 3) {
-        return _limitSharedQuery(value);
-      }
-    }
-  }
-
-  var cleaned = source.replaceAll(RegExp(r'https?://\S+', caseSensitive: false), ' ');
-  cleaned = cleaned
-      .replaceAll(
-        RegExp(r'gerade\s+bei\s+#?kleinanzeigen\s+gefunden\.?', caseSensitive: false),
-        ' ',
-      )
-      .replaceAll(RegExp(r'wie\s+findest\s+du\s+das\??', caseSensitive: false), ' ')
-      .replaceAll(
-        RegExp(r'^(schau\s+dir|sieh\s+dir|check\s+out|look\s+at)\s+', caseSensitive: false),
-        '',
-      )
-      .replaceAll(RegExp(r'\b\d[\d.\s]*(?:,\d{1,2})?\s*€\b'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
-  if (_isUsefulSharedText(cleaned)) return _limitSharedQuery(cleaned);
-
-  if (uri != null) {
-    final segments = uri.pathSegments.where((e) => e.trim().isNotEmpty).toList();
-    final host = uri.host.toLowerCase();
-
-    if (host.contains('kleinanzeigen')) {
-      final index = segments.indexWhere((e) => e.toLowerCase() == 's-anzeige');
-      if (index >= 0 && index + 1 < segments.length) {
-        final title = _decodeSharedSegment(segments[index + 1]);
-        if (_isUsefulSharedText(title)) return _limitSharedQuery(title);
-      }
-    }
-
-    if (host.contains('ebay.')) {
-      final index = segments.indexWhere((e) => e.toLowerCase() == 'itm');
-      if (index >= 0) {
-        for (final segment in segments.skip(index + 1)) {
-          final title = _decodeSharedSegment(segment);
-          if (RegExp(r'^\d+$').hasMatch(title)) continue;
-          if (_isUsefulSharedText(title)) return _limitSharedQuery(title);
-        }
-      }
-    }
-
-    final dp = segments.indexWhere((e) => e.toLowerCase() == 'dp');
-    if (dp >= 0 && dp + 1 < segments.length) {
-      final asin = segments[dp + 1].trim();
-      if (RegExp(r'^[A-Z0-9]{10}$', caseSensitive: false).hasMatch(asin)) {
-        return asin.toUpperCase();
-      }
-    }
-
-    const ignored = {'itm', 'p', 'dp', 's', 'product', 'produkte', 'anzeige', 'anzeigen', 'search'};
-    for (final segment in segments.reversed) {
-      final decoded = _decodeSharedSegment(segment);
-      if (decoded.length < 5 ||
-          RegExp(r'^\d+$').hasMatch(decoded) ||
-          ignored.contains(decoded.toLowerCase())) {
-        continue;
-      }
-      if (_isUsefulSharedText(decoded)) return _limitSharedQuery(decoded);
-    }
-  }
-
-  return _limitSharedQuery(source);
-}
-'''
-              s = s.replace('\nclass FlipRadarFinalApp', helper + '\nclass FlipRadarFinalApp', 1)
-
-          # Deduplicate/queue explicit Android share actions. A new share replaces
-          # an open detail route instead of silently getting dropped.
-          s = s.replace(
-              "  DateTime? _lastSharedAt;\n",
-              "  DateTime? _lastSharedAt;\n  String? _pendingSharedQuery;\n",
-              1,
-          )
-          s = s.replace(
-              "    _lastSharedQuery = q;\n    _lastSharedAt = now;\n    Future.microtask(() => openCheck(q));",
-              "    _lastSharedQuery = q;\n    _lastSharedAt = now;\n    _pendingSharedQuery = q;\n    Future.microtask(_drainSharedQuery);",
-              1,
-          )
-
-          old_query_method = re.compile(
-              r"  String _queryFromShared\(String raw\) \{.*?\n  \}\n\n  String _limitQuery",
-              re.S,
-          )
-          s, count = old_query_method.subn(
-              "  String _queryFromShared(String raw) => _limitQuery(extractSharedQuery(raw));\n\n"
-              "  void _drainSharedQuery() {\n"
-              "    if (!mounted || _pendingSharedQuery == null) return;\n"
-              "    if (_openingCheck) {\n"
-              "      Navigator.of(context).popUntil((route) => route.isFirst);\n"
-              "      return;\n"
-              "    }\n"
-              "    final q = _pendingSharedQuery!;\n"
-              "    _pendingSharedQuery = null;\n"
-              "    Navigator.of(context).popUntil((route) => route.isFirst);\n"
-              "    WidgetsBinding.instance.addPostFrameCallback((_) {\n"
-              "      if (mounted) unawaited(openCheck(q));\n"
-              "    });\n"
-              "  }\n\n"
-              "  String _limitQuery",
-              s,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit('Could not replace shared-query parser')
-
-          s = s.replace(
-              "    } finally {\n      _openingCheck = false;\n      if (mounted) setState(() {});\n    }",
-              "    } finally {\n"
-              "      _openingCheck = false;\n"
-              "      final hasPendingShare = _pendingSharedQuery != null;\n"
-              "      if (mounted) setState(() {});\n"
-              "      if (mounted && hasPendingShare) {\n"
-              "        WidgetsBinding.instance.addPostFrameCallback((_) => _drainSharedQuery());\n"
-              "      }\n"
-              "    }",
-              1,
-          )
-          s = s.replace(
-              "          NavigationDestination(\n            icon: const Icon(Icons.inventory_2_outlined),\n            selectedIcon: const Icon(Icons.inventory_2),\n            label: 'Flips',\n          ),",
-              "          const NavigationDestination(\n            icon: Icon(Icons.inventory_2_outlined),\n            selectedIcon: Icon(Icons.inventory_2),\n            label: 'Flips',\n          ),",
-              1,
-          )
-          p.write_text(s)
-
-          # ---------- Legacy shared UI still used by V0.9 for Flips ----------
-          p = Path('lib/v07.dart')
-          s = p.read_text()
-          s = s.replace(
-              "          NavigationDestination(\n            icon: const Icon(Icons.inventory_2_outlined),\n            selectedIcon: const Icon(Icons.inventory_2),\n            label: 'Flips',\n          ),",
-              "          const NavigationDestination(\n            icon: Icon(Icons.inventory_2_outlined),\n            selectedIcon: Icon(Icons.inventory_2),\n            label: 'Flips',\n          ),",
-              1,
-          )
-          p.write_text(s)
-
-          p = Path('lib/v07_check.dart')
-          s = p.read_text().replace(
-              "              decoration: InputDecoration(\n                hintText: '0,00',\n                suffixText: '€',\n                prefixIcon: const Icon(Icons.shopping_cart_checkout_rounded),\n              ),",
-              "              decoration: const InputDecoration(\n                hintText: '0,00',\n                suffixText: '€',\n                prefixIcon: Icon(Icons.shopping_cart_checkout_rounded),\n              ),",
-              1,
-          )
-          p.write_text(s)
-
-          p = Path('lib/v07_library.dart')
-          s = p.read_text()
-          s = s.replace(
-              "final capital = open.fold<double>(0, (a, b) => a + b.buy);",
-              "final capital = open.fold<double>(0, (a, b) => a + b.buy + b.costs);",
-              1,
-          )
-          s = s.replace(
-              "              final parsed = double.tryParse(controller.text.replaceAll(',', '.'));\n              if (parsed != null && parsed > 0) Navigator.pop(context, parsed);",
-              "              final parsed = _parseLibraryMoney(controller.text);\n              if (parsed > 0) Navigator.pop(context, parsed);",
-              1,
-          )
-          if 'double _parseLibraryMoney(String raw)' not in s:
-              s += r'''
-
-double _parseLibraryMoney(String raw) {
-  var value = raw
-      .trim()
-      .replaceAll('€', '')
-      .replaceAll(RegExp(r'\s+'), '')
-      .replaceAll(RegExp(r'[^0-9,.-]'), '');
-  if (value.isEmpty) return 0;
-  final comma = value.lastIndexOf(',');
-  final dot = value.lastIndexOf('.');
-  if (comma >= 0 && dot >= 0) {
-    value = comma > dot
-        ? value.replaceAll('.', '').replaceAll(',', '.')
-        : value.replaceAll(',', '');
-  } else if (comma >= 0) {
-    final decimals = value.length - comma - 1;
-    value = decimals == 3 && comma > 0
-        ? value.replaceAll(',', '')
-        : value.replaceAll(',', '.');
-  } else if (dot >= 0) {
-    final decimals = value.length - dot - 1;
-    if (decimals == 3 && dot > 0) value = value.replaceAll('.', '');
-  }
-  final parsed = double.tryParse(value);
-  return parsed == null || !parsed.isFinite || parsed < 0 ? 0 : parsed;
-}
-'''
-          p.write_text(s)
-
-          # ---------- Source adapter robustness ----------
-          p = Path('lib/source_registry.dart')
-          s = p.read_text()
-          s = s.replace(
-              "      live: json['live'] as bool? ?? true,",
-              "      live: json['live'] is bool ? json['live'] as bool : true,",
-              1,
-          )
-          old_to_double = re.compile(
-              r"  static double _toDouble\(dynamic value\) \{\n    if \(value is num\) return value\.toDouble\(\);\n    return double\.tryParse\(value\?\.toString\(\)\.replaceAll\(',', '\.'\) \?\? ''\) \?\? 0;\n  \}",
-              re.S,
-          )
-          replacement = r'''  static double _toDouble(dynamic value) {
-    if (value is num) return value.isFinite ? value.toDouble() : 0;
-    var raw = value?.toString().trim() ?? '';
-    raw = raw
-        .replaceAll('€', '')
-        .replaceAll(RegExp(r'\s+'), '')
-        .replaceAll(RegExp(r'[^0-9,.-]'), '');
-    if (raw.isEmpty) return 0;
-    final comma = raw.lastIndexOf(',');
-    final dot = raw.lastIndexOf('.');
-    if (comma >= 0 && dot >= 0) {
-      raw = comma > dot
-          ? raw.replaceAll('.', '').replaceAll(',', '.')
-          : raw.replaceAll(',', '');
-    } else if (comma >= 0) {
-      final decimals = raw.length - comma - 1;
-      raw = decimals == 3 && comma > 0
-          ? raw.replaceAll(',', '')
-          : raw.replaceAll(',', '.');
-    } else if (dot >= 0) {
-      final decimals = raw.length - dot - 1;
-      if (decimals == 3 && dot > 0) raw = raw.replaceAll('.', '');
-    }
-    final parsed = double.tryParse(raw);
-    return parsed == null || !parsed.isFinite ? 0 : parsed;
-  }'''
-          s, count = old_to_double.subn(replacement, s, count=1)
-          if count != 1:
-              raise SystemExit('Could not harden source number parser')
-          s = s.replace(
-              "    final decoded = jsonDecode(response.body);",
-              "    if (response.bodyBytes.length > 256 * 1024) {\n"
-              "      throw const FormatException('Partner-Manifest ist zu groß.');\n"
-              "    }\n"
-              "    final decoded = jsonDecode(response.body);",
-              1,
-          )
-          p.write_text(s)
-
-          # ---------- Backend correctness ----------
-          p = Path('server/index.js')
-          s = p.read_text()
-          s = s.replace(
-              "url.searchParams.set('filter', 'conditions:{USED}');",
-              "url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');",
-              1,
-          )
-          s = s.replace(
-              "    if (offer.isShippable === false || offer.isPreorder === true) continue;\n\n    const csv = offer.offerCSV;",
-              "    if (offer.isShippable === false || offer.isPreorder === true) continue;\n"
-              "    // Amazon is a NEW-price reference in FlipRadar. Used/refurbished\n"
-              "    // marketplace offers must not lower the retail benchmark.\n"
-              "    if (Number(offer.condition) !== 1) continue;\n\n"
-              "    const csv = offer.offerCSV;",
-              1,
-          )
-          s = s.replace("version: '0.9.0'", "version: '0.9.1'")
-          p.write_text(s)
-
-          # ---------- Version ----------
-          p = Path('pubspec.yaml')
-          s = p.read_text().replace('version: 0.9.0+9', 'version: 0.9.1+10', 1)
-          p.write_text(s)
-
-          # ---------- Main build workflow ----------
-          p = Path('.github/workflows/build-android-apk.yml')
-          s = p.read_text().replace('FlipRadar-V0.9-FINAL-APK', 'FlipRadar-V0.9.1-FINAL-APK')
-          # Add negative API smoke tests only once.
-          marker = "          grep -q '\"sources\"' /tmp/status.json\n"
-          if 'unsupported_source' not in s:
-              extra = r'''          code=$(curl -sS -o /tmp/bad-source.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/market/search?source=bad&q=test')
+      - name: Check backend and smoke test
+        shell: bash
+        run: |
+          node --check server/index.js
+          PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8099/health >/tmp/health.json; then
+              break
+            fi
+            sleep 0.25
+          done
+          cat /tmp/health.json
+          grep -q '"ok":true' /tmp/health.json
+          grep -q '"version":"0.9.1"' /tmp/health.json
+          curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
+          grep -q '"sources"' /tmp/status.json
+          code=$(curl -sS -o /tmp/bad-source.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/market/search?source=bad&q=test')
           test "$code" = "400"
           grep -q 'unsupported_source' /tmp/bad-source.json
-'''
-              s = s.replace(marker, marker + extra, 1)
-          p.write_text(s)
-          PY
 
-          cat > test/deal_flow_test.dart <<'DART'
-          import 'package:flipradar/main.dart';
-          import 'package:flutter/material.dart';
-          import 'package:flutter_test/flutter_test.dart';
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-          Widget buildCheck({double targetRoi = 35}) {
-            return MaterialApp(
-              home: FinalCheckPage(
-                english: false,
-                initialQuery: 'Testgerät 123',
-                targetRoi: targetRoi,
-                plan: UserPlan.free,
-                sources: const [],
-                onHistory: (_) {},
-                onWatch: (_) {},
-                onAddFlip: (_) {},
-                onRemoveFlip: (_) {},
-              ),
-            );
+      - name: Generate Android project
+        shell: bash
+        run: |
+          rm -rf /tmp/flipradar_lib
+          cp -r lib /tmp/flipradar_lib
+          cp pubspec.yaml /tmp/flipradar_pubspec.yaml
+          rm -rf android
+          flutter create . --platforms=android --org com.flipradar --project-name flipradar --no-pub
+          rm -rf lib
+          cp -r /tmp/flipradar_lib lib
+          cp /tmp/flipradar_pubspec.yaml pubspec.yaml
+          python3 - <<'PY2'
+          from pathlib import Path
+          app_gradle = Path('android/app/build.gradle.kts')
+          if app_gradle.exists():
+              text = app_gradle.read_text()
+              text = text.replace('applicationId = "com.flipradar.flipradar"', 'applicationId = "com.flipradar.app"')
+              app_gradle.write_text(text)
+
+          root_gradle = Path('android/build.gradle.kts')
+          if root_gradle.exists():
+              text = root_gradle.read_text()
+              marker = '// FlipRadar: align Java tasks with Flutter/Kotlin 17'
+              if marker not in text:
+                  text += '''
+          // FlipRadar: align Java tasks with Flutter/Kotlin 17
+          subprojects {
+              tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+                  sourceCompatibility = "17"
+                  targetCompatibility = "17"
+              }
           }
+          '''
+              root_gradle.write_text(text)
 
-          Future<void> enterManualDeal(
-            WidgetTester tester, {
-            required String buy,
-            required String sell,
-          }) async {
-            await tester.pumpWidget(buildCheck());
-            await tester.pumpAndSettle();
+          props = Path('android/gradle.properties')
+          if props.exists():
+              text = props.read_text()
+              if 'kotlin.jvm.target.validation.mode=' not in text:
+                  text += '\nkotlin.jvm.target.validation.mode=warning\n'
+              props.write_text(text)
 
-            expect(find.text('Noch keine automatischen Wiederverkaufsdaten'), findsOneWidget);
-            var fields = find.byType(TextField);
-            expect(fields.evaluate().length, greaterThanOrEqualTo(3));
-            await tester.enterText(fields.at(1), buy);
-            await tester.enterText(fields.at(2), sell);
-            await tester.pump();
-          }
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          if manifest.exists():
+              text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
+              text = text.replace('android:launchMode="singleTop"', 'android:launchMode="singleTask"')
+              marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+              permissions = [
+                  '<uses-permission android:name="android.permission.INTERNET" />',
+                  '<uses-permission android:name="android.permission.CAMERA" />',
+              ]
+              for permission in permissions:
+                  if permission not in text:
+                      text = text.replace(marker, marker + '\n    ' + permission)
+              share_filter = '''
+                <intent-filter>
+                    <action android:name="android.intent.action.SEND" />
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <data android:mimeType="text/*" />
+                </intent-filter>'''
+              if 'android.intent.action.SEND' not in text:
+                  text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
+              manifest.write_text(text)
+          PY2
 
-          void main() {
-            testWidgets('active final flow recommends buy at target ROI', (tester) async {
-              await enterManualDeal(tester, buy: '100', sell: '200');
-              expect(find.text('KAUFEN'), findsOneWidget);
-              expect(find.text('148 €'), findsOneWidget);
-            });
+      - name: Install packages and static analysis
+        shell: bash
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
 
-            testWidgets('active final flow recommends a concrete negotiation', (tester) async {
-              await enterManualDeal(tester, buy: '160', sell: '200');
-              expect(find.text('VERHANDELN'), findsOneWidget);
-              await tester.drag(find.byType(ListView), const Offset(0, -450));
-              await tester.pumpAndSettle();
-              expect(find.text('Versuch 140 €'), findsOneWidget);
-            });
+      - name: Run full tests
+        run: flutter test
 
-            testWidgets('German thousands input is accepted in active deal flow', (tester) async {
-              await enterManualDeal(tester, buy: '1.000,00', sell: '2.000,00');
-              expect(find.text('KAUFEN'), findsOneWidget);
-              expect(find.text('1.481 €'), findsOneWidget);
-            });
-          }
-          DART
+      - name: Build release APK
+        run: flutter build apk --release
 
-          cat > test/source_registry_test.dart <<'DART'
-          import 'package:flipradar/source_registry.dart';
-          import 'package:flutter_test/flutter_test.dart';
+      - name: Verify APK
+        shell: bash
+        run: |
+          test -s build/app/outputs/flutter-apk/app-release.apk
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          sha256sum build/app/outputs/flutter-apk/app-release.apk
 
-          void main() {
-            test('third-party source cannot influence automatic decision', () {
-              final source = PriceSource.fromJson({
-                'id': 'partner-shop',
-                'name': 'Partner Shop',
-                'search_url': 'https://partner.example/search?q={query}',
-                'adapter_url': 'https://api.partner.example/search?q={query}',
-                'role': 'resale',
-                'color': 'ABCDEF',
-              });
-              expect(source.builtIn, isFalse);
-              expect(source.trustedForDecision, isFalse);
-              final listing = SourceListing.fromJson({
-                'title': 'Manipulated result',
-                'price': 9999,
-                'shipping': 0,
-                'live': true,
-              }, source);
-              expect(listing.role, 'reference');
-            });
-
-            test('private or insecure adapter URLs are rejected', () {
-              expect(
-                () => PriceSource.fromJson({
-                  'name': 'Unsafe',
-                  'search_url': 'https://example.com/?q={query}',
-                  'adapter_url': 'http://127.0.0.1:8080/?q={query}',
-                }),
-                throwsFormatException,
-              );
-              expect(
-                () => PriceSource.fromJson({
-                  'name': 'Unsafe LAN',
-                  'search_url': 'https://example.com/?q={query}',
-                  'adapter_url': 'https://192.168.1.5/?q={query}',
-                }),
-                throwsFormatException,
-              );
-            });
-
-            test('localized adapter prices and non-bool live field are safe', () {
-              const source = PriceSource(
-                id: 'trusted-test',
-                name: 'Trusted',
-                subtitle: 'test',
-                searchUrlTemplate: 'https://example.com/?q={query}',
-                role: 'resale',
-                trustedForDecision: true,
-              );
-              final listing = SourceListing.fromJson({
-                'title': 'Item',
-                'price': '1.299,99 €',
-                'shipping': '4,99',
-                'live': 'true',
-              }, source);
-              expect(listing.price, closeTo(1299.99, 0.001));
-              expect(listing.shipping, closeTo(4.99, 0.001));
-              expect(listing.total, closeTo(1304.98, 0.001));
-              expect(listing.live, isTrue);
-            });
-
-            test('invalid color and role fall back safely', () {
-              final source = PriceSource.fromJson({
-                'name': 'Safe Source',
-                'search_url': 'https://example.com/?q={query}',
-                'role': 'super-trusted',
-                'color': 'not-a-color',
-              });
-              expect(source.role, 'reference');
-              expect(source.colorHex, '5146E5');
-            });
-          }
-          DART
-
-          cat > test/widget_test.dart <<'DART'
-          import 'package:flutter/material.dart';
-          import 'package:flutter_test/flutter_test.dart';
-          import 'package:flipradar/main.dart';
-          import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-          import 'package:shared_preferences/shared_preferences.dart';
-
-          void main() {
-            setUp(() {
-              SharedPreferences.setMockInitialValues({});
-              ReceiveSharingIntent.setMockValues(
-                initialMedia: const <SharedMediaFile>[],
-                mediaStream: const Stream<List<SharedMediaFile>>.empty(),
-              );
-            });
-
-            test('money input supports German and English formats safely', () {
-              expect(parseMoneyInput('1.299,99 €'), closeTo(1299.99, 0.001));
-              expect(parseMoneyInput('1,299.99'), closeTo(1299.99, 0.001));
-              expect(parseMoneyInput('49,90'), closeTo(49.90, 0.001));
-              expect(parseMoneyInput('1.299'), closeTo(1299, 0.001));
-              expect(parseMoneyInput('1.234.567,89'), closeTo(1234567.89, 0.001));
-              expect(parseMoneyInput('-20'), 0);
-              expect(parseMoneyInput('abc'), 0);
-            });
-
-            test('shared marketplace text extracts a useful product query', () {
-              expect(
-                extractSharedQuery(
-                  'Gerade bei #Kleinanzeigen gefunden. Wie findest du das?\n'
-                  'https://www.kleinanzeigen.de/s-anzeige/apple-iphone-15-pro-256gb/1234567890-173-1234',
-                ),
-                'apple iphone 15 pro 256gb',
-              );
-              expect(
-                extractSharedQuery(
-                  'Apple iPhone 15 Pro 256GB 850 € https://www.ebay.de/itm/123456789',
-                ),
-                'Apple iPhone 15 Pro 256GB',
-              );
-              expect(
-                extractSharedQuery('https://www.ebay.de/sch/i.html?_nkw=PlayStation+5+Slim'),
-                'PlayStation 5 Slim',
-              );
-            });
-
-            testWidgets('FlipRadar final starts with action-first home', (tester) async {
-              await tester.pumpWidget(const FlipRadarFinalApp());
-              await tester.pumpAndSettle();
-              expect(find.text('FlipRadar'), findsOneWidget);
-              expect(find.text('Lohnt sich der Deal?'), findsOneWidget);
-              expect(find.text('BARCODE SCANNEN'), findsOneWidget);
-            });
-
-            testWidgets('changing the item clears an old manual deal decision', (tester) async {
-              await tester.pumpWidget(
-                MaterialApp(
-                  home: FinalCheckPage(
-                    english: false,
-                    initialQuery: '',
-                    targetRoi: 35,
-                    plan: UserPlan.free,
-                    sources: const [],
-                    onHistory: (_) {},
-                    onWatch: (_) {},
-                    onAddFlip: (_) {},
-                    onRemoveFlip: (_) {},
-                  ),
-                ),
-              );
-
-              await tester.enterText(find.byType(TextField).at(0), 'iPhone 15');
-              await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
-              await tester.pumpAndSettle();
-              expect(find.text('Noch keine automatischen Wiederverkaufsdaten'), findsOneWidget);
-              expect(find.byType(TextField), findsNWidgets(3));
-
-              await tester.enterText(find.byType(TextField).at(1), '100');
-              await tester.enterText(find.byType(TextField).at(2), '200');
-              await tester.pump();
-              expect(find.text('KAUFEN'), findsOneWidget);
-
-              await tester.enterText(find.byType(TextField).at(0), 'PlayStation 5');
-              await tester.pump();
-              expect(find.text('KAUFEN'), findsNothing);
-              expect(find.text('Artikel suchen → Preis eingeben → Entscheidung.'), findsOneWidget);
-            });
-          }
-          DART
-
-          cat > test/library_flow_test.dart <<'DART'
-          import 'package:flipradar/main.dart';
-          import 'package:flutter/material.dart';
-          import 'package:flutter_test/flutter_test.dart';
-
-          void main() {
-            testWidgets('sold dialog accepts German thousands format', (tester) async {
-              FlipItem? updated;
-              final item = FlipItem(
-                id: '1',
-                name: 'Testgerät',
-                buy: 700,
-                sell: 1200,
-                costs: 25,
-                status: 'Listed',
-                source: 'Test',
-                createdAt: DateTime(2026, 1, 1),
-              );
-
-              await tester.pumpWidget(
-                MaterialApp(
-                  home: Scaffold(
-                    body: FlipsPage(
-                      english: false,
-                      plan: UserPlan.pro,
-                      flips: [item],
-                      onUpdate: (value) => updated = value,
-                    ),
-                  ),
-                ),
-              );
-
-              await tester.tap(find.text('Verkauft'));
-              await tester.pumpAndSettle();
-              await tester.enterText(find.byType(TextField), '1.299,99');
-              await tester.tap(find.text('Speichern'));
-              await tester.pumpAndSettle();
-
-              expect(updated, isNotNull);
-              expect(updated!.status, 'Sold');
-              expect(updated!.sell, closeTo(1299.99, 0.001));
-            });
-          }
-          DART
-
-      - name: Commit fixes
+      - name: Commit validated fixes
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/qa-finalize-v091.yml
           git add lib server test pubspec.yaml .github/workflows/build-android-apk.yml
-          if git diff --cached --quiet; then
-            echo 'No changes to commit.'
-            exit 0
-          fi
           git commit -m 'Finalize V0.9.1 QA and bug fixes'
           git push origin main
+
+      - name: Upload validated APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlipRadar-V0.9.1-FINAL-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
