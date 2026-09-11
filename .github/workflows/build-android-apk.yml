@@ -49,6 +49,7 @@ jobs:
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           if manifest.exists():
               text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
+              text = text.replace('android:launchMode="singleTop"', 'android:launchMode="singleTask"')
               marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
               permissions = [
                   '<uses-permission android:name="android.permission.INTERNET" />',
@@ -57,6 +58,14 @@ jobs:
               for permission in permissions:
                   if permission not in text:
                       text = text.replace(marker, marker + '\n    ' + permission)
+              share_filter = '''
+                <intent-filter>
+                    <action android:name="android.intent.action.SEND" />
+                    <category android:name="android.intent.category.DEFAULT" />
+                    <data android:mimeType="text/*" />
+                </intent-filter>'''
+              if 'android.intent.action.SEND' not in text:
+                  text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
               manifest.write_text(text)
           PY2
 
@@ -77,7 +86,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.7-APK
+          name: FlipRadar-V0.8-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
