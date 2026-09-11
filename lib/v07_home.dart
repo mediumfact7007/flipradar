@@ -45,249 +45,237 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final activeSources = widget.sources.where((s) => s.enabled).length;
-    final sold = widget.flips.where((f) => f.status == 'Sold').toList();
-    final profit = sold.fold<double>(0, (a, b) => a + b.profit);
+    final openFlips = widget.flips.where((f) => f.status != 'Sold').length;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 26),
       children: [
-        screenHeader(
-          context,
-          title: 'FlipRadar',
-          subtitle: t('In Sekunden wissen, ob sich ein Kauf lohnt.', 'Know in seconds if a deal is worth it.'),
-          trailing: IconButton.filledTonal(
-            tooltip: t('Einstellungen', 'Settings'),
-            onPressed: widget.onSettings,
-            icon: const Icon(Icons.tune_rounded),
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'FlipRadar',
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900, letterSpacing: -0.7),
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: t('Einstellungen', 'Settings'),
+              onPressed: widget.onSettings,
+              icon: const Icon(Icons.tune_rounded),
+            ),
+          ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF24234B), Color(0xFF5B5CE2)],
+              colors: [Color(0xFF202044), Color(0xFF5B5CE2)],
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(30),
             boxShadow: const [
-              BoxShadow(color: Color(0x1F24234B), blurRadius: 24, offset: Offset(0, 12)),
+              BoxShadow(color: Color(0x2024234B), blurRadius: 28, offset: Offset(0, 13)),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                t('Ist das ein guter Deal?', 'Is this a good deal?'),
-                style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w900, letterSpacing: -0.7),
+                t('Lohnt sich der Deal?', 'Is the deal worth it?'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 29,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
-                t('Scannen oder suchen → maximalen Kaufpreis sehen.', 'Scan or search → see your maximum buy price.'),
-                style: const TextStyle(color: Color(0xFFD9D9F5), fontSize: 14.5, height: 1.35),
+                t('Artikel prüfen. Preis eingeben. Entscheidung bekommen.', 'Check item. Enter price. Get a decision.'),
+                style: const TextStyle(color: Color(0xFFDADAF3), fontSize: 14.5, height: 1.3),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF2D2C5A),
+                    foregroundColor: const Color(0xFF292853),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
                   ),
                   onPressed: widget.onScan,
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 23),
                   label: Text(t('BARCODE SCANNEN', 'SCAN BARCODE')),
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: Color(0x55FFFFFF))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(t('oder', 'or'), style: const TextStyle(color: Color(0xFFCBCBE7), fontSize: 12)),
-                  ),
-                  const Expanded(child: Divider(color: Color(0x55FFFFFF))),
-                ],
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: query,
                 onSubmitted: (_) => submit(),
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: t('Produktname oder EAN', 'Product name or EAN'),
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(onPressed: submit, icon: const Icon(Icons.arrow_forward_rounded)),
+                  hintText: t('Oder Produkt suchen', 'Or search product'),
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: IconButton(
+                    onPressed: submit,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
                   fillColor: Colors.white,
                 ),
               ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _HeroFact(icon: Icons.payments_outlined, text: t('Maximal zahlen', 'Max buy')),
-                  _HeroFact(icon: Icons.trending_up, text: t('Gewinn', 'Profit')),
-                  _HeroFact(icon: Icons.storefront_outlined, text: t('$activeSources Quellen', '$activeSources sources')),
-                ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE9EAF1)),
+          ),
+          child: Row(
+            children: [
+              _FlowStep(number: '1', label: t('Scannen', 'Scan')),
+              const _FlowArrow(),
+              _FlowStep(number: '2', label: t('Preis', 'Price')),
+              const _FlowArrow(),
+              _FlowStep(number: '3', label: t('Entscheidung', 'Decision')),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF7FF),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.ios_share_rounded, color: Color(0xFF2D6FA4), size: 21),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  t('Online gefunden? Teilen → FlipRadar', 'Found online? Share → FlipRadar'),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF315F83)),
+                ),
               ),
             ],
           ),
         ),
         if (widget.history.isNotEmpty) ...[
           const SizedBox(height: 22),
-          Row(
-            children: [
-              Text(t('Zuletzt geprüft', 'Recent checks'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-              const Spacer(),
-              Text(t('Tippen zum Wiederholen', 'Tap to repeat'), style: const TextStyle(fontSize: 11, color: Color(0xFF8A8E9C))),
-            ],
-          ),
-          const SizedBox(height: 10),
+          Text(t('Nochmal prüfen', 'Check again'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: widget.history.take(6).map((q) {
+            children: widget.history.take(4).map((q) {
               return ActionChip(
-                avatar: const Icon(Icons.history, size: 16),
+                avatar: const Icon(Icons.history_rounded, size: 16),
                 label: Text(q, overflow: TextOverflow.ellipsis),
                 onPressed: () => widget.onSearch(q),
               );
             }).toList(),
           ),
         ],
-        const SizedBox(height: 22),
-        Row(
-          children: [
-            Expanded(
-              child: _QuickInfoCard(
-                icon: Icons.bookmark_rounded,
-                iconColor: const Color(0xFF5B5CE2),
-                background: const Color(0xFFEDEDFC),
-                value: '${widget.watchlist.length}',
-                label: t('gemerkt', 'saved'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _QuickInfoCard(
-                icon: Icons.inventory_2_rounded,
-                iconColor: const Color(0xFF0A8F6A),
-                background: const Color(0xFFE6F7F1),
-                value: '${widget.flips.where((f) => f.status != 'Sold').length}',
-                label: t('offene Flips', 'open flips'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _QuickInfoCard(
-                icon: Icons.euro_rounded,
-                iconColor: const Color(0xFFC77A00),
-                background: const Color(0xFFFFF3DA),
-                value: euro(profit),
-                label: t('Gewinn', 'profit'),
-              ),
-            ),
-          ],
-        ),
-        if (widget.plan == UserPlan.free) ...[
+        if (widget.watchlist.isNotEmpty || openFlips > 0) ...[
           const SizedBox(height: 22),
-          SponsoredSlot(english: widget.english, placement: 'home'),
-        ],
-        const SizedBox(height: 22),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E8),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFFFE4A8)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFB46D00)),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t('So benutzt du FlipRadar', 'How to use FlipRadar'), style: const TextStyle(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
-                    Text(
-                      t('Preis des Artikels eingeben. Liegt er unter „Maximal zahlen“, ist der Deal für dein Ziel interessant.', 'Enter the item price. If it is below “Max buy”, the deal fits your target.'),
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF71551E), height: 1.35),
-                    ),
-                  ],
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _CompactStat(
+                    icon: Icons.bookmark_rounded,
+                    value: '${widget.watchlist.length}',
+                    label: t('gemerkt', 'saved'),
+                  ),
                 ),
-              ),
-            ],
+                Container(width: 1, height: 38, color: const Color(0xFFE8E9EF)),
+                Expanded(
+                  child: _CompactStat(
+                    icon: Icons.inventory_2_rounded,
+                    value: '$openFlips',
+                    label: t('offen', 'open'),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
+        if (widget.plan == UserPlan.free) ...[
+          const SizedBox(height: 24),
+          SponsoredSlot(english: widget.english, placement: 'home_tail'),
+        ],
       ],
     );
   }
 }
 
-class _HeroFact extends StatelessWidget {
-  final IconData icon;
-  final String text;
+class _FlowStep extends StatelessWidget {
+  final String number;
+  final String label;
 
-  const _HeroFact({required this.icon, required this.text});
+  const _FlowStep({required this.number, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(99)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Expanded(
+      child: Column(
         children: [
-          Icon(icon, size: 15, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDEDFC),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Text(number, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF4E4FBA))),
+          ),
+          const SizedBox(height: 5),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
         ],
       ),
     );
   }
 }
 
-class _QuickInfoCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color background;
-  final String value;
-  final String label;
-
-  const _QuickInfoCard({
-    required this.icon,
-    required this.iconColor,
-    required this.background,
-    required this.value,
-    required this.label,
-  });
+class _FlowArrow extends StatelessWidget {
+  const _FlowArrow();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(20)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 1),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6D7180))),
-        ],
-      ),
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 18),
+      child: Icon(Icons.chevron_right_rounded, color: Color(0xFFB0B3BE), size: 20),
+    );
+  }
+}
+
+class _CompactStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _CompactStat({required this.icon, required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF5B5CE2)),
+        const SizedBox(width: 8),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+        const SizedBox(width: 4),
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B7F8D)))),
+      ],
     );
   }
 }
