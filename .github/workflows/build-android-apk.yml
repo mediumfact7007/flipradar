@@ -11,13 +11,30 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check backend syntax
         run: node --check server/index.js
+
+      - name: Smoke test backend
+        shell: bash
+        run: |
+          PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8099/health >/tmp/health.json; then
+              break
+            fi
+            sleep 0.25
+          done
+          cat /tmp/health.json
+          grep -q '"ok":true' /tmp/health.json
+          curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
+          grep -q '"sources"' /tmp/status.json
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -98,6 +115,9 @@ jobs:
       - name: Get packages
         run: flutter pub get
 
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos
+
       - name: Run tests
         run: flutter test
 
@@ -106,13 +126,14 @@ jobs:
 
       - name: Verify APK
         run: |
+          test -s build/app/outputs/flutter-apk/app-release.apk
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.8-APK
+          name: FlipRadar-V0.9-FINAL-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
