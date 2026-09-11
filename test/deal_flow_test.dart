@@ -51,6 +51,11 @@ void main() {
   testWidgets('near-limit deal recommends negotiation and a concrete offer', (tester) async {
     await enterManualDeal(tester, buy: '160', sell: '200');
     expect(find.text('VERHANDELN'), findsOneWidget);
+
+    // The concrete copy-ready negotiation card follows the main decision card
+    // and can sit just below the fold on a compact test viewport.
+    await tester.drag(find.byType(ListView), const Offset(0, -450));
+    await tester.pumpAndSettle();
     expect(find.text('Versuch 140 €'), findsOneWidget);
   });
 }
