@@ -32,8 +32,13 @@ class SourceListing {
     return SourceListing(
       sourceId: source.id,
       sourceName: source.name,
-      role: source.role,
-      title: json['title']?.toString() ?? 'Listing',
+      // Third-party manifests must never be able to promote themselves into
+      // FlipRadar's automatic BUY/SKIP calculation. Unverified sources remain
+      // visible as references until FlipRadar explicitly trusts them.
+      role: source.trustedForDecision ? source.role : 'reference',
+      title: json['title']?.toString().trim().isNotEmpty == true
+          ? json['title'].toString().trim()
+          : 'Listing',
       price: _toDouble(json['price']),
       shipping: _toDouble(json['shipping']),
       url: json['url']?.toString() ?? '',
@@ -58,6 +63,7 @@ class PriceSource {
   final bool enabled;
   final bool builtIn;
   final bool recommended;
+  final bool trustedForDecision;
   final String colorHex;
 
   const PriceSource({
@@ -70,6 +76,7 @@ class PriceSource {
     this.enabled = true,
     this.builtIn = true,
     this.recommended = false,
+    this.trustedForDecision = false,
     this.colorHex = '5146E5',
   });
 
@@ -89,6 +96,7 @@ class PriceSource {
       enabled: enabled ?? this.enabled,
       builtIn: builtIn,
       recommended: recommended,
+      trustedForDecision: trustedForDecision,
       colorHex: colorHex,
     );
   }
@@ -122,23 +130,74 @@ class PriceSource {
     if (name.isEmpty || search.isEmpty || !search.contains('{query}')) {
       throw const FormatException('Source manifest needs name and search_url with {query}.');
     }
+    _validateSearchTemplate(search);
+
+    final adapterRaw = json['adapter_url']?.toString().trim();
+    if (adapterRaw != null && adapterRaw.isNotEmpty) {
+      if (!adapterRaw.contains('{query}')) {
+        throw const FormatException('adapter_url needs {query}.');
+      }
+      _validateAdapterTemplate(adapterRaw);
+    }
+
     final rawId = json['id']?.toString().trim();
     final generated = name
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-|-$'), '');
+    final requestedRole = json['role']?.toString() ?? 'reference';
+    final safeRole = const {'reference', 'resale', 'local', 'retail', 'refurb', 'buyback'}
+            .contains(requestedRole)
+        ? requestedRole
+        : 'reference';
+
     return PriceSource(
       id: (rawId == null || rawId.isEmpty) ? generated : rawId,
       name: name,
       subtitle: json['subtitle']?.toString() ?? 'Eigene Quelle',
       searchUrlTemplate: search,
-      adapterUrlTemplate: json['adapter_url']?.toString(),
-      role: json['role']?.toString() ?? 'reference',
+      adapterUrlTemplate: adapterRaw?.isEmpty == true ? null : adapterRaw,
+      role: safeRole,
       enabled: json['enabled'] as bool? ?? true,
       builtIn: false,
       recommended: false,
-      colorHex: json['color']?.toString() ?? '5146E5',
+      // Never trust this flag from downloaded JSON.
+      trustedForDecision: false,
+      colorHex: _safeColor(json['color']?.toString()),
     );
+  }
+
+  static String _safeColor(String? raw) {
+    final value = (raw ?? '').replaceAll('#', '').trim().toUpperCase();
+    return RegExp(r'^[0-9A-F]{6}$').hasMatch(value) ? value : '5146E5';
+  }
+
+  static void _validateSearchTemplate(String template) {
+    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipradar'));
+    if (uri == null || uri.host.isEmpty || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      throw const FormatException('search_url must be an HTTP(S) URL.');
+    }
+  }
+
+  static void _validateAdapterTemplate(String template) {
+    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipradar'));
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || _isPrivateHost(uri.host)) {
+      throw const FormatException('adapter_url must use public HTTPS.');
+    }
+  }
+
+  static bool _isPrivateHost(String rawHost) {
+    final host = rawHost.toLowerCase().replaceAll('[', '').replaceAll(']', '');
+    if (host == 'localhost' || host == '::1' || host.endsWith('.local')) return true;
+    if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.') || host.startsWith('169.254.')) {
+      return true;
+    }
+    final match = RegExp(r'^172\.(\d{1,2})\.').firstMatch(host);
+    if (match != null) {
+      final second = int.tryParse(match.group(1) ?? '');
+      if (second != null && second >= 16 && second <= 31) return true;
+    }
+    return false;
   }
 }
 
@@ -158,11 +217,12 @@ class SourceRegistry {
       PriceSource(
         id: 'ebay_de',
         name: 'eBay DE',
-        subtitle: 'Wiederverkauf · aktuelle Angebote',
+        subtitle: 'Wiederverkauf · gebrauchte Festpreis-Angebote',
         searchUrlTemplate: 'https://www.ebay.de/sch/i.html?_nkw={query}',
         adapterUrlTemplate: _backendAdapter(backendBase, 'ebay_de'),
         role: 'resale',
         recommended: true,
+        trustedForDecision: true,
         colorHex: '3665F3',
       ),
       const PriceSource(
@@ -172,6 +232,7 @@ class SourceRegistry {
         searchUrlTemplate: 'https://www.kleinanzeigen.de/s-{query}/k0',
         role: 'local',
         recommended: true,
+        trustedForDecision: true,
         colorHex: '00A98F',
       ),
       PriceSource(
@@ -182,6 +243,7 @@ class SourceRegistry {
         adapterUrlTemplate: _backendAdapter(backendBase, 'amazon_de'),
         role: 'retail',
         recommended: true,
+        trustedForDecision: true,
         colorHex: 'FF9900',
       ),
       const PriceSource(
@@ -190,6 +252,7 @@ class SourceRegistry {
         subtitle: 'Neupreis-Referenz',
         searchUrlTemplate: 'https://www.mediamarkt.de/de/search.html?query={query}',
         role: 'retail',
+        trustedForDecision: true,
         colorHex: 'DF0000',
       ),
       const PriceSource(
@@ -198,6 +261,7 @@ class SourceRegistry {
         subtitle: 'Neupreis-Referenz',
         searchUrlTemplate: 'https://www.saturn.de/de/search.html?query={query}',
         role: 'retail',
+        trustedForDecision: true,
         colorHex: '1454A3',
       ),
       const PriceSource(
@@ -207,6 +271,7 @@ class SourceRegistry {
         searchUrlTemplate: 'https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q={query}',
         role: 'retail',
         recommended: true,
+        trustedForDecision: true,
         colorHex: 'FF6600',
       ),
       const PriceSource(
@@ -215,6 +280,7 @@ class SourceRegistry {
         subtitle: 'Sofort-Ankauf / Refurbished',
         searchUrlTemplate: 'https://www.rebuy.de/kaufen/suchen?q={query}',
         role: 'buyback',
+        trustedForDecision: true,
         colorHex: '1B9E77',
       ),
       const PriceSource(
@@ -223,6 +289,7 @@ class SourceRegistry {
         subtitle: 'Refurbished-Referenz',
         searchUrlTemplate: 'https://www.backmarket.de/de-de/search?q={query}',
         role: 'refurb',
+        trustedForDecision: true,
         colorHex: '111111',
       ),
     ];
@@ -260,29 +327,36 @@ class SourceRegistry {
 
   static Future<PriceSource> importManifest(String manifestUrl) async {
     final uri = Uri.tryParse(manifestUrl.trim());
-    if (uri == null || !uri.hasScheme) {
-      throw const FormatException('Bitte eine gültige HTTPS-Adresse eingeben.');
-    }
-    final isLocal = uri.host == 'localhost' || uri.host == '127.0.0.1';
-    if (uri.scheme != 'https' && !(isLocal && uri.scheme == 'http')) {
-      throw const FormatException('Partner-Manifeste müssen HTTPS verwenden.');
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || PriceSource._isPrivateHost(uri.host)) {
+      throw const FormatException('Partner-Manifeste müssen eine öffentliche HTTPS-Adresse verwenden.');
     }
 
     final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Manifest konnte nicht geladen werden (${response.statusCode}).');
     }
-    return PriceSource.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Ungültiges Partner-Manifest.');
+    }
+    return PriceSource.fromJson(decoded);
   }
 
   static Future<List<SourceListing>> fetch(PriceSource source, String query) async {
-    final target = source.adapterUrl(query);
+    final q = query.trim();
+    if (q.isEmpty || q.length > 180) return [];
+    final target = source.adapterUrl(q);
     if (target == null) return [];
     final uri = Uri.tryParse(target);
-    if (uri == null || !uri.hasScheme) return [];
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return [];
+
+    // Imported adapters are already checked at import time. Recheck here too so
+    // corrupted/local preferences cannot silently turn into background requests.
+    if (!source.builtIn && PriceSource._isPrivateHost(uri.host)) return [];
 
     final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) return [];
+    if (response.bodyBytes.length > 2 * 1024 * 1024) return [];
 
     final decoded = jsonDecode(response.body);
     final items = decoded is Map<String, dynamic>
@@ -292,9 +366,10 @@ class SourceRegistry {
             : const <dynamic>[];
 
     return items
+        .take(100)
         .whereType<Map<String, dynamic>>()
         .map((e) => SourceListing.fromJson(e, source))
-        .where((e) => e.price > 0)
+        .where((e) => e.price > 0 && e.price.isFinite && e.shipping.isFinite && e.shipping >= 0)
         .toList();
   }
 }
