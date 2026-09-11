@@ -134,7 +134,7 @@ class _FlipsPageState extends State<FlipsPage> {
     final sold = widget.flips.where((f) => f.status == 'Sold').toList();
     final open = widget.flips.where((f) => f.status != 'Sold').toList();
     final profit = sold.fold<double>(0, (a, b) => a + b.profit);
-    final capital = open.fold<double>(0, (a, b) => a + b.buy);
+    final capital = open.fold<double>(0, (a, b) => a + b.buy + b.costs);
     final shown = filter == 'sold' ? sold : filter == 'open' ? open : widget.flips;
 
     return ListView(
@@ -293,30 +293,64 @@ class _FlipCard extends StatelessWidget {
   }
 
   Future<void> _markSold(BuildContext context) async {
-    final controller = TextEditingController(text: item.sell > 0 ? item.sell.toStringAsFixed(0) : '');
-    final value = await showDialog<double>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('Verkaufspreis', 'Sale price')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(suffixText: '€'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Abbrechen', 'Cancel'))),
-          FilledButton(
-            onPressed: () {
-              final parsed = double.tryParse(controller.text.replaceAll(',', '.'));
-              if (parsed != null && parsed > 0) Navigator.pop(context, parsed);
-            },
-            child: Text(t('Speichern', 'Save')),
-          ),
-        ],
+  var entered = item.sell > 0 ? item.sell.toStringAsFixed(0) : '';
+  final value = await showDialog<double>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(t('Verkaufspreis', 'Sale price')),
+      content: TextFormField(
+        initialValue: entered,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(suffixText: '€'),
+        onChanged: (value) => entered = value,
+        onFieldSubmitted: (value) {
+          final parsed = _parseLibraryMoney(value);
+          if (parsed > 0) Navigator.pop(dialogContext, parsed);
+        },
       ),
-    );
-    controller.dispose();
-    if (value != null) onUpdate(item.copyWith(status: 'Sold', sell: value));
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: Text(t('Abbrechen', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: () {
+            final parsed = _parseLibraryMoney(entered);
+            if (parsed > 0) Navigator.pop(dialogContext, parsed);
+          },
+          child: Text(t('Speichern', 'Save')),
+        ),
+      ],
+    ),
+  );
+  if (value != null) onUpdate(item.copyWith(status: 'Sold', sell: value));
+}
+}
+
+
+double _parseLibraryMoney(String raw) {
+  var value = raw
+      .trim()
+      .replaceAll('€', '')
+      .replaceAll(RegExp(r'\s+'), '')
+      .replaceAll(RegExp(r'[^0-9,.-]'), '');
+  if (value.isEmpty) return 0;
+  final comma = value.lastIndexOf(',');
+  final dot = value.lastIndexOf('.');
+  if (comma >= 0 && dot >= 0) {
+    value = comma > dot
+        ? value.replaceAll('.', '').replaceAll(',', '.')
+        : value.replaceAll(',', '');
+  } else if (comma >= 0) {
+    final decimals = value.length - comma - 1;
+    value = decimals == 3 && comma > 0
+        ? value.replaceAll(',', '')
+        : value.replaceAll(',', '.');
+  } else if (dot >= 0) {
+    final decimals = value.length - dot - 1;
+    if (decimals == 3 && dot > 0) value = value.replaceAll('.', '');
   }
+  final parsed = double.tryParse(value);
+  return parsed == null || !parsed.isFinite || parsed < 0 ? 0 : parsed;
 }

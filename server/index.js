@@ -136,7 +136,7 @@ async function searchEbay(q) {
   url.searchParams.set('limit', '40');
   // eBay documents that buyingOptions filtering is category-sensitive. Filter
   // broad USED here, then enforce FIXED_PRICE on the returned item summaries.
-  url.searchParams.set('filter', 'conditions:{USED}');
+  url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');
 
   const response = await fetchWithTimeout(url, {
     headers: {
@@ -238,6 +238,9 @@ async function searchAmazon(q) {
     const offer = offers[index];
     if (liveOrder.size > 0 && !liveOrder.has(index)) continue;
     if (offer.isShippable === false || offer.isPreorder === true) continue;
+    // Amazon is a NEW-price reference in FlipRadar. Used/refurbished
+    // marketplace offers must not lower the retail benchmark.
+    if (Number(offer.condition) !== 1) continue;
 
     const csv = offer.offerCSV;
     if (!Array.isArray(csv) || csv.length < 2) continue;
@@ -319,7 +322,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return json(res, 200, { ok: true, service: 'flipradar-api', version: '0.9.0' });
+      return json(res, 200, { ok: true, service: 'flipradar-api', version: '0.9.1' });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/status') {

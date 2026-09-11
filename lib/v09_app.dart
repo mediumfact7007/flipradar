@@ -44,6 +44,129 @@ double parseMoneyInput(String raw) {
   return parsed;
 }
 
+String _limitSharedQuery(String value) {
+  final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return normalized.length <= 140
+      ? normalized
+      : normalized.substring(0, 140).trim();
+}
+
+String _decodeSharedSegment(String segment) {
+  try {
+    return Uri.decodeComponent(segment)
+        .replaceAll(RegExp(r'[-_]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  } catch (_) {
+    return segment
+        .replaceAll(RegExp(r'[-_]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+}
+
+bool _isUsefulSharedText(String value) {
+  final compact = value
+      .replaceAll(RegExp(r'[^a-zA-Z0-9äöüÄÖÜß]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (compact.length < 4) return false;
+  final lower = compact.toLowerCase();
+  const generic = {
+    'gerade bei kleinanzeigen gefunden wie findest du das',
+    'bei kleinanzeigen gefunden wie findest du das',
+    'wie findest du das',
+    'schau dir diesen artikel an',
+    'sieh dir diesen artikel an',
+    'check out this item',
+    'look at this item',
+  };
+  return !generic.contains(lower);
+}
+
+/// Extracts a useful product query from text shared by marketplace/browser apps.
+/// Marketing boilerplate and URLs are ignored; known marketplace URL shapes are
+/// used as a fallback when the shared text contains no product title.
+String extractSharedQuery(String raw) {
+  final source = raw.trim();
+  if (source.isEmpty) return '';
+
+  final urlMatch = RegExp(r'https?://\S+', caseSensitive: false).firstMatch(source);
+  final urlText = urlMatch?.group(0)?.replaceAll(RegExp(r'[),.;]+$'), '');
+  final uri = urlText == null ? null : Uri.tryParse(urlText);
+
+  if (uri != null) {
+    for (final key in const ['q', '_nkw', 'query', 'keyword', 'keywords']) {
+      final value = uri.queryParameters[key]?.trim();
+      if (value != null && value.length >= 3) {
+        return _limitSharedQuery(value);
+      }
+    }
+  }
+
+  var cleaned = source.replaceAll(RegExp(r'https?://\S+', caseSensitive: false), ' ');
+  cleaned = cleaned
+      .replaceAll(
+        RegExp(r'gerade\s+bei\s+#?kleinanzeigen\s+gefunden\.?', caseSensitive: false),
+        ' ',
+      )
+      .replaceAll(RegExp(r'wie\s+findest\s+du\s+das\??', caseSensitive: false), ' ')
+      .replaceAll(
+        RegExp(r'^(schau\s+dir|sieh\s+dir|check\s+out|look\s+at)\s+', caseSensitive: false),
+        '',
+      )
+      .replaceAll(RegExp(r'\b\d[\d.\s]*(?:,\d{1,2})?\s*€'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  if (_isUsefulSharedText(cleaned)) return _limitSharedQuery(cleaned);
+
+  if (uri != null) {
+    final segments = uri.pathSegments.where((e) => e.trim().isNotEmpty).toList();
+    final host = uri.host.toLowerCase();
+
+    if (host.contains('kleinanzeigen')) {
+      final index = segments.indexWhere((e) => e.toLowerCase() == 's-anzeige');
+      if (index >= 0 && index + 1 < segments.length) {
+        final title = _decodeSharedSegment(segments[index + 1]);
+        if (_isUsefulSharedText(title)) return _limitSharedQuery(title);
+      }
+    }
+
+    if (host.contains('ebay.')) {
+      final index = segments.indexWhere((e) => e.toLowerCase() == 'itm');
+      if (index >= 0) {
+        for (final segment in segments.skip(index + 1)) {
+          final title = _decodeSharedSegment(segment);
+          if (RegExp(r'^\d+$').hasMatch(title)) continue;
+          if (_isUsefulSharedText(title)) return _limitSharedQuery(title);
+        }
+      }
+    }
+
+    final dp = segments.indexWhere((e) => e.toLowerCase() == 'dp');
+    if (dp >= 0 && dp + 1 < segments.length) {
+      final asin = segments[dp + 1].trim();
+      if (RegExp(r'^[A-Z0-9]{10}$', caseSensitive: false).hasMatch(asin)) {
+        return asin.toUpperCase();
+      }
+    }
+
+    const ignored = {'itm', 'p', 'dp', 's', 'product', 'produkte', 'anzeige', 'anzeigen', 'search'};
+    for (final segment in segments.reversed) {
+      final decoded = _decodeSharedSegment(segment);
+      if (decoded.length < 5 ||
+          RegExp(r'^\d+$').hasMatch(decoded) ||
+          ignored.contains(decoded.toLowerCase())) {
+        continue;
+      }
+      if (_isUsefulSharedText(decoded)) return _limitSharedQuery(decoded);
+    }
+  }
+
+  return _limitSharedQuery(source);
+}
+
 class FlipRadarFinalApp extends StatefulWidget {
   const FlipRadarFinalApp({super.key});
 
@@ -270,7 +393,7 @@ class _FlipRadarFinalAppState extends State<FlipRadarFinalApp> {
                 await _reloadSources();
               },
               onRoi: (v) {
-                final safe = v.isFinite ? v.clamp(10, 100).toDouble() : 35;
+                final safe = v.isFinite ? v.clamp(10, 100).toDouble() : 35.0;
                 setState(() => targetRoi = safe);
                 _scheduleSave();
               },
@@ -360,6 +483,7 @@ class _FinalShellState extends State<_FinalShell> {
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   String _lastSharedQuery = '';
   DateTime? _lastSharedAt;
+  String? _pendingSharedQuery;
 
   String t(String de, String en) => widget.english ? en : de;
 
@@ -409,55 +533,24 @@ class _FinalShellState extends State<_FinalShell> {
     }
     _lastSharedQuery = q;
     _lastSharedAt = now;
-    Future.microtask(() => openCheck(q));
+    _pendingSharedQuery = q;
+    Future.microtask(_drainSharedQuery);
   }
 
-  String _queryFromShared(String raw) {
-    final source = raw.trim();
-    if (source.isEmpty) return '';
+  String _queryFromShared(String raw) => _limitQuery(extractSharedQuery(raw));
 
-    final urlMatch = RegExp(r'https?://\S+', caseSensitive: false).firstMatch(source);
-    final urlText = urlMatch?.group(0)?.replaceAll(RegExp(r'[),.;]+$'), '');
-    final uri = urlText == null ? null : Uri.tryParse(urlText);
-
-    if (uri != null) {
-      for (final key in const ['q', '_nkw', 'query', 'keyword', 'keywords']) {
-        final value = uri.queryParameters[key]?.trim();
-        if (value != null && value.length >= 3) return _limitQuery(value);
-      }
-      final segments = uri.pathSegments.where((e) => e.trim().isNotEmpty).toList();
-      final dp = segments.indexWhere((e) => e.toLowerCase() == 'dp');
-      if (dp >= 0 && dp + 1 < segments.length) {
-        final asin = segments[dp + 1].trim();
-        if (RegExp(r'^[A-Z0-9]{10}$', caseSensitive: false).hasMatch(asin)) {
-          return asin.toUpperCase();
-        }
-      }
+  void _drainSharedQuery() {
+    if (!mounted || _pendingSharedQuery == null) return;
+    if (_openingCheck) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
     }
-
-    var cleaned = source.replaceAll(RegExp(r'https?://\S+', caseSensitive: false), ' ');
-    cleaned = cleaned
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceFirst(RegExp(r'^(schau dir|sieh dir|check out|look at)\s+', caseSensitive: false), '')
-        .trim();
-    if (cleaned.length >= 4) return _limitQuery(cleaned);
-
-    if (uri != null) {
-      const ignored = {'itm', 'p', 'dp', 's', 'product', 'produkte', 'anzeige', 'anzeigen'};
-      for (final segment in uri.pathSegments.reversed) {
-        final decoded = Uri.decodeComponent(segment)
-            .replaceAll(RegExp(r'[-_]+'), ' ')
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
-        if (decoded.length < 5 ||
-            RegExp(r'^\d+$').hasMatch(decoded) ||
-            ignored.contains(decoded.toLowerCase())) {
-          continue;
-        }
-        return _limitQuery(decoded);
-      }
-    }
-    return _limitQuery(source);
+    final q = _pendingSharedQuery!;
+    _pendingSharedQuery = null;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(openCheck(q));
+    });
   }
 
   String _limitQuery(String value) {
@@ -487,7 +580,11 @@ class _FinalShellState extends State<_FinalShell> {
       );
     } finally {
       _openingCheck = false;
+      final hasPendingShare = _pendingSharedQuery != null;
       if (mounted) setState(() {});
+      if (mounted && hasPendingShare) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _drainSharedQuery());
+      }
     }
   }
 
@@ -573,9 +670,9 @@ class _FinalShellState extends State<_FinalShell> {
             selectedIcon: const Icon(Icons.bookmark),
             label: t('Merkliste', 'Saved'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.inventory_2_outlined),
-            selectedIcon: const Icon(Icons.inventory_2),
+          const NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
             label: 'Flips',
           ),
         ],

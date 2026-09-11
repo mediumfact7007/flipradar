@@ -43,13 +43,35 @@ class SourceListing {
       shipping: _toDouble(json['shipping']),
       url: json['url']?.toString() ?? '',
       condition: json['condition']?.toString() ?? '',
-      live: json['live'] as bool? ?? true,
+      live: json['live'] is bool ? json['live'] as bool : true,
     );
   }
 
   static double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString().replaceAll(',', '.') ?? '') ?? 0;
+    if (value is num) return value.isFinite ? value.toDouble() : 0;
+    var raw = value?.toString().trim() ?? '';
+    raw = raw
+        .replaceAll('€', '')
+        .replaceAll(RegExp(r'\s+'), '')
+        .replaceAll(RegExp(r'[^0-9,.-]'), '');
+    if (raw.isEmpty) return 0;
+    final comma = raw.lastIndexOf(',');
+    final dot = raw.lastIndexOf('.');
+    if (comma >= 0 && dot >= 0) {
+      raw = comma > dot
+          ? raw.replaceAll('.', '').replaceAll(',', '.')
+          : raw.replaceAll(',', '');
+    } else if (comma >= 0) {
+      final decimals = raw.length - comma - 1;
+      raw = decimals == 3 && comma > 0
+          ? raw.replaceAll(',', '')
+          : raw.replaceAll(',', '.');
+    } else if (dot >= 0) {
+      final decimals = raw.length - dot - 1;
+      if (decimals == 3 && dot > 0) raw = raw.replaceAll('.', '');
+    }
+    final parsed = double.tryParse(raw);
+    return parsed == null || !parsed.isFinite ? 0 : parsed;
   }
 }
 
@@ -334,6 +356,9 @@ class SourceRegistry {
     final response = await http.get(uri).timeout(const Duration(seconds: 10));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Manifest konnte nicht geladen werden (${response.statusCode}).');
+    }
+    if (response.bodyBytes.length > 256 * 1024) {
+      throw const FormatException('Partner-Manifest ist zu groß.');
     }
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {

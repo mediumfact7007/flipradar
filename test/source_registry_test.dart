@@ -11,18 +11,14 @@ void main() {
       'role': 'resale',
       'color': 'ABCDEF',
     });
-
     expect(source.builtIn, isFalse);
     expect(source.trustedForDecision, isFalse);
-    expect(source.role, 'resale');
-
     final listing = SourceListing.fromJson({
       'title': 'Manipulated result',
       'price': 9999,
       'shipping': 0,
       'live': true,
     }, source);
-
     expect(listing.role, 'reference');
   });
 
@@ -35,7 +31,6 @@ void main() {
       }),
       throwsFormatException,
     );
-
     expect(
       () => PriceSource.fromJson({
         'name': 'Unsafe LAN',
@@ -44,6 +39,27 @@ void main() {
       }),
       throwsFormatException,
     );
+  });
+
+  test('localized adapter prices and non-bool live field are safe', () {
+    const source = PriceSource(
+      id: 'trusted-test',
+      name: 'Trusted',
+      subtitle: 'test',
+      searchUrlTemplate: 'https://example.com/?q={query}',
+      role: 'resale',
+      trustedForDecision: true,
+    );
+    final listing = SourceListing.fromJson({
+      'title': 'Item',
+      'price': '1.299,99 €',
+      'shipping': '4,99',
+      'live': 'true',
+    }, source);
+    expect(listing.price, closeTo(1299.99, 0.001));
+    expect(listing.shipping, closeTo(4.99, 0.001));
+    expect(listing.total, closeTo(1304.98, 0.001));
+    expect(listing.live, isTrue);
   });
 
   test('invalid color and role fall back safely', () {

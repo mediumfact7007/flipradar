@@ -509,9 +509,9 @@ class _ShellState extends State<Shell> {
             selectedIcon: const Icon(Icons.bookmark),
             label: t('Merkliste', 'Saved'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.inventory_2_outlined),
-            selectedIcon: const Icon(Icons.inventory_2),
+          const NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
             label: 'Flips',
           ),
         ],

@@ -346,10 +346,10 @@ class _CheckPageState extends State<CheckPage> {
               controller: buy,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: '0,00',
                 suffixText: '€',
-                prefixIcon: const Icon(Icons.shopping_cart_checkout_rounded),
+                prefixIcon: Icon(Icons.shopping_cart_checkout_rounded),
               ),
             ),
           ),

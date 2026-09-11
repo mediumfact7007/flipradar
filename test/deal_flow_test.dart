@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 Widget buildCheck({double targetRoi = 35}) {
   return MaterialApp(
-    home: CheckPage(
+    home: FinalCheckPage(
       english: false,
       initialQuery: 'Testgerät 123',
       targetRoi: targetRoi,
@@ -13,6 +13,7 @@ Widget buildCheck({double targetRoi = 35}) {
       onHistory: (_) {},
       onWatch: (_) {},
       onAddFlip: (_) {},
+      onRemoveFlip: (_) {},
     ),
   );
 }
@@ -25,37 +26,32 @@ Future<void> enterManualDeal(
   await tester.pumpWidget(buildCheck());
   await tester.pumpAndSettle();
 
-  expect(find.text('Noch kein Wiederverkaufswert'), findsOneWidget);
-  var fields = find.byType(TextField);
-  expect(fields.evaluate().length, greaterThanOrEqualTo(2));
-  await tester.enterText(fields.at(1), buy);
-
-  fields = find.byType(TextField);
-  if (fields.evaluate().length < 3) {
-    await tester.tap(find.text('Verkaufspreis eingeben'));
-    await tester.pumpAndSettle();
-    fields = find.byType(TextField);
-  }
+  expect(find.text('Noch keine automatischen Wiederverkaufsdaten'), findsOneWidget);
+  final fields = find.byType(TextField);
   expect(fields.evaluate().length, greaterThanOrEqualTo(3));
+  await tester.enterText(fields.at(1), buy);
   await tester.enterText(fields.at(2), sell);
   await tester.pump();
 }
 
 void main() {
-  testWidgets('35% ROI target recommends buy at 100 for 200 sale', (tester) async {
+  testWidgets('active final flow recommends buy at target ROI', (tester) async {
     await enterManualDeal(tester, buy: '100', sell: '200');
     expect(find.text('KAUFEN'), findsOneWidget);
     expect(find.text('148 €'), findsOneWidget);
   });
 
-  testWidgets('near-limit deal recommends negotiation and a concrete offer', (tester) async {
+  testWidgets('active final flow recommends a concrete negotiation', (tester) async {
     await enterManualDeal(tester, buy: '160', sell: '200');
     expect(find.text('VERHANDELN'), findsOneWidget);
-
-    // The concrete copy-ready negotiation card follows the main decision card
-    // and can sit just below the fold on a compact test viewport.
     await tester.drag(find.byType(ListView), const Offset(0, -450));
     await tester.pumpAndSettle();
     expect(find.text('Versuch 140 €'), findsOneWidget);
+  });
+
+  testWidgets('German thousands input is accepted in active deal flow', (tester) async {
+    await enterManualDeal(tester, buy: '1.000,00', sell: '2.000,00');
+    expect(find.text('KAUFEN'), findsOneWidget);
+    expect(find.text('1481 €'), findsOneWidget);
   });
 }
