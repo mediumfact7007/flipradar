@@ -24,6 +24,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           p = Path('lib/v09_app.dart')
           s = p.read_text()
@@ -33,11 +34,59 @@ jobs:
               raise SystemExit('Shared-price cleanup pattern not found')
           p.write_text(s.replace(old, new, 1))
 
+          p = Path('lib/v07_library.dart')
+          s = p.read_text()
+          pattern = re.compile(r"  Future<void> _markSold\(BuildContext context\) async \{.*?\n  \}\n\}", re.S)
+          replacement = '''  Future<void> _markSold(BuildContext context) async {
+            var entered = item.sell > 0 ? item.sell.toStringAsFixed(0) : '';
+            final value = await showDialog<double>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: Text(t('Verkaufspreis', 'Sale price')),
+                content: TextFormField(
+                  initialValue: entered,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(suffixText: '€'),
+                  onChanged: (value) => entered = value,
+                  onFieldSubmitted: (value) {
+                    final parsed = _parseLibraryMoney(value);
+                    if (parsed > 0) Navigator.pop(dialogContext, parsed);
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(t('Abbrechen', 'Cancel')),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final parsed = _parseLibraryMoney(entered);
+                      if (parsed > 0) Navigator.pop(dialogContext, parsed);
+                    },
+                    child: Text(t('Speichern', 'Save')),
+                  ),
+                ],
+              ),
+            );
+            if (value != null) onUpdate(item.copyWith(status: 'Sold', sell: value));
+          }
+          }'''
+          s, count = pattern.subn(replacement, s, count=1)
+          if count != 1:
+              raise SystemExit('Sale dialog method not found')
+          p.write_text(s)
+
           p = Path('test/library_flow_test.dart')
           s = p.read_text()
           s = s.replace(
               "await tester.tap(find.text('Verkauft'));",
               "await tester.tap(find.widgetWithText(FilledButton, 'Verkauft'));",
+              1,
+          )
+          s = s.replace(
+              "await tester.enterText(find.byType(TextField), '1.299,99');",
+              "await tester.enterText(find.byType(TextFormField), '1.299,99');",
               1,
           )
           p.write_text(s)
