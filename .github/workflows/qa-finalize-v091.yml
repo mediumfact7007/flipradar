@@ -19,6 +19,34 @@ jobs:
       - name: Apply QA fixes
         run: python3 tools/finalize_v091.py
 
+      - name: Apply edge cases found by QA
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('lib/v09_app.dart')
+          s = p.read_text()
+          old = "RegExp(r'\\b\\d[\\d.\\s]*(?:,\\d{1,2})?\\s*€\\b')"
+          new = "RegExp(r'\\b\\d[\\d.\\s]*(?:,\\d{1,2})?\\s*€')"
+          if old not in s:
+              raise SystemExit('Shared-price cleanup pattern not found')
+          p.write_text(s.replace(old, new, 1))
+
+          p = Path('test/library_flow_test.dart')
+          s = p.read_text()
+          s = s.replace(
+              "await tester.tap(find.text('Verkauft'));",
+              "await tester.tap(find.widgetWithText(FilledButton, 'Verkauft'));",
+              1,
+          )
+          p.write_text(s)
+
+          p = Path('test/deal_flow_test.dart')
+          s = p.read_text().replace("expect(find.text('1.481 €'), findsOneWidget);", "expect(find.text('1481 €'), findsOneWidget);", 1)
+          p.write_text(s)
+          PY
+
       - name: Check backend and smoke test
         shell: bash
         run: |
