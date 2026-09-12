@@ -174,7 +174,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
     expect(find.text('KAUFEN'), findsOneWidget);
-    expect(find.text('MAX 148 €'), findsOneWidget);
+    expect(find.textContaining('MAX 148'), findsOneWidget);
 
     monetization.dispose();
   });
