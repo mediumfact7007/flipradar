@@ -63,6 +63,12 @@ text = text.replace(
 text = text.replace("DropdownButtonFormField<String>(value: platform,", "DropdownButtonFormField<String>(initialValue: platform,")
 text = text.replace("DropdownButtonFormField<V13TaxMode>(value: widget.taxMode,", "DropdownButtonFormField<V13TaxMode>(initialValue: widget.taxMode,")
 
+# math.max/min returns num if an integer literal participates; keep offer a double.
+text = text.replace(
+    "final offer = math.max(0, math.min(limit * .95, buyPrice * .90));",
+    "final offer = math.max(0.0, math.min(limit * .95, buyPrice * .90)).toDouble();",
+)
+
 # Do not let unavailable platform channels break tests or sideloaded builds.
 text = text.replace(
 """  Future<void> init() async {
