@@ -1,4 +1,5 @@
 import 'package:flipradar/main.dart';
+import 'package:flipradar/source_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -22,7 +23,6 @@ void main() {
     expect(find.text('Produkt, Modell oder EAN suchen'), findsOneWidget);
     expect(find.text('Meine Flips'), findsOneWidget);
   });
-
 
   testWidgets('V0.10 clears a stale decision when the item changes', (tester) async {
     await tester.pumpWidget(
@@ -130,5 +130,4 @@ void main() {
     expect(saleField, findsNothing);
     expect(find.text('KAUFEN'), findsOneWidget);
   });
-
 }
