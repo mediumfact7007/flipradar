@@ -15,7 +15,7 @@ void main() {
     expect(kleinanzeigen.kind, V13InputKind.url);
     expect(kleinanzeigen.query.toLowerCase(), contains('iphone 15 pro 256gb'));
 
-    final amazon = normalizeV13Search('https://www.amazon.de/dp/B0ABCDEFGHI/');
+    final amazon = normalizeV13Search('https://www.amazon.de/dp/B0ABCDEFGH/');
     expect(amazon.kind, V13InputKind.asin);
     expect(amazon.query, 'B0ABCDEFGH');
 
