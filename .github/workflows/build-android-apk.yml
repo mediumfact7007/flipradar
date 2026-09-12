@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -19,15 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Apply one-time V0.11 quick-compare patch
-        shell: bash
-        run: |
-          if [ -f tools/patch_v11.py ]; then
-            python3 tools/patch_v11.py
-            sed -i 's/search_text=Nike%20Dunk/search_text=Nike+Dunk/' test/source_registry_test.dart
-            sed -i 's/fs=Galaxy%20S26/fs=Galaxy+S26/' test/source_registry_test.dart
-          fi
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -146,18 +137,6 @@ jobs:
           test -s build/app/outputs/flutter-apk/app-release.apk
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Persist validated V0.11 source
-        shell: bash
-        run: |
-          if [ -f tools/patch_v11.py ]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git rm tools/patch_v11.py
-            git add lib/v10_app.dart lib/source_registry.dart lib/v07_widgets.dart test/v10_flow_test.dart test/source_registry_test.dart pubspec.yaml
-            git commit -m 'Finalize FlipRadar V0.11 quick-compare UX [skip ci]'
-            git push origin main
-          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
