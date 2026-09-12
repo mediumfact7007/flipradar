@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -361,7 +360,9 @@ class V13Monetization extends ChangeNotifier {
   String get rewardedId => Platform.isAndroid ? androidRewarded : iosRewarded;
 
   Future<void> init() async {
-    _purchaseSub = InAppPurchase.instance.purchaseStream.listen(_purchaseUpdate, onError: (_) {});
+    try {
+      _purchaseSub = InAppPurchase.instance.purchaseStream.listen(_purchaseUpdate, onError: (_) {});
+    } catch (_) {}
     unawaited(_initBilling());
     unawaited(_initAds());
   }
@@ -1092,14 +1093,12 @@ class _V13CheckPageState extends State<V13CheckPage> {
   final manualFocus = FocusNode();
   List<SourceListing> listings = [];
   final Set<String> pending = {};
-  final Set<String> finished = {};
   bool manualMode = false;
   double? manualCommitted;
   bool deepUnlocked = false;
   bool deepLoading = false;
   bool savedBought = false;
   int token = 0;
-  DateTime openedAt = DateTime.now();
   V13Decision? lastHaptic;
 
   String t(String de, String en) => widget.english ? en : de;
@@ -1119,12 +1118,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
     setState(() {
       listings = [];
       pending.clear();
-      finished.clear();
       manualCommitted = null;
       manualSell.clear();
       manualMode = false;
       savedBought = false;
-      openedAt = DateTime.now();
     });
     final direct = widget.sources.where((s) => s.enabled && s.canFetchInApp).toList();
     pending.addAll(direct.map((e) => e.id));
@@ -1154,7 +1151,6 @@ class _V13CheckPageState extends State<V13CheckPage> {
       dedupe[key] = item;
     }
     pending.remove(source.id);
-    finished.add(source.id);
     setState(() => listings = dedupe.values.toList()..sort((a, b) => a.total.compareTo(b.total)));
     if (pending.isEmpty && expectedSale == null) setState(() => manualMode = true);
     if (buy.text.isEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
@@ -1435,7 +1431,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
 
   void _copyOffer() {
     final limit = maxBuy ?? 0;
-    final offer = math.max(0, math.min(limit * .95, buyPrice * .90));
+    final offer = math.max(0.0, math.min(limit * .95, buyPrice * .90)).toDouble();
     final message = t('Hallo, wären ${v13Euro(offer)} bei schneller Abwicklung für dich okay?', 'Hi, would ${v13Euro(offer)} work for a quick deal?');
     Clipboard.setData(ClipboardData(text: message));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Verhandlungstext kopiert.', 'Negotiation message copied.'))));
@@ -1918,7 +1914,7 @@ class _V13FlipCard extends StatelessWidget {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: price, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: t('Verkaufspreis', 'Sale price'), suffixText: '€')),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(value: platform, decoration: InputDecoration(labelText: t('Verkauft über', 'Sold on')), items: ['eBay', 'Kleinanzeigen', 'Vinted', 'Amazon', 'rebuy', t('Sonstiges', 'Other')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) => setDialog(() => platform = v ?? platform)),
+          DropdownButtonFormField<String>(initialValue: platform, decoration: InputDecoration(labelText: t('Verkauft über', 'Sold on')), items: ['eBay', 'Kleinanzeigen', 'Vinted', 'Amazon', 'rebuy', t('Sonstiges', 'Other')].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) => setDialog(() => platform = v ?? platform)),
         ]),
         actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(t('Abbrechen', 'Cancel'))), FilledButton(onPressed: () { final value = v13Money(price.text); if (value > 0) Navigator.pop(dialogContext, {'price': value, 'platform': platform}); }, child: Text(t('Speichern', 'Save')))],
       )),
@@ -1953,10 +1949,18 @@ class V13SettingsPage extends StatefulWidget {
 }
 
 class _V13SettingsPageState extends State<V13SettingsPage> {
-  late double roi = widget.targetRoi;
-  late double minProfit = widget.minProfit;
-  late bool english = widget.english;
+  late double roi;
+  late double minProfit;
+  late bool english;
   String t(String de, String en) => english ? en : de;
+
+  @override
+  void initState() {
+    super.initState();
+    roi = widget.targetRoi;
+    minProfit = widget.minProfit;
+    english = widget.english;
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1982,7 +1986,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           const SizedBox(height: 18),
           _V13Section(title: t('Kaufmännisch', 'Business')),
           const SizedBox(height: 8),
-          DropdownButtonFormField<V13TaxMode>(value: widget.taxMode, decoration: InputDecoration(labelText: t('Steuerprofil', 'Tax profile')), items: V13TaxMode.values.map((e) => DropdownMenuItem(value: e, child: Text(v13TaxLabel(e, english)))).toList(), onChanged: (v) { if (v != null) widget.onTaxMode(v); }),
+          DropdownButtonFormField<V13TaxMode>(initialValue: widget.taxMode, decoration: InputDecoration(labelText: t('Steuerprofil', 'Tax profile')), items: V13TaxMode.values.map((e) => DropdownMenuItem(value: e, child: Text(v13TaxLabel(e, english)))).toList(), onChanged: (v) { if (v != null) widget.onTaxMode(v); }),
           const SizedBox(height: 5),
           Text(t('Das Profil dient der Einordnung. FlipRadar zieht aktuell keine Steuer automatisch vom Gewinn ab.', 'The profile is contextual. FlipRadar does not currently deduct taxes automatically.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF7B7F8C))),
           const SizedBox(height: 18),
@@ -2034,8 +2038,15 @@ class V13SourcesPage extends StatefulWidget {
 }
 
 class _V13SourcesPageState extends State<V13SourcesPage> {
-  late List<PriceSource> items = [...widget.sources];
+  late List<PriceSource> items;
   String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  void initState() {
+    super.initState();
+    items = [...widget.sources];
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(t('Preisquellen', 'Price sources'), style: const TextStyle(fontWeight: FontWeight.w900))),
@@ -2112,19 +2123,37 @@ class V13BannerAd extends StatefulWidget {
 
 class _V13BannerAdState extends State<V13BannerAd> {
   BannerAd? ad;
+  bool loaded = false;
   bool failed = false;
   @override
   void initState() { super.initState(); widget.monetization.addListener(_maybeLoad); WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad()); }
   void _maybeLoad() {
     if (!mounted || ad != null || failed || !widget.monetization.adsAllowed) return;
-    final next = BannerAd(size: AdSize.banner, adUnitId: widget.monetization.bannerId, listener: BannerAdListener(onAdLoaded: (_) { if (mounted) setState(() {}); }, onAdFailedToLoad: (value, error) { value.dispose(); failed = true; if (mounted) setState(() {}); }), request: const AdRequest());
+    final next = BannerAd(
+      size: AdSize.banner,
+      adUnitId: widget.monetization.bannerId,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          loaded = true;
+          if (mounted) setState(() {});
+        },
+        onAdFailedToLoad: (value, error) {
+          value.dispose();
+          ad = null;
+          failed = true;
+          loaded = false;
+          if (mounted) setState(() {});
+        },
+      ),
+      request: const AdRequest(),
+    );
     ad = next;
     next.load();
   }
   @override
   Widget build(BuildContext context) {
     final current = ad;
-    if (current == null) return const SizedBox.shrink();
+    if (current == null || !loaded) return const SizedBox.shrink();
     return Center(child: Column(children: [const Text('ANZEIGE', style: TextStyle(fontSize: 8, color: Color(0xFF9598A4), fontWeight: FontWeight.w800)), const SizedBox(height: 3), SizedBox(width: current.size.width.toDouble(), height: current.size.height.toDouble(), child: AdWidget(ad: current))]));
   }
   @override
