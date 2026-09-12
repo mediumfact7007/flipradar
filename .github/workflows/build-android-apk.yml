@@ -20,8 +20,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply V0.13 pre-build cleanup
-        run: python3 tools/patch_v13_fixes.py
+      - name: Apply V0.13.1 safe-start patch
+        run: python3 tools/patch_v131_startup.py
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -120,8 +120,8 @@ jobs:
               if 'android.intent.action.SEND' not in text:
                   text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
 
-              # Official Google sample AdMob App ID. Real revenue requires the
-              # publisher's own app/ad-unit IDs before production release.
+              # Official Google sample AdMob App ID. Runtime ad initialization is
+              # deliberately deferred in the V0.13.1 safe-start build.
               admob_meta = '''
                 <meta-data
                     android:name="com.google.android.gms.ads.APPLICATION_ID"
@@ -152,19 +152,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13-UNIVERSAL-SEARCH-APK
+          name: FlipRadar-V0.13.1-SAFE-START-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.13 source
+      - name: Persist validated V0.13.1 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/v13_app.dart
-          git rm -f tools/patch_v13_fixes.py tools/patch_v12.py tools/patch_v12b.py tools/patch_v12c.py tools/patch_v12d.py || true
+          git add lib/v13_app.dart lib/main.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.13 Universal Search [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.13.1 Safe Start [skip ci]'
             git push origin main
           fi
