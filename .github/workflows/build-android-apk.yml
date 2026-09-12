@@ -37,8 +37,12 @@ jobs:
           done
           cat /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
+          grep -q '"version":"0.9.1"' /tmp/health.json
           curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
           grep -q '"sources"' /tmp/status.json
+          code=$(curl -sS -o /tmp/bad-source.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/market/search?source=bad&q=test')
+          test "$code" = "400"
+          grep -q 'unsupported_source' /tmp/bad-source.json
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -137,7 +141,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.9-FINAL-APK
+          name: FlipRadar-V0.9.1-FINAL-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
