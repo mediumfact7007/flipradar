@@ -25,6 +25,8 @@ jobs:
         run: |
           if [ -f tools/patch_v11.py ]; then
             python3 tools/patch_v11.py
+            sed -i 's/search_text=Nike%20Dunk/search_text=Nike+Dunk/' test/source_registry_test.dart
+            sed -i 's/fs=Galaxy%20S26/fs=Galaxy+S26/' test/source_registry_test.dart
           fi
 
       - name: Check backend syntax
