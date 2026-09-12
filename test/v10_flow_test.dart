@@ -23,6 +23,35 @@ void main() {
     expect(find.text('Meine Flips'), findsOneWidget);
   });
 
+
+  testWidgets('V0.10 clears a stale decision when the item changes', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FastCheckPage(
+          english: false,
+          initialQuery: 'Testgerät',
+          targetRoi: 35,
+          plan: UserPlan.free,
+          sources: const [],
+          onHistory: (_) {},
+          onWatch: (_) {},
+          onAddFlip: (_) {},
+          onRemoveFlip: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(1), '100');
+    await tester.enterText(fields.at(2), '200');
+    await tester.pump();
+    expect(find.text('KAUFEN'), findsOneWidget);
+
+    await tester.enterText(fields.at(0), 'Anderes Gerät');
+    await tester.pump();
+    expect(find.text('KAUFEN'), findsNothing);
+  });
+
   testWidgets('V0.10 manual fallback produces an immediate buy decision', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

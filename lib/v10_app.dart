@@ -354,7 +354,8 @@ class _FastShellState extends State<_FastShell> {
 
   Future<void> _scanSession() async {
     var keepGoing = true;
-    while (mounted && keepGoing) {
+    while (keepGoing) {
+      if (!mounted) return;
       final code = await Navigator.push<String>(
         context,
         MaterialPageRoute(builder: (_) => ScannerPage(english: widget.english)),
@@ -583,23 +584,19 @@ class _FastHomeState extends State<_FastHome> {
           ),
         ),
         const SizedBox(height: 13),
-        InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: widget.onSaved,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.ios_share_rounded, size: 19, color: Color(0xFF4E50D8)),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    t('Online-Angebot? Teilen → FlipRadar', 'Online listing? Share → FlipRadar'),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF4E50D8)),
-                  ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.ios_share_rounded, size: 19, color: Color(0xFF4E50D8)),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  t('Online-Angebot? Im Teilen-Menü → FlipRadar', 'Online listing? Share menu → FlipRadar'),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF4E50D8)),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         if (widget.history.isNotEmpty) ...[
@@ -682,6 +679,8 @@ class _FastCheckPageState extends State<FastCheckPage> {
   bool showManual = false;
   bool showDetails = false;
   int _searchToken = 0;
+  String _lastSearchedQuery = '';
+  _FastDecision? _lastHapticDecision;
   List<SourceListing> listings = [];
 
   String t(String de, String en) => widget.english ? en : de;
@@ -707,11 +706,28 @@ class _FastCheckPageState extends State<FastCheckPage> {
 
   double _value(TextEditingController c) => parseMoneyInput(c.text);
 
+  void _queryChanged(String raw) {
+    final current = raw.trim();
+    if (!searched || current == _lastSearchedQuery) return;
+    _searchToken++;
+    setState(() {
+      loading = false;
+      searched = false;
+      listings = [];
+      showManual = false;
+      manualSell.clear();
+      buy.clear();
+      _lastHapticDecision = null;
+    });
+  }
+
   Future<void> _search() async {
     final q = query.text.trim();
     if (q.isEmpty || loading) return;
     widget.onHistory(q);
     final token = ++_searchToken;
+    _lastSearchedQuery = q;
+    _lastHapticDecision = null;
     setState(() {
       loading = true;
       searched = true;
@@ -978,6 +994,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
         children: [
           TextField(
             controller: query,
+            onChanged: _queryChanged,
             onSubmitted: (_) => _search(),
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
@@ -994,7 +1011,11 @@ class _FastCheckPageState extends State<FastCheckPage> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) {
               setState(() {});
-              if (decision != _FastDecision.waiting) HapticFeedback.selectionClick();
+              final current = decision;
+              if (current != _FastDecision.waiting && current != _lastHapticDecision) {
+                _lastHapticDecision = current;
+                HapticFeedback.selectionClick();
+              }
             },
             decoration: InputDecoration(
               labelText: t('Was sollst du zahlen?', 'What would you pay?'),
