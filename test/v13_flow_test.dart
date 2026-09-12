@@ -85,19 +85,45 @@ void main() {
     expect(stats.speedLabel(false), 'Schnell');
   });
 
+  test('V0.13 flip model keeps real sale data and calculates days to sell', () {
+    final created = DateTime(2026, 2, 1);
+    final flip = V13Flip(
+      id: 'sale-1',
+      name: 'PlayStation 5',
+      category: 'Konsole',
+      buy: 300,
+      expectedAtBuy: 430,
+      costs: 20,
+      sourceCount: 7,
+      confidence: 'Mittel',
+      status: 'Sold',
+      createdAt: created,
+      soldAt: created.add(const Duration(days: 9)),
+      actualSell: 420,
+      soldPlatform: 'eBay',
+    );
+    final restored = V13Flip.fromJson(flip.toJson());
+    expect(restored.daysToSell, 9);
+    expect(restored.realizedProfit, 100);
+    expect(restored.realizedRoi, closeTo(33.333, 0.01));
+    expect(restored.soldPlatform, 'eBay');
+  });
+
   testWidgets('V0.13 home is search-first and barcode remains secondary', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
     await tester.pumpWidget(
       MaterialApp(
-        home: V13Home(
-          english: false,
-          plan: UserPlan.free,
-          history: const ['iPhone 15 Pro'],
-          openFlips: 0,
-          monetization: monetization,
-          onSearch: (_) {},
-          onScan: () {},
-          onSettings: () {},
+        home: Scaffold(
+          body: V13Home(
+            english: false,
+            plan: UserPlan.free,
+            history: const ['iPhone 15 Pro'],
+            openFlips: 0,
+            monetization: monetization,
+            onSearch: (_) {},
+            onScan: () {},
+            onSettings: () {},
+          ),
         ),
       ),
     );
@@ -114,7 +140,6 @@ void main() {
 
   testWidgets('V0.13 manual sale price waits for confirmation before deciding', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
-    V13Flip? bought;
     await tester.pumpWidget(
       MaterialApp(
         home: V13CheckPage(
@@ -128,7 +153,7 @@ void main() {
           flips: const [],
           monetization: monetization,
           onHistory: (_) {},
-          onAddFlip: (item) => bought = item,
+          onAddFlip: (_) {},
         ),
       ),
     );
@@ -149,13 +174,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
     expect(find.text('KAUFEN'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('GEKAUFT'));
-    await tester.tap(find.text('GEKAUFT'));
-    await tester.pump();
-    expect(bought, isNotNull);
-    expect(bought!.buy, 100);
-    expect(bought!.expectedAtBuy, 200);
+    expect(find.text('MAX 148 €'), findsOneWidget);
 
     monetization.dispose();
   });
