@@ -26,6 +26,7 @@ jobs:
           sed -i 's/if count != 1:/if count < 1:/' tools/patch_v12.py
           python3 tools/patch_v12.py
           python3 tools/patch_v12b.py
+          python3 tools/patch_v12c.py
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -150,7 +151,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm tools/patch_v12.py tools/patch_v12b.py
+          git rm tools/patch_v12.py tools/patch_v12b.py tools/patch_v12c.py
           git add lib/v10_app.dart lib/v07_settings.dart test/v10_flow_test.dart pubspec.yaml
           git commit -m 'Finalize FlipRadar V0.12 Search First [skip ci]'
           git push origin main
