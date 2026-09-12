@@ -44,6 +44,8 @@ text = text.replace('    unawaited(monetization.init());\n', '')
 # Do not initialize receive_sharing_intent while the root UI is mounting.
 # It remains compiled and can be re-enabled after this startup regression is isolated.
 text = text.replace('    _listenShares();\n', '    // Safe-start build: optional share listener is not part of first-frame startup.\n', 1)
+if '  // ignore: unused_element\n  void _listenShares() {' not in text:
+    text = text.replace('  void _listenShares() {\n', '  // ignore: unused_element\n  void _listenShares() {\n', 1)
 
 if 'Future<void> _loadSafe() async {' not in text:
     marker = '  Future<void> _load() async {\n'
