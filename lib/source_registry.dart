@@ -257,6 +257,15 @@ class SourceRegistry {
         trustedForDecision: true,
         colorHex: '00A98F',
       ),
+      const PriceSource(
+        id: 'vinted',
+        name: 'Vinted',
+        subtitle: 'Secondhand · Mode, Elektronik & mehr',
+        searchUrlTemplate: 'https://www.vinted.de/catalog?search_text={query}',
+        role: 'local',
+        recommended: true,
+        colorHex: '007782',
+      ),
       PriceSource(
         id: 'amazon_de',
         name: 'Amazon DE',
@@ -295,6 +304,15 @@ class SourceRegistry {
         recommended: true,
         trustedForDecision: true,
         colorHex: 'FF6600',
+      ),
+      const PriceSource(
+        id: 'geizhals',
+        name: 'Geizhals',
+        subtitle: 'Neupreis- & Angebotsvergleich',
+        searchUrlTemplate: 'https://geizhals.de/?fs={query}&hloc=de',
+        role: 'retail',
+        recommended: true,
+        colorHex: '0096D6',
       ),
       const PriceSource(
         id: 'rebuy',

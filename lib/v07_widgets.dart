@@ -14,6 +14,8 @@ IconData sourceIcon(String id) {
       return Icons.sell_outlined;
     case 'kleinanzeigen':
       return Icons.location_on_outlined;
+    case 'vinted':
+      return Icons.checkroom_outlined;
     case 'amazon_de':
       return Icons.shopping_bag_outlined;
     case 'mediamarkt':
@@ -21,6 +23,8 @@ IconData sourceIcon(String id) {
       return Icons.devices_outlined;
     case 'idealo':
       return Icons.compare_arrows;
+    case 'geizhals':
+      return Icons.query_stats_outlined;
     case 'rebuy':
     case 'backmarket':
       return Icons.recycling_outlined;

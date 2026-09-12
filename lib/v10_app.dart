@@ -808,6 +808,41 @@ class _FastCheckPageState extends State<FastCheckPage> {
   double? get retailMedian => _median(_clean(_retailValues()));
   double? get buybackMedian => _median(_clean(_buybackValues()));
 
+  double? _sourceMedian(String sourceId) {
+    final values = listings
+        .where((e) => e.sourceId == sourceId)
+        .map((e) => e.total)
+        .where((e) => e > 0 && e.isFinite)
+        .toList();
+    return _median(_clean(values));
+  }
+
+  List<PriceSource> _prioritizedSources(List<PriceSource> input) {
+    final q = query.text.toLowerCase();
+    final electronics = RegExp(
+      r'(iphone|ipad|macbook|samsung|galaxy|pixel|smartphone|handy|tablet|laptop|notebook|playstation|ps5|xbox|switch|kamera|objektiv|kopfh[oö]rer|airpods|watch)',
+    ).hasMatch(q);
+    final fashion = RegExp(
+      r'(sneaker|schuh|nike|adidas|jordan|yeezy|jacke|hose|shirt|kleid|pulli|pullover|mode|tasche|gucci|prada|vuitton)',
+    ).hasMatch(q);
+
+    final order = fashion
+        ? <String>['vinted', 'kleinanzeigen', 'ebay_de', 'idealo', 'geizhals', 'amazon_de', 'backmarket', 'rebuy', 'mediamarkt', 'saturn']
+        : electronics
+            ? <String>['kleinanzeigen', 'ebay_de', 'rebuy', 'backmarket', 'geizhals', 'idealo', 'amazon_de', 'mediamarkt', 'saturn', 'vinted']
+            : <String>['ebay_de', 'kleinanzeigen', 'vinted', 'idealo', 'geizhals', 'amazon_de', 'rebuy', 'backmarket', 'mediamarkt', 'saturn'];
+    final rank = <String, int>{for (var i = 0; i < order.length; i++) order[i]: i};
+    final original = <String, int>{for (var i = 0; i < input.length; i++) input[i].id: i};
+    final sorted = [...input];
+    sorted.sort((a, b) {
+      final ar = rank[a.id] ?? 999;
+      final br = rank[b.id] ?? 999;
+      if (ar != br) return ar.compareTo(br);
+      return (original[a.id] ?? 999).compareTo(original[b.id] ?? 999);
+    });
+    return sorted;
+  }
+
   double? get targetSell {
     final manual = _manualSellCommitted;
     if (manual != null && manual > 0) return manual;
@@ -1001,19 +1036,17 @@ class _FastCheckPageState extends State<FastCheckPage> {
     final sell = targetSell;
     final p = profit;
     final r = roi;
-    final enabled = widget.sources.where((s) => s.enabled).toList();
+    final enabled = _prioritizedSources(widget.sources.where((s) => s.enabled).toList());
     final enteringManualSell = showManual && _manualSellCommitted == null;
+    final sourcePrices = <String, double>{};
+    for (final source in enabled) {
+      final value = _sourceMedian(source.id);
+      if (value != null) sourcePrices[source.id] = value;
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(t('Deal-Check', 'Deal check'), style: const TextStyle(fontWeight: FontWeight.w900)),
-        actions: [
-          IconButton(
-            tooltip: t('Echte eBay-Verkäufe', 'eBay sold listings'),
-            onPressed: query.text.trim().isEmpty ? null : _openEbaySold,
-            icon: const Icon(Icons.receipt_long_outlined),
-          ),
-        ],
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -1079,7 +1112,6 @@ class _FastCheckPageState extends State<FastCheckPage> {
                 _MissingValueCard(
                   english: widget.english,
                   retail: retailMedian,
-                  onEbaySold: _openEbaySold,
                 ),
               if (sell == null) const SizedBox(height: 10),
               TextField(
@@ -1091,9 +1123,9 @@ class _FastCheckPageState extends State<FastCheckPage> {
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _commitManualSell(),
                 decoration: InputDecoration(
-                  labelText: t('Erwarteter Verkaufspreis', 'Expected sale price'),
+                  labelText: t('Verkaufspreis selbst eintragen', 'Enter sale price yourself'),
                   hintText: 'z. B. 250',
-                  helperText: t('Erst mit ✓ oder „Übernehmen“ bestätigen.', 'Confirm with ✓ or “Apply”.'),
+                  helperText: t('Komplett eintippen, dann ✓.', 'Type the full amount, then ✓.'),
                   suffixText: '€',
                   prefixIcon: const Icon(Icons.sell_outlined),
                   suffixIcon: IconButton(
@@ -1103,16 +1135,18 @@ class _FastCheckPageState extends State<FastCheckPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 9),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  key: const ValueKey('commit-manual-sale-price'),
-                  onPressed: _value(manualSell) > 0 ? _commitManualSell : null,
-                  icon: const Icon(Icons.check_rounded),
-                  label: Text(t('VERKAUFSPREIS ÜBERNEHMEN', 'APPLY SALE PRICE')),
+              if (_value(manualSell) > 0) ...[
+                const SizedBox(height: 9),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: const ValueKey('commit-manual-sale-price'),
+                    onPressed: _commitManualSell,
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(t('PREIS ÜBERNEHMEN', 'APPLY PRICE')),
+                  ),
                 ),
-              ),
+              ],
             ] else ...[
               _FastDecisionCard(
                 english: widget.english,
@@ -1159,6 +1193,14 @@ class _FastCheckPageState extends State<FastCheckPage> {
                 ],
               ),
             ],
+            const SizedBox(height: 14),
+            _QuickCompareSection(
+              english: widget.english,
+              sources: enabled,
+              sourcePrices: sourcePrices,
+              onEbaySold: _openEbaySold,
+              onOpenSource: _openSource,
+            ),
             const SizedBox(height: 10),
             ExpansionTile(
               initiallyExpanded: false,
@@ -1188,15 +1230,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
                     prefixIcon: const Icon(Icons.receipt_long_outlined),
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _openEbaySold,
-                    icon: const Icon(Icons.history_rounded),
-                    label: Text(t('eBay: VERKAUFTE ARTIKEL PRÜFEN', 'eBay: CHECK SOLD ITEMS')),
-                  ),
-                ),
+                const SizedBox(height: 8),
                 if (listings.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ...listings.take(6).map((item) => ListTile(
@@ -1208,22 +1242,11 @@ class _FastCheckPageState extends State<FastCheckPage> {
                         onTap: item.url.trim().isEmpty ? null : () => _openListing(item),
                       )),
                 ],
-                if (enabled.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
-                      children: enabled.take(8).map((s) => SourcePillButton(source: s, onTap: () => _openSource(s))).toList(),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 8),
                 Text(
                   t(
-                    'Aktive Angebote sind keine bestätigten Verkäufe. FlipRadar nutzt deshalb 10 % Sicherheitsabstand. Für echte Verkäufe nutze den eBay-Button oben.',
-                    'Active listings are not confirmed sales. FlipRadar applies a 10% safety margin. Use the eBay button above to inspect sold items.',
+                    'Aktive Angebote sind keine bestätigten Verkäufe. FlipRadar nutzt deshalb 10 % Sicherheitsabstand. Für echte Verkäufe nutze oben „eBay verkauft“.',
+                    'Active listings are not confirmed sales. FlipRadar applies a 10% safety margin. For real sales, use “eBay sold” above.',
                   ),
                   style: const TextStyle(fontSize: 11, color: Color(0xFF777B88), height: 1.35),
                 ),
@@ -1401,9 +1424,8 @@ class _FastMetric extends StatelessWidget {
 class _MissingValueCard extends StatelessWidget {
   final bool english;
   final double? retail;
-  final VoidCallback onEbaySold;
 
-  const _MissingValueCard({required this.english, required this.retail, required this.onEbaySold});
+  const _MissingValueCard({required this.english, required this.retail});
 
   @override
   Widget build(BuildContext context) {
@@ -1419,16 +1441,184 @@ class _MissingValueCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(t('Neupreis-Referenz: ${euro(retail!)}', 'Retail reference: ${euro(retail!)}'), style: const TextStyle(fontSize: 12, color: Color(0xFF7C632B))),
           ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: onEbaySold,
-              icon: const Icon(Icons.history_rounded),
-              label: Text(t('VERKAUFTE EBAY-ARTIKEL ANSEHEN', 'VIEW SOLD EBAY ITEMS')),
-            ),
+          const SizedBox(height: 5),
+          Text(
+            t('Unten kurz eine Quelle prüfen – oder den Verkaufspreis selbst eintragen.', 'Check a source below or enter the sale price yourself.'),
+            style: const TextStyle(fontSize: 12.5, color: Color(0xFF7C632B), height: 1.35),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickCompareSection extends StatelessWidget {
+  final bool english;
+  final List<PriceSource> sources;
+  final Map<String, double> sourcePrices;
+  final VoidCallback onEbaySold;
+  final ValueChanged<PriceSource> onOpenSource;
+
+  const _QuickCompareSection({
+    required this.english,
+    required this.sources,
+    required this.sourcePrices,
+    required this.onEbaySold,
+    required this.onOpenSource,
+  });
+
+  String t(String de, String en) => english ? en : de;
+
+  String _purpose(PriceSource source) {
+    if (source.id == 'idealo' || source.id == 'geizhals') return t('PREISVERGLEICH', 'PRICE CHECK');
+    switch (source.role) {
+      case 'resale':
+        return t('ANGEBOTE', 'LISTINGS');
+      case 'local':
+        return source.id == 'vinted' ? t('SECONDHAND', 'SECONDHAND') : t('LOKAL', 'LOCAL');
+      case 'retail':
+        return t('NEUPREIS', 'RETAIL');
+      case 'buyback':
+        return t('SOFORTANKAUF', 'BUYBACK');
+      case 'refurb':
+        return t('REFURBISHED', 'REFURBISHED');
+      default:
+        return t('VERGLEICH', 'COMPARE');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE4E6EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.travel_explore_rounded, color: Color(0xFF4E50D8)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t('WO WILLST DU VERGLEICHEN?', 'WHERE DO YOU WANT TO CHECK?'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                    Text(t('Passende Quellen zuerst · einfach antippen', 'Best matches first · just tap'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF777B88))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth >= 330 ? (constraints.maxWidth - 8) / 2 : constraints.maxWidth;
+              final cards = <Widget>[
+                _QuickPortalCard(
+                  width: cardWidth,
+                  name: t('eBay verkauft', 'eBay sold'),
+                  purpose: t('VERKAUFT', 'SOLD'),
+                  icon: Icons.history_rounded,
+                  color: const Color(0xFF3665F3),
+                  onTap: onEbaySold,
+                ),
+                ...sources.map(
+                  (source) => _QuickPortalCard(
+                    width: cardWidth,
+                    name: source.name,
+                    purpose: _purpose(source),
+                    icon: sourceIcon(source.id),
+                    color: sourceColor(source),
+                    price: sourcePrices[source.id],
+                    onTap: () => onOpenSource(source),
+                  ),
+                ),
+              ];
+              return Wrap(spacing: 8, runSpacing: 8, children: cards);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickPortalCard extends StatelessWidget {
+  final double width;
+  final String name;
+  final String purpose;
+  final IconData icon;
+  final Color color;
+  final double? price;
+  final VoidCallback onTap;
+
+  const _QuickPortalCard({
+    required this.width,
+    required this.name,
+    required this.purpose,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.price,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: color.withValues(alpha: .065),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 68),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withValues(alpha: .18)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(color: color.withValues(alpha: .11), borderRadius: BorderRadius.circular(99)),
+                              child: Text(purpose, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: color)),
+                            ),
+                          ),
+                          if (price != null) ...[
+                            const SizedBox(width: 5),
+                            Flexible(child: Text('≈ ${euro(price!)}', overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5))),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF8A8E9B)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

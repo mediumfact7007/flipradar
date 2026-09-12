@@ -72,4 +72,15 @@ void main() {
     expect(source.role, 'reference');
     expect(source.colorHex, '5146E5');
   });
+
+  test('German quick-compare sources include Vinted and Geizhals', () {
+    final sources = SourceRegistry.builtIns();
+    final vinted = sources.singleWhere((s) => s.id == 'vinted');
+    final geizhals = sources.singleWhere((s) => s.id == 'geizhals');
+    expect(vinted.searchUrl('Nike Dunk'), contains('search_text=Nike+Dunk'));
+    expect(vinted.canFetchInApp, isFalse);
+    expect(geizhals.searchUrl('Galaxy S26'), contains('fs=Galaxy+S26'));
+    expect(geizhals.canFetchInApp, isFalse);
+  });
+
 }

@@ -130,4 +130,58 @@ void main() {
     expect(saleField, findsNothing);
     expect(find.text('KAUFEN'), findsOneWidget);
   });
+
+  testWidgets('V0.11 shows comparison portals before Details is opened', (tester) async {
+    const sources = <PriceSource>[
+      PriceSource(
+        id: 'kleinanzeigen',
+        name: 'Kleinanzeigen',
+        subtitle: 'Lokal',
+        searchUrlTemplate: 'https://www.kleinanzeigen.de/s-{query}/k0',
+        role: 'local',
+        colorHex: '00A98F',
+      ),
+      PriceSource(
+        id: 'amazon_de',
+        name: 'Amazon DE',
+        subtitle: 'Neu',
+        searchUrlTemplate: 'https://www.amazon.de/s?k={query}',
+        role: 'retail',
+        colorHex: 'FF9900',
+      ),
+      PriceSource(
+        id: 'vinted',
+        name: 'Vinted',
+        subtitle: 'Secondhand',
+        searchUrlTemplate: 'https://www.vinted.de/catalog?search_text={query}',
+        role: 'local',
+        colorHex: '007782',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FastCheckPage(
+          english: false,
+          initialQuery: 'Samsung Fold 8',
+          targetRoi: 35,
+          plan: UserPlan.free,
+          sources: sources,
+          onHistory: (_) {},
+          onWatch: (_) {},
+          onAddFlip: (_) {},
+          onRemoveFlip: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('WO WILLST DU VERGLEICHEN?'), findsOneWidget);
+    expect(find.text('eBay verkauft'), findsOneWidget);
+    expect(find.text('Kleinanzeigen'), findsOneWidget);
+    expect(find.text('Amazon DE'), findsOneWidget);
+    expect(find.text('Vinted'), findsOneWidget);
+    expect(find.text('Zusatzkosten gesamt'), findsNothing);
+  });
+
 }
