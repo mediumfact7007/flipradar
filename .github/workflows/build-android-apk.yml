@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -19,13 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Apply one-time V0.10.2 input fix
-        shell: bash
-        run: |
-          if [ -f tools/patch_v102.py ]; then
-            python3 tools/patch_v102.py
-          fi
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -144,18 +137,6 @@ jobs:
           test -s build/app/outputs/flutter-apk/app-release.apk
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Persist validated V0.10.2 source
-        shell: bash
-        run: |
-          if [ -f tools/patch_v102.py ]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git rm tools/patch_v102.py
-            git add lib/v10_app.dart test/v10_flow_test.dart pubspec.yaml
-            git commit -m 'Finalize FlipRadar V0.10.2 sale-price fix [skip ci]'
-            git push origin main
-          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
