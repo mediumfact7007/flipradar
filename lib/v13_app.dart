@@ -510,7 +510,29 @@ class _FlipRadarV13AppState extends State<FlipRadarV13App> {
   void initState() {
     super.initState();
     monetization = V13Monetization(onProUnlocked: _unlockPro);
-    _load();
+    unawaited(_loadSafe());
+  }
+
+  Future<void> _loadSafe() async {
+    try {
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        // A corrupt/incompatible preference from an older prototype must never
+        // prevent FlipRadar from opening. Start with sane local defaults.
+        english = false;
+        backend = '';
+        targetRoi = 35;
+        minProfit = 20;
+        plan = UserPlan.free;
+        taxMode = V13TaxMode.privateSeller;
+        flips = <V13Flip>[];
+        history = <String>[];
+        sources = SourceRegistry.builtIns();
+        loading = false;
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -548,7 +570,6 @@ class _FlipRadarV13AppState extends State<FlipRadarV13App> {
       sources = loadedSources;
       loading = false;
     });
-    unawaited(monetization.init());
   }
 
   void _unlockPro() {
@@ -738,9 +759,10 @@ class _V13ShellState extends State<V13Shell> {
   @override
   void initState() {
     super.initState();
-    _listenShares();
+    // Safe-start build: optional share listener is not part of first-frame startup.
   }
 
+  // ignore: unused_element
   void _listenShares() {
     try {
       shareSub = ReceiveSharingIntent.instance.getMediaStream().listen(_handleShare, onError: (_) {});
