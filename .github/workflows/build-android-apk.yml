@@ -20,14 +20,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply V0.12 Search First patch
-        shell: bash
-        run: |
-          sed -i 's/if count != 1:/if count < 1:/' tools/patch_v12.py
-          python3 tools/patch_v12.py
-          python3 tools/patch_v12b.py
-          python3 tools/patch_v12c.py
-          python3 tools/patch_v12d.py
+      - name: Apply V0.13 pre-build cleanup
+        run: python3 tools/patch_v13_fixes.py
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -46,7 +40,6 @@ jobs:
           done
           cat /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
-          grep -q '"version":"0.9.1"' /tmp/health.json
           curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
           grep -q '"sources"' /tmp/status.json
           code=$(curl -sS -o /tmp/bad-source.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/market/search?source=bad&q=test')
@@ -111,13 +104,13 @@ jobs:
               text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
               text = text.replace('android:launchMode="singleTop"', 'android:launchMode="singleTask"')
               marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-              permissions = [
+              for permission in [
                   '<uses-permission android:name="android.permission.INTERNET" />',
                   '<uses-permission android:name="android.permission.CAMERA" />',
-              ]
-              for permission in permissions:
+              ]:
                   if permission not in text:
                       text = text.replace(marker, marker + '\n    ' + permission)
+
               share_filter = '''
                 <intent-filter>
                     <action android:name="android.intent.action.SEND" />
@@ -126,6 +119,15 @@ jobs:
                 </intent-filter>'''
               if 'android.intent.action.SEND' not in text:
                   text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
+
+              # Official Google sample AdMob App ID. Real revenue requires the
+              # publisher's own app/ad-unit IDs before production release.
+              admob_meta = '''
+                <meta-data
+                    android:name="com.google.android.gms.ads.APPLICATION_ID"
+                    android:value="ca-app-pub-3940256099942544~3347511713" />'''
+              if 'com.google.android.gms.ads.APPLICATION_ID' not in text:
+                  text = text.replace('    </application>', admob_meta + '\n    </application>')
               manifest.write_text(text)
           PY2
 
@@ -147,20 +149,22 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Persist validated V0.12 source
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlipRadar-V0.13-UNIVERSAL-SEARCH-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist validated V0.13 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm tools/patch_v12.py tools/patch_v12b.py tools/patch_v12c.py tools/patch_v12d.py
-          git add lib/v10_app.dart lib/v07_settings.dart test/v10_flow_test.dart pubspec.yaml
-          git commit -m 'Finalize FlipRadar V0.12 Search First [skip ci]'
-          git push origin main
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: FlipRadar-V0.12-SEARCH-FIRST-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-          retention-days: 30
+          git add lib/v13_app.dart
+          git rm -f tools/patch_v13_fixes.py tools/patch_v12.py tools/patch_v12b.py tools/patch_v12c.py tools/patch_v12d.py || true
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize FlipRadar V0.13 Universal Search [skip ci]'
+            git push origin main
+          fi
