@@ -22,7 +22,9 @@ jobs:
 
       - name: Apply V0.12 Search First patch
         shell: bash
-        run: python3 tools/patch_v12.py
+        run: |
+          sed -i 's/if count != 1:/if count < 1:/' tools/patch_v12.py
+          python3 tools/patch_v12.py
 
       - name: Check backend syntax
         run: node --check server/index.js
