@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -19,6 +19,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply one-time V0.10.1 polish
+        shell: bash
+        run: |
+          if [ -f tools/patch_v101.py ]; then
+            python3 tools/patch_v101.py
+          fi
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -124,7 +131,7 @@ jobs:
         run: flutter pub get
 
       - name: Static analysis
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze
 
       - name: Run tests
         run: flutter test
@@ -138,10 +145,22 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
+      - name: Persist validated V0.10.1 source
+        shell: bash
+        run: |
+          if [ -f tools/patch_v101.py ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git rm tools/patch_v101.py
+            git add lib/v10_app.dart test/v10_flow_test.dart pubspec.yaml
+            git commit -m 'Finalize FlipRadar V0.10.1 polish [skip ci]'
+            git push origin main
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.10-FAST-APK
+          name: FlipRadar-V0.10.1-FAST-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
