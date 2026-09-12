@@ -45,6 +45,8 @@ void main() {
     await tester.enterText(fields.at(1), '100');
     await tester.enterText(fields.at(2), '200');
     await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('commit-manual-sale-price')));
+    await tester.pump();
     expect(find.text('KAUFEN'), findsOneWidget);
 
     await tester.enterText(fields.at(0), 'Anderes Gerät');
@@ -77,9 +79,56 @@ void main() {
     await tester.enterText(fields.at(1), '100');
     await tester.enterText(fields.at(2), '200');
     await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('commit-manual-sale-price')));
+    await tester.pump();
 
     expect(find.text('KAUFEN'), findsOneWidget);
     expect(find.text('148 €'), findsOneWidget);
     expect(find.text('NÄCHSTEN ARTIKEL SCANNEN'), findsOneWidget);
   });
+
+  testWidgets('V0.10.2 lets the full manual sale price be typed before applying it', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FastCheckPage(
+          english: false,
+          initialQuery: 'iPhone 17',
+          targetRoi: 35,
+          plan: UserPlan.free,
+          sources: const [],
+          onHistory: (_) {},
+          onWatch: (_) {},
+          onAddFlip: (_) {},
+          onRemoveFlip: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final saleField = find.byKey(const ValueKey('manual-sale-price-input'));
+    expect(saleField, findsOneWidget);
+
+    await tester.enterText(saleField, '2');
+    await tester.pump();
+    expect(saleField, findsOneWidget);
+    expect(find.text('KAUFEN'), findsNothing);
+
+    await tester.enterText(saleField, '250');
+    await tester.pump();
+    expect(saleField, findsOneWidget);
+    expect(find.text('250'), findsOneWidget);
+    expect(find.text('KAUFEN'), findsNothing);
+
+    final buyField = find.byType(TextField).at(1);
+    await tester.enterText(buyField, '100');
+    await tester.pump();
+    expect(saleField, findsOneWidget);
+    expect(find.text('KAUFEN'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('commit-manual-sale-price')));
+    await tester.pump();
+    expect(saleField, findsNothing);
+    expect(find.text('KAUFEN'), findsOneWidget);
+  });
+
 }

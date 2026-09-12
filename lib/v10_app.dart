@@ -674,6 +674,8 @@ class _FastCheckPageState extends State<FastCheckPage> {
   final manualSell = TextEditingController();
   final costs = TextEditingController(text: '0');
   final buyFocus = FocusNode();
+  final manualSellFocus = FocusNode();
+  double? _manualSellCommitted;
   bool loading = false;
   bool searched = false;
   bool showManual = false;
@@ -701,6 +703,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
     manualSell.dispose();
     costs.dispose();
     buyFocus.dispose();
+    manualSellFocus.dispose();
     super.dispose();
   }
 
@@ -716,6 +719,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
       listings = [];
       showManual = false;
       manualSell.clear();
+      _manualSellCommitted = null;
       buy.clear();
       _lastHapticDecision = null;
     });
@@ -733,6 +737,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
       searched = true;
       listings = [];
       manualSell.clear();
+      _manualSellCommitted = null;
       showManual = false;
     });
 
@@ -804,8 +809,8 @@ class _FastCheckPageState extends State<FastCheckPage> {
   double? get buybackMedian => _median(_clean(_buybackValues()));
 
   double? get targetSell {
-    final manual = _value(manualSell);
-    if (manual > 0) return manual;
+    final manual = _manualSellCommitted;
+    if (manual != null && manual > 0) return manual;
     final med = resaleMedian;
     return med == null ? null : med * 0.90;
   }
@@ -842,7 +847,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
   }
 
   int get confidenceLevel {
-    if (_value(manualSell) > 0) return 0;
+    if (_manualSellCommitted != null) return 0;
     final values = _clean(_resaleValues());
     final med = _median(values);
     if (values.isEmpty || med == null || med <= 0) return 0;
@@ -895,6 +900,38 @@ class _FastCheckPageState extends State<FastCheckPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Link konnte nicht geöffnet werden.', 'Could not open link.'))));
       }
     }
+  }
+
+  void _commitManualSell() {
+    final parsed = _value(manualSell);
+    if (parsed <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('Bitte einen Verkaufspreis größer als 0 eingeben.', 'Enter a sale price greater than 0.'))),
+      );
+      return;
+    }
+    setState(() {
+      _manualSellCommitted = parsed;
+      showManual = false;
+      _lastHapticDecision = null;
+    });
+    FocusScope.of(context).unfocus();
+  }
+
+  void _editManualSell() {
+    final current = targetSell;
+    if (_manualSellCommitted == null && current != null && manualSell.text.trim().isEmpty) {
+      manualSell.text = current.toStringAsFixed(current.truncateToDouble() == current ? 0 : 2).replaceAll('.', ',');
+      manualSell.selection = TextSelection.collapsed(offset: manualSell.text.length);
+    }
+    setState(() {
+      _manualSellCommitted = null;
+      showManual = true;
+      _lastHapticDecision = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) manualSellFocus.requestFocus();
+    });
   }
 
   Future<void> _openEbaySold() async {
@@ -965,6 +1002,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
     final p = profit;
     final r = roi;
     final enabled = widget.sources.where((s) => s.enabled).toList();
+    final enteringManualSell = showManual && _manualSellCommitted == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -1036,22 +1074,43 @@ class _FastCheckPageState extends State<FastCheckPage> {
           ],
           if (searched && !loading) ...[
             const SizedBox(height: 14),
-            if (sell == null) ...[
-              _MissingValueCard(
-                english: widget.english,
-                retail: retailMedian,
-                onEbaySold: _openEbaySold,
-              ),
-              const SizedBox(height: 10),
+            if (sell == null || enteringManualSell) ...[
+              if (sell == null)
+                _MissingValueCard(
+                  english: widget.english,
+                  retail: retailMedian,
+                  onEbaySold: _openEbaySold,
+                ),
+              if (sell == null) const SizedBox(height: 10),
               TextField(
+                key: const ValueKey('manual-sale-price-input'),
                 controller: manualSell,
+                focusNode: manualSellFocus,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.done,
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _commitManualSell(),
                 decoration: InputDecoration(
                   labelText: t('Erwarteter Verkaufspreis', 'Expected sale price'),
                   hintText: 'z. B. 250',
+                  helperText: t('Erst mit ✓ oder „Übernehmen“ bestätigen.', 'Confirm with ✓ or “Apply”.'),
                   suffixText: '€',
                   prefixIcon: const Icon(Icons.sell_outlined),
+                  suffixIcon: IconButton(
+                    tooltip: t('Übernehmen', 'Apply'),
+                    onPressed: _value(manualSell) > 0 ? _commitManualSell : null,
+                    icon: const Icon(Icons.check_rounded),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 9),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const ValueKey('commit-manual-sale-price'),
+                  onPressed: _value(manualSell) > 0 ? _commitManualSell : null,
+                  icon: const Icon(Icons.check_rounded),
+                  label: Text(t('VERKAUFSPREIS ÜBERNEHMEN', 'APPLY SALE PRICE')),
                 ),
               ),
             ] else ...[
@@ -1062,6 +1121,14 @@ class _FastCheckPageState extends State<FastCheckPage> {
                 sell: sell,
                 profit: p,
                 roi: r,
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _editManualSell,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: Text(t('Verkaufspreis ändern', 'Change sale price')),
+                ),
               ),
               if (negotiationOffer != null && (decision == _FastDecision.negotiate || decision == _FastDecision.skip)) ...[
                 const SizedBox(height: 9),
@@ -1173,7 +1240,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
   }
 
   String _confidenceText() {
-    if (_value(manualSell) > 0) return t('manuell', 'manual');
+    if (_manualSellCommitted != null) return t('manuell', 'manual');
     switch (confidenceLevel) {
       case 3:
         return t('gut', 'good');
