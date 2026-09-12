@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -19,6 +19,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply V0.12 Search First patch
+        shell: bash
+        run: python3 tools/patch_v12.py
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -138,10 +142,20 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
+      - name: Persist validated V0.12 source
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm tools/patch_v12.py
+          git add lib/v10_app.dart lib/v07_settings.dart test/v10_flow_test.dart pubspec.yaml
+          git commit -m 'Finalize FlipRadar V0.12 Search First [skip ci]'
+          git push origin main
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.11-QUICK-COMPARE-APK
+          name: FlipRadar-V0.12-SEARCH-FIRST-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
