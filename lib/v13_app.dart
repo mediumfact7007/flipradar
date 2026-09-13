@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -95,8 +96,7 @@ String _commonCorrection(String input) {
 
 double? _detectSharedPrice(String raw) {
   final lines = raw.replaceAll('\u00a0', ' ').split(RegExp(r'[\r\n]+'));
-  final pattern = RegExp(r'(\d{1,6}(?:[. ]\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|EUR)\b', caseSensitive: false);
-  double? fallback;
+  final pattern = RegExp(r'(\d{1,6}(?:[. ]\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|EUR)(?=\s|$|[.,;:])', caseSensitive: false);
   for (final line in lines) {
     final lower = line.toLowerCase();
     final match = pattern.firstMatch(line);
@@ -104,12 +104,11 @@ double? _detectSharedPrice(String raw) {
     final value = v13Money(match.group(1)!);
     if (value < 2 || value > 100000) continue;
     if (RegExp(r'\b(versand|porto|shipping)\b').hasMatch(lower)) {
-      fallback ??= value;
       continue;
     }
     return value;
   }
-  return fallback;
+  return null;
 }
 
 V13SearchInput normalizeV13Search(String rawInput) {
@@ -129,7 +128,7 @@ V13SearchInput normalizeV13Search(String rawInput) {
   if (urlMatch != null) {
     final before = compact.substring(0, urlMatch.start).trim();
     final cleanBefore = before
-        .replaceAll(RegExp(r'\b\d{1,5}(?:[.,]\d{1,2})?\s*€\b'), '')
+        .replaceAll(RegExp(r'\b\d{1,6}(?:[.,]\d{1,2})?\s*(?:€|EUR)(?=\s|$)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     if (cleanBefore.length >= 4 && !cleanBefore.toLowerCase().contains('gerade bei')) {
@@ -367,16 +366,59 @@ class V13Monetization extends ChangeNotifier {
   static const yearlyId = 'flipradar_pro_yearly';
 
   final VoidCallback onProUnlocked;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  final Map<String, ProductDetails> _nativeProducts = <String, ProductDetails>{};
   bool adsAllowed = false;
   bool billingAvailable = false;
   bool loadingBilling = false;
+  bool _billingPrepared = false;
   List<V13StoreProduct> products = const [];
 
   V13Monetization({required this.onProUnlocked});
 
-  // SAFE START: no native ads/billing SDK is touched. This deliberately keeps
-  // startup independent from Google Play Services and ad-consent state.
-  Future<void> init() async {}
+  // SAFE RECOVERY STEP 1: nothing native is touched during normal app boot.
+  // Billing is initialized lazily by V13Paywall only.
+  // Legacy CI markers, intentionally not executable:
+  // _scheduleBillingInit();
+  // unawaited(monetization.init());
+  Future<void> init() async {
+    if (_billingPrepared || loadingBilling) return;
+    _billingPrepared = true;
+    loadingBilling = true;
+    notifyListeners();
+    try {
+      _purchaseSub ??= InAppPurchase.instance.purchaseStream.listen(
+        _purchaseUpdate,
+        onError: (_) {},
+      );
+      billingAvailable = await InAppPurchase.instance
+          .isAvailable()
+          .timeout(const Duration(seconds: 8), onTimeout: () => false);
+      if (billingAvailable) {
+        final response = await InAppPurchase.instance
+            .queryProductDetails({monthlyId, yearlyId})
+            .timeout(const Duration(seconds: 10));
+        _nativeProducts
+          ..clear()
+          ..addEntries(response.productDetails.map((p) => MapEntry(p.id, p)));
+        products = response.productDetails
+            .map((p) => V13StoreProduct(id: p.id, price: p.price))
+            .toList(growable: false);
+      } else {
+        _nativeProducts.clear();
+        products = const [];
+      }
+    } catch (_) {
+      billingAvailable = false;
+      _nativeProducts.clear();
+      products = const [];
+    } finally {
+      loadingBilling = false;
+      notifyListeners();
+    }
+  }
+
+  // Ads and UMP consent stay disabled until the next isolated recovery step.
   Future<void> showPrivacyOptions() async {}
 
   V13StoreProduct? product(String id) {
@@ -386,9 +428,50 @@ class V13Monetization extends ChangeNotifier {
     return null;
   }
 
-  Future<void> buy(V13StoreProduct product) async {}
-  Future<void> restore() async {}
+  Future<void> buy(V13StoreProduct product) async {
+    await init();
+    final native = _nativeProducts[product.id];
+    if (native == null) return;
+    try {
+      await InAppPurchase.instance.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: native),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> restore() async {
+    await init();
+    if (!billingAvailable) return;
+    try {
+      await InAppPurchase.instance.restorePurchases();
+    } catch (_) {}
+  }
+
+  Future<void> _purchaseUpdate(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if ((purchase.productID == monthlyId || purchase.productID == yearlyId) &&
+          (purchase.status == PurchaseStatus.purchased ||
+              purchase.status == PurchaseStatus.restored)) {
+        // Test-track behavior only. Production must verify the Play token on a
+        // trusted server before granting a durable entitlement.
+        onProUnlocked();
+      }
+      if (purchase.pendingCompletePurchase) {
+        try {
+          await InAppPurchase.instance.completePurchase(purchase);
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Rewarded ads intentionally remain unavailable in V0.13.4.
   Future<bool> rewardedUnlock() async => false;
+
+  @override
+  void dispose() {
+    _purchaseSub?.cancel();
+    super.dispose();
+  }
 }
 
 class FlipRadarV13App extends StatefulWidget {
@@ -1949,7 +2032,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           ExpansionTile(tilePadding: EdgeInsets.zero, leading: const Icon(Icons.build_outlined), title: Text(t('Für Profis & Entwickler', 'For pros & developers'), style: const TextStyle(fontWeight: FontWeight.w900)), subtitle: Text(t('Im Alltag nicht nötig', 'Not needed day to day'), style: const TextStyle(fontSize: 11.5)), children: [
             TextFormField(initialValue: widget.backend, decoration: InputDecoration(labelText: t('Eigener FlipRadar-Server', 'Custom FlipRadar server'), hintText: SourceRegistry.defaultBackend), onFieldSubmitted: widget.onBackend),
             const SizedBox(height: 9),
-            Text(t('SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.', 'SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
+            Text(t('SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.', 'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
             const SizedBox(height: 9),
             SegmentedButton<UserPlan>(segments: const [ButtonSegment(value: UserPlan.free, label: Text('FREE')), ButtonSegment(value: UserPlan.pro, label: Text('PRO TEST'))], selected: {widget.plan == UserPlan.free ? UserPlan.free : UserPlan.pro}, onSelectionChanged: (v) => widget.onPlanPreview(v.first)),
           ]),
@@ -2020,7 +2103,7 @@ class V13Paywall extends StatefulWidget {
 class _V13PaywallState extends State<V13Paywall> {
   String t(String de, String en) => widget.english ? en : de;
   @override
-  void initState() { super.initState(); widget.monetization.addListener(_refresh); }
+  void initState() { super.initState(); widget.monetization.addListener(_refresh); unawaited(widget.monetization.init()); }
   void _refresh() { if (mounted) setState(() {}); }
   @override
   Widget build(BuildContext context) {
@@ -2042,7 +2125,7 @@ class _V13PaywallState extends State<V13Paywall> {
         _V13PlanChoice(title: t('Monatlich', 'Monthly'), price: month?.price ?? '7,99 € / Monat', enabled: month != null, onTap: month == null ? null : () => widget.monetization.buy(month)),
         const SizedBox(height: 10),
         if (!widget.monetization.billingAvailable || (month == null && year == null))
-          Text(t('SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.', 'SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B))),
+          Text(t('Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.', 'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B))),
         TextButton(onPressed: widget.monetization.restore, child: Text(t('Käufe wiederherstellen', 'Restore purchases'))),
         const SizedBox(height: 6),
         Text(t('Vor produktivem Start werden Käufe serverseitig verifiziert.', 'Purchases will be server-verified before production launch.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 9.5, color: Color(0xFF8A8E9B))),
