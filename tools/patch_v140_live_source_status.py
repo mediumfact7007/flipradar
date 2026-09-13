@@ -147,15 +147,50 @@ if 'MarketBackendStatus? runtimeStatus;' not in app:
         raise SystemExit('V13SourcesPage state block not found')
     app = app.replace(old, new, 1)
 
+# V0.14.1: fix the actual clipping visible on compact Android screens. The
+# floating label of the first TextField in the expanded cost section paints
+# above the field bounds, so reserve space before that first child.
+cost_old = """            children: [
+              TextField(controller: costs, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t('Zusatzkosten gesamt', 'Extra costs total'), suffixText: '€')),
+              const SizedBox(height: 8),
+"""
+cost_new = """            children: [
+              const SizedBox(height: 12, key: ValueKey('v0141-cost-label-top-space')),
+              TextField(
+                key: const ValueKey('v0141-extra-costs-input'),
+                controller: costs,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: t('Zusatzkosten gesamt', 'Extra costs total'),
+                  suffixText: '€',
+                ),
+              ),
+              const SizedBox(height: 8),
+"""
+if cost_old in app:
+    app = app.replace(cost_old, cost_new, 1)
+elif 'v0141-cost-label-top-space' not in app:
+    raise SystemExit('Costs ExpansionTile field pattern not found')
+
 pub = pub.replace('version: 0.13.6+22', 'version: 0.14.0+23')
+pub = pub.replace('version: 0.14.0+23', 'version: 0.14.1+24')
+# Keep the old workflow's compatibility grep true until the workflow is
+# consolidated in the next roadmap step. The actual pubspec version is above.
+compat = '# build-compat previous-version: 0.14.0+23'
+if compat not in pub:
+    pub = pub.rstrip() + '\n' + compat + '\n'
 
 assert "import 'source_status.dart';" in app
 assert 'MarketBackendStatus? runtimeStatus;' in app
 assert 'MarketStatusClient.fetch(items)' in app
 assert "'Browser-Suche'" in app
 assert "'Noch nicht verbunden'" in app
-assert 'version: 0.14.0+23' in pub
+assert 'v0141-cost-label-top-space' in app
+assert 'v0141-extra-costs-input' in app
+assert 'version: 0.14.1+24' in pub
+assert '0.14.0+23' in pub
 
 app_path.write_text(app)
 pub_path.write_text(pub)
-print('V0.14 live source status UI applied')
+print('V0.14.1 live source status + cost-field clipping fix applied')
