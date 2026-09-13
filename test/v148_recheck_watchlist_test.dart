@@ -41,11 +41,17 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: V13Paywall(english: false, monetization: monetization),
     ));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('39,99 € / Jahr · ≈ 3,33 € / Monat'), findsOneWidget);
     expect(find.text('4,99 € / Monat'), findsOneWidget);
     expect(find.text('33 % SPAREN'), findsOneWidget);
+
+    // Billing is intentionally lazy and guarded by an 8-second timeout.
+    // Advance fake time so the widget test leaves no pending timer behind.
+    await tester.pump(const Duration(seconds: 9));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
     monetization.dispose();
   });
 
@@ -89,12 +95,15 @@ void main() {
     final buyField = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
     expect(buyField.controller?.text, '205');
 
-    final saleField = tester.widget<TextField>(find.byKey(const ValueKey('v13-manual-sale-input')));
+    final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
+    final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
+    await tester.enterText(saleFinder, '350');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
+    expect(remember, findsOneWidget);
     await tester.ensureVisible(remember);
     await tester.pump();
     await tester.tap(remember);
