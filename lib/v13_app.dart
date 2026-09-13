@@ -217,6 +217,12 @@ String _v147SourceUrl(String raw) {
   return match?.group(0)?.trim() ?? '';
 }
 
+List<V13Flip> v148PrioritizeSaved(Iterable<V13Flip> input) {
+  final out = input.where((e) => e.isSaved).toList();
+  out.sort((a, b) => a.checkedAt.compareTo(b.checkedAt));
+  return out;
+}
+
 class V13Flip {
   final String id;
   final String name;
@@ -263,6 +269,7 @@ class V13Flip {
   }) : checkedAt = checkedAt ?? createdAt;
 
   bool get isSaved => status == 'Saved';
+  bool get isArchived => status == 'Archived';
   bool get isOpen => status == 'Bought' || status == 'Listed';
   double get realizedProfit => actualSell > 0 ? actualSell - buy - costs : 0;
   double get realizedRoi => buy <= 0 ? 0 : realizedProfit / buy * 100;
@@ -776,6 +783,10 @@ class _FlipRadarV13AppState extends State<FlipRadarV13App> {
                   _save();
                 }
               },
+              onDeleteFlip: (id) {
+                setState(() => flips.removeWhere((e) => e.id == id));
+                _save();
+              },
               onLanguage: (value) {
                 setState(() => english = value);
                 _save();
@@ -831,6 +842,7 @@ class V13Shell extends StatefulWidget {
   final ValueChanged<String> onHistory;
   final ValueChanged<V13Flip> onAddFlip;
   final ValueChanged<V13Flip> onUpdateFlip;
+  final ValueChanged<String> onDeleteFlip;
   final ValueChanged<bool> onLanguage;
   final ValueChanged<double> onRoi;
   final ValueChanged<double> onMinProfit;
@@ -854,6 +866,7 @@ class V13Shell extends StatefulWidget {
     required this.onHistory,
     required this.onAddFlip,
     required this.onUpdateFlip,
+    required this.onDeleteFlip,
     required this.onLanguage,
     required this.onRoi,
     required this.onMinProfit,
@@ -918,7 +931,7 @@ class _V13ShellState extends State<V13Shell> {
     }
   }
 
-  Future<void> _openCheck(String raw) async {
+  Future<void> _openCheck(String raw, {V13Flip? existingSnapshot}) async {
     if (opening) return;
     final normalized = normalizeV13Search(raw);
     if (normalized.query.isEmpty) return;
@@ -940,6 +953,8 @@ class _V13ShellState extends State<V13Shell> {
             monetization: widget.monetization,
             onHistory: widget.onHistory,
             onAddFlip: widget.onAddFlip,
+            existingSnapshot: existingSnapshot,
+            onUpdateFlip: widget.onUpdateFlip,
           ),
         ),
       );
@@ -947,6 +962,11 @@ class _V13ShellState extends State<V13Shell> {
       opening = false;
       if (mounted) setState(() {});
     }
+  }
+
+  Future<void> _recheckFlip(V13Flip flip) async {
+    final raw = flip.sourceUrl.isNotEmpty ? '${flip.name}\n${flip.sourceUrl}' : flip.name;
+    await _openCheck(raw, existingSnapshot: flip);
   }
 
   Future<void> _scan() async {
@@ -1000,6 +1020,8 @@ class _V13ShellState extends State<V13Shell> {
         flips: widget.flips,
         monetization: widget.monetization,
         onUpdate: widget.onUpdateFlip,
+        onDelete: widget.onDeleteFlip,
+        onRecheck: _recheckFlip,
         onPro: () => _openPaywall(context),
       ),
     ];
@@ -1355,6 +1377,8 @@ class V13CheckPage extends StatefulWidget {
   final V13Monetization monetization;
   final ValueChanged<String> onHistory;
   final ValueChanged<V13Flip> onAddFlip;
+  final V13Flip? existingSnapshot;
+  final ValueChanged<V13Flip>? onUpdateFlip;
 
   const V13CheckPage({
     super.key,
@@ -1371,6 +1395,8 @@ class V13CheckPage extends StatefulWidget {
     required this.monetization,
     required this.onHistory,
     required this.onAddFlip,
+    this.existingSnapshot,
+    this.onUpdateFlip,
   });
 
   @override
@@ -1406,10 +1432,25 @@ class _V13CheckPageState extends State<V13CheckPage> {
     super.initState();
     query = TextEditingController(text: widget.input.query);
     final detected = widget.input.detectedPrice;
+    final existing = widget.existingSnapshot;
     if (detected != null && detected > 0) {
       buy.text = detected == detected.roundToDouble()
           ? detected.toStringAsFixed(0)
           : detected.toStringAsFixed(2).replaceAll('.', ',');
+    } else if (existing != null && existing.buy > 0) {
+      buy.text = existing.buy == existing.buy.roundToDouble()
+          ? existing.buy.toStringAsFixed(0)
+          : existing.buy.toStringAsFixed(2).replaceAll('.', ',');
+    }
+    if (existing != null && existing.expectedAtBuy > 0) {
+      manualSell.text = existing.expectedAtBuy == existing.expectedAtBuy.roundToDouble()
+          ? existing.expectedAtBuy.toStringAsFixed(0)
+          : existing.expectedAtBuy.toStringAsFixed(2).replaceAll('.', ',');
+    }
+    if (existing != null && existing.costs > 0) {
+      costs.text = existing.costs == existing.costs.roundToDouble()
+          ? existing.costs.toStringAsFixed(0)
+          : existing.costs.toStringAsFixed(2).replaceAll('.', ',');
     }
     final canResolveListing = detected == null && SourceRegistry.sharedListingUrl(widget.input.raw) != null;
     listingResolving = canResolveListing;
@@ -1429,7 +1470,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     } catch (_) {}
     if (!mounted) return;
     if (meta != null && meta.price > 0) {
-      if (buyPrice <= 0) {
+      if (buyPrice <= 0 || widget.existingSnapshot != null) {
         buy.text = meta.price == meta.price.roundToDouble()
             ? meta.price.toStringAsFixed(0)
             : meta.price.toStringAsFixed(2).replaceAll('.', ',');
@@ -1451,6 +1492,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
   Future<void> _search() async {
     final q = normalizeV13Search(query.text).query;
     if (q.isEmpty) return;
+    final preserveSnapshotFallback = widget.existingSnapshot != null && token == 0;
     final myToken = ++token;
     widget.onHistory(q);
     setState(() {
@@ -1458,7 +1500,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
       pending.clear();
       failed.clear();
       manualCommitted = null;
-      manualSell.clear();
+      if (!preserveSnapshotFallback) manualSell.clear();
       manualMode = false;
       savedBought = false;
       savedWatch = false;
@@ -1812,8 +1854,13 @@ class _V13CheckPageState extends State<V13CheckPage> {
     final expected = expectedSale;
     if (buyPrice <= 0 || expected == null) return null;
     final now = DateTime.now();
+    final existing = widget.existingSnapshot;
+    final rawUrl = _v147SourceUrl(widget.input.raw);
+    final createdAt = status == 'Bought' && existing?.isSaved == true
+        ? now
+        : (existing?.createdAt ?? now);
     return V13Flip(
-      id: now.microsecondsSinceEpoch.toString(),
+      id: existing?.id ?? now.microsecondsSinceEpoch.toString(),
       name: query.text.trim(),
       category: category,
       buy: buyPrice,
@@ -1822,9 +1869,9 @@ class _V13CheckPageState extends State<V13CheckPage> {
       sourceCount: resaleValues.length,
       confidence: confidence,
       status: status,
-      createdAt: now,
+      createdAt: createdAt,
       checkedAt: now,
-      sourceUrl: _v147SourceUrl(widget.input.raw),
+      sourceUrl: rawUrl.isNotEmpty ? rawUrl : (existing?.sourceUrl ?? ''),
       maxBuyAtCheck: maxBuy ?? 0,
       profitAtCheck: profit,
       roiAtCheck: roi,
@@ -1835,15 +1882,24 @@ class _V13CheckPageState extends State<V13CheckPage> {
   void _remember() {
     final item = _dealSnapshot('Saved');
     if (item == null) return;
-    widget.onAddFlip(item);
+    final updating = widget.existingSnapshot != null && widget.onUpdateFlip != null;
+    if (updating) {
+      widget.onUpdateFlip!(item);
+    } else {
+      widget.onAddFlip(item);
+    }
     setState(() => savedWatch = true);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Deal gemerkt.', 'Deal saved.'))));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t(updating ? 'Deal aktualisiert.' : 'Deal gemerkt.', updating ? 'Deal updated.' : 'Deal saved.'))));
   }
 
   void _bought() {
     final item = _dealSnapshot('Bought');
     if (item == null) return;
-    widget.onAddFlip(item);
+    if (widget.existingSnapshot != null && widget.onUpdateFlip != null) {
+      widget.onUpdateFlip!(item);
+    } else {
+      widget.onAddFlip(item);
+    }
     setState(() => savedBought = true);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t('Als gekauft gespeichert.', 'Saved as bought.'))));
   }
@@ -2300,9 +2356,11 @@ class V13FlipsPage extends StatefulWidget {
   final List<V13Flip> flips;
   final V13Monetization monetization;
   final ValueChanged<V13Flip> onUpdate;
+  final ValueChanged<String> onDelete;
+  final ValueChanged<V13Flip> onRecheck;
   final VoidCallback onPro;
 
-  const V13FlipsPage({super.key, required this.english, required this.plan, required this.flips, required this.monetization, required this.onUpdate, required this.onPro});
+  const V13FlipsPage({super.key, required this.english, required this.plan, required this.flips, required this.monetization, required this.onUpdate, required this.onDelete, required this.onRecheck, required this.onPro});
   @override
   State<V13FlipsPage> createState() => _V13FlipsPageState();
 }
@@ -2314,9 +2372,19 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
   @override
   Widget build(BuildContext context) {
     final sold = widget.flips.where((e) => e.status == 'Sold').toList();
-    final saved = widget.flips.where((e) => e.isSaved).toList();
+    final saved = v148PrioritizeSaved(widget.flips);
+    final archived = widget.flips.where((e) => e.isArchived).toList()
+      ..sort((a, b) => b.checkedAt.compareTo(a.checkedAt));
     final open = widget.flips.where((e) => e.isOpen).toList();
-    final shown = filter == 'saved' ? saved : filter == 'sold' ? sold : filter == 'all' ? widget.flips : open;
+    final shown = filter == 'saved'
+        ? saved
+        : filter == 'archived'
+            ? archived
+            : filter == 'sold'
+                ? sold
+                : filter == 'all'
+                    ? widget.flips
+                    : open;
     final profit = sold.fold<double>(0, (a, b) => a + b.realizedProfit);
     final capital = open.fold<double>(0, (a, b) => a + b.buy + b.costs);
     final days = sold.map((e) => e.daysToSell).whereType<int>().toList();
@@ -2342,13 +2410,13 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
           _V13PersonalInsight(english: widget.english, sold: sold, pro: widget.plan != UserPlan.free, onPro: widget.onPro),
         ],
         const SizedBox(height: 13),
-        SingleChildScrollView(scrollDirection: Axis.horizontal, child: SegmentedButton<String>(segments: [ButtonSegment(value: 'saved', icon: const Icon(Icons.bookmark_outline_rounded, size: 16), label: Text(t('Merkliste', 'Saved'))), ButtonSegment(value: 'open', label: Text(t('Offen', 'Open'))), ButtonSegment(value: 'sold', label: Text(t('Verkauft', 'Sold'))), ButtonSegment(value: 'all', label: Text(t('Alle', 'All')))], selected: {filter}, onSelectionChanged: (v) => setState(() => filter = v.first))),
+        SingleChildScrollView(scrollDirection: Axis.horizontal, child: SegmentedButton<String>(segments: [ButtonSegment(value: 'saved', icon: const Icon(Icons.bookmark_outline_rounded, size: 16), label: Text(t('Merkliste', 'Saved'))), ButtonSegment(value: 'open', label: Text(t('Offen', 'Open'))), ButtonSegment(value: 'sold', label: Text(t('Verkauft', 'Sold'))), ButtonSegment(value: 'archived', icon: const Icon(Icons.archive_outlined, size: 16), label: Text(t('Archiv', 'Archive'))), ButtonSegment(value: 'all', label: Text(t('Alle', 'All')))], selected: {filter}, onSelectionChanged: (v) => setState(() => filter = v.first))),
         const SizedBox(height: 12),
         if (shown.isEmpty)
           Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)), child: Column(children: [const Icon(Icons.inventory_2_outlined, size: 38, color: _v13Primary), const SizedBox(height: 9), Text(t('Noch nichts hier', 'Nothing here yet'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)), const SizedBox(height: 3), Text(t('Beim Deal einmal auf „Gekauft“ tippen – der Rest wird übernommen.', 'Tap “Bought” once on a deal – the rest is filled automatically.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, color: Color(0xFF777B88))) ]))
         else
           for (var i = 0; i < shown.length; i++) ...[
-            _V13FlipCard(english: widget.english, flip: shown[i], onUpdate: widget.onUpdate),
+            _V13FlipCard(english: widget.english, flip: shown[i], onUpdate: widget.onUpdate, onDelete: widget.onDelete, onRecheck: widget.onRecheck),
             if (widget.plan == UserPlan.free && i == 2) ...[const SizedBox(height: 8), V13BannerAd(monetization: widget.monetization)],
             const SizedBox(height: 9),
           ],
@@ -2396,35 +2464,60 @@ class _V13FlipCard extends StatelessWidget {
   final bool english;
   final V13Flip flip;
   final ValueChanged<V13Flip> onUpdate;
-  const _V13FlipCard({required this.english, required this.flip, required this.onUpdate});
+  final ValueChanged<String> onDelete;
+  final ValueChanged<V13Flip> onRecheck;
+  const _V13FlipCard({required this.english, required this.flip, required this.onUpdate, required this.onDelete, required this.onRecheck});
   String t(String de, String en) => english ? en : de;
 
   @override
   Widget build(BuildContext context) {
     final sold = flip.status == 'Sold';
     final saved = flip.isSaved;
+    final archived = flip.isArchived;
     final age = DateTime.now().difference(flip.checkedAt);
     final stale = saved && age.inHours >= 24;
     final stateLabel = sold
         ? t('verkauft', 'sold')
-        : saved
-            ? t('gemerkt', 'saved')
-            : flip.status == 'Listed'
-                ? t('inseriert', 'listed')
-                : t('gekauft', 'bought');
-    final iconColor = sold ? const Color(0xFF087F5B) : saved ? const Color(0xFFC47B00) : _v13Primary;
+        : archived
+            ? t('archiviert', 'archived')
+            : saved
+                ? t('gemerkt', 'saved')
+                : flip.status == 'Listed'
+                    ? t('inseriert', 'listed')
+                    : t('gekauft', 'bought');
+    final iconColor = sold
+        ? const Color(0xFF087F5B)
+        : archived
+            ? const Color(0xFF7A7E8B)
+            : saved
+                ? const Color(0xFFC47B00)
+                : _v13Primary;
     return Container(
       key: ValueKey('v147-flip-${flip.id}'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: stale ? const Color(0x33C47B00) : const Color(0xFFE9EAF0))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 42, height: 42, decoration: BoxDecoration(color: iconColor.withValues(alpha: .09), borderRadius: BorderRadius.circular(13)), child: Icon(sold ? Icons.check_rounded : saved ? Icons.bookmark_rounded : Icons.inventory_2_outlined, color: iconColor)),
+          Container(width: 42, height: 42, decoration: BoxDecoration(color: iconColor.withValues(alpha: .09), borderRadius: BorderRadius.circular(13)), child: Icon(sold ? Icons.check_rounded : archived ? Icons.archive_outlined : saved ? Icons.bookmark_rounded : Icons.inventory_2_outlined, color: iconColor)),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(flip.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)), Text('${flip.category} · $stateLabel', style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B)))])),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(sold ? v13Euro(flip.realizedProfit) : v13Euro(flip.buy), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: sold && flip.realizedProfit >= 0 ? const Color(0xFF087F5B) : _v13Ink)), Text(sold ? '${flip.daysToSell ?? 0} ${t('Tage', 'days')}' : saved ? t('Angebot', 'asking') : t('Einkauf', 'buy'), style: const TextStyle(fontSize: 9.5, color: Color(0xFF8B8E9A)))])
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(sold ? v13Euro(flip.realizedProfit) : v13Euro(flip.buy), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: sold && flip.realizedProfit >= 0 ? const Color(0xFF087F5B) : _v13Ink)), Text(sold ? '${flip.daysToSell ?? 0} ${t('Tage', 'days')}' : saved || archived ? t('Angebot', 'asking') : t('Einkauf', 'buy'), style: const TextStyle(fontSize: 9.5, color: Color(0xFF8B8E9A)))]),
+          if (saved || archived) ...[
+            const SizedBox(width: 2),
+            PopupMenuButton<String>(
+              key: ValueKey('v148-menu-${flip.id}'),
+              tooltip: t('Deal verwalten', 'Manage deal'),
+              onSelected: (value) => _handleMenu(context, value),
+              itemBuilder: (_) => [
+                if (flip.sourceUrl.isNotEmpty) PopupMenuItem(value: 'listing', child: Text(t('Inserat öffnen', 'Open listing'))),
+                if (saved) PopupMenuItem(value: 'archive', child: Text(t('Archivieren', 'Archive'))),
+                if (archived) PopupMenuItem(value: 'restore', child: Text(t('Zur Merkliste', 'Restore to saved'))),
+                PopupMenuItem(value: 'delete', child: Text(t('Löschen', 'Delete'))),
+              ],
+            ),
+          ],
         ]),
-        if (saved || (!sold && flip.maxBuyAtCheck > 0)) ...[
+        if (saved || archived || (!sold && flip.maxBuyAtCheck > 0)) ...[
           const SizedBox(height: 10),
           Wrap(spacing: 6, runSpacing: 6, children: [
             if (flip.maxBuyAtCheck > 0) _V13Pill(text: 'MAX ${v13Euro(flip.maxBuyAtCheck)}', foreground: _v13Primary, background: const Color(0xFFEDEDFC)),
@@ -2444,14 +2537,12 @@ class _V13FlipCard extends StatelessWidget {
             )),
           ]),
         ],
-        if (!sold) ...[
+        if (!sold && !archived) ...[
           const SizedBox(height: 10),
           if (saved)
             Row(children: [
-              if (flip.sourceUrl.isNotEmpty) ...[
-                Expanded(child: OutlinedButton.icon(onPressed: () => _openListing(), icon: const Icon(Icons.open_in_new_rounded, size: 17), label: Text(t('INSERAT', 'LISTING')))),
-                const SizedBox(width: 7),
-              ],
+              Expanded(child: OutlinedButton.icon(key: const ValueKey('v148-recheck-deal'), onPressed: () => onRecheck(flip), icon: const Icon(Icons.refresh_rounded, size: 17), label: Text(t('NEU PRÜFEN', 'RECHECK')))),
+              const SizedBox(width: 7),
               Expanded(child: FilledButton.icon(key: const ValueKey('v147-mark-bought'), onPressed: () => onUpdate(flip.copyWith(status: 'Bought', createdAt: DateTime.now())), icon: const Icon(Icons.inventory_2_rounded, size: 17), label: Text(t('GEKAUFT', 'BOUGHT')))),
             ])
           else
@@ -2463,6 +2554,34 @@ class _V13FlipCard extends StatelessWidget {
         ],
       ]),
     );
+  }
+
+  Future<void> _handleMenu(BuildContext context, String value) async {
+    switch (value) {
+      case 'listing':
+        await _openListing();
+        return;
+      case 'archive':
+        onUpdate(flip.copyWith(status: 'Archived'));
+        return;
+      case 'restore':
+        onUpdate(flip.copyWith(status: 'Saved'));
+        return;
+      case 'delete':
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(t('Deal löschen?', 'Delete deal?')),
+            content: Text(t('Der gespeicherte Snapshot wird dauerhaft von diesem Gerät entfernt.', 'The saved snapshot will be permanently removed from this device.')),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: Text(t('Abbrechen', 'Cancel'))),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(t('Löschen', 'Delete'))),
+            ],
+          ),
+        );
+        if (ok == true) onDelete(flip.id);
+        return;
+    }
   }
 
   Future<void> _openListing() async {
@@ -2747,9 +2866,9 @@ class _V13PaywallState extends State<V13Paywall> {
         const SizedBox(height: 20),
         for (final item in [t('Deep Check mit konservativem Exit & Risiko', 'Deep Check with conservative exit & risk'), t('Persönliche Empfehlungen aus deinen echten Verkäufen', 'Personal recommendations from your real sales'), t('Kapitaltempo & bessere Verkaufsanalyse', 'Capital speed & better sale analysis'), t('Keine Werbebanner', 'No ad banners')]) Padding(padding: const EdgeInsets.only(bottom: 9), child: Row(children: [const Icon(Icons.check_circle_rounded, color: Color(0xFF087F5B), size: 20), const SizedBox(width: 8), Expanded(child: Text(item, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)))])),
         const SizedBox(height: 15),
-        _V13PlanChoice(title: t('Jährlich', 'Yearly'), price: year?.price ?? '59,99 € / Jahr', badge: t('BESTER WERT', 'BEST VALUE'), enabled: year != null, onTap: year == null ? null : () => widget.monetization.buy(year)),
+        _V13PlanChoice(title: t('Jährlich', 'Yearly'), price: year?.price ?? '39,99 € / Jahr · ≈ 3,33 € / Monat', badge: t('33 % SPAREN', 'SAVE 33%'), enabled: year != null, onTap: year == null ? null : () => widget.monetization.buy(year)),
         const SizedBox(height: 8),
-        _V13PlanChoice(title: t('Monatlich', 'Monthly'), price: month?.price ?? '7,99 € / Monat', enabled: month != null, onTap: month == null ? null : () => widget.monetization.buy(month)),
+        _V13PlanChoice(title: t('Monatlich', 'Monthly'), price: month?.price ?? '4,99 € / Monat', enabled: month != null, onTap: month == null ? null : () => widget.monetization.buy(month)),
         const SizedBox(height: 10),
         if (!widget.monetization.billingAvailable || (month == null && year == null))
           Text(t('Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.', 'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B))),
