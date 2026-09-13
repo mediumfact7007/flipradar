@@ -8,18 +8,27 @@ class SourceRuntimeStatus {
   final bool configured;
   final String mode;
   final String estimate;
+  final String environment;
+  final String dataKind;
 
   const SourceRuntimeStatus({
     required this.configured,
     required this.mode,
     this.estimate = '',
+    this.environment = '',
+    this.dataKind = '',
   });
+
+  bool get isSandbox => environment.toLowerCase() == 'sandbox';
+  bool get isProduction => environment.toLowerCase() == 'production';
 
   factory SourceRuntimeStatus.fromJson(Map<String, dynamic> json) =>
       SourceRuntimeStatus(
         configured: json['configured'] == true,
         mode: json['mode']?.toString() ?? '',
         estimate: json['estimate']?.toString() ?? '',
+        environment: json['environment']?.toString() ?? '',
+        dataKind: json['data_kind']?.toString() ?? '',
       );
 }
 
@@ -39,8 +48,17 @@ class MarketBackendStatus {
         sources = const <String, SourceRuntimeStatus>{},
         error = message;
 
-  bool isLive(String sourceId) =>
-      reachable && (sources[sourceId]?.configured ?? false);
+  bool isSandbox(String sourceId) {
+    final source = sources[sourceId];
+    return reachable && source != null && source.configured && source.isSandbox;
+  }
+
+  bool isLive(String sourceId) {
+    final source = sources[sourceId];
+    if (!reachable || source == null || !source.configured) return false;
+    if (sourceId == 'ebay_de' && source.isSandbox) return false;
+    return true;
+  }
 
   factory MarketBackendStatus.fromJson(Map<String, dynamic> json) {
     final rawSources = json['sources'];
