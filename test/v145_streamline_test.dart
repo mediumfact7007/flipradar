@@ -58,10 +58,15 @@ void main() {
     await tester.pump();
     expect(submitted, raw);
 
-    await tester.tap(find.byKey(const ValueKey('v145-open-flips')));
+    final openFlips = find.byKey(const ValueKey('v145-open-flips'));
+    await tester.ensureVisible(openFlips);
+    await tester.pump();
+    await tester.tap(openFlips);
     await tester.pump();
     expect(openedFlips, isTrue);
 
+    await tester.ensureVisible(field);
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('v145-clear-search')));
     await tester.pump();
     expect(find.text(raw), findsNothing);
