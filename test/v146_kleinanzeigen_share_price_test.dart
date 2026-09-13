@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flipradar/main.dart';
 import 'package:flipradar/source_registry.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +25,7 @@ void main() {
 
   testWidgets('missing Kleinanzeigen share price is loaded into buy field', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
+    final resolver = Completer<SharedListingMeta?>();
     final input = normalizeV13Search(
       'Nintendo Switch OLED https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
     );
@@ -42,20 +45,22 @@ void main() {
           monetization: monetization,
           onHistory: (_) {},
           onAddFlip: (_) {},
-          listingResolver: (_) async => const SharedListingMeta(
-            source: 'kleinanzeigen',
-            title: 'Nintendo Switch OLED',
-            price: 219,
-            currency: 'EUR',
-            url: 'https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
-            kind: 'listing_asking_price',
-          ),
+          listingResolver: (_) => resolver.future,
         ),
       ),
     );
 
     await tester.pump();
     expect(find.byKey(const ValueKey('v146-listing-resolving')), findsOneWidget);
+
+    resolver.complete(const SharedListingMeta(
+      source: 'kleinanzeigen',
+      title: 'Nintendo Switch OLED',
+      price: 219,
+      currency: 'EUR',
+      url: 'https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
+      kind: 'listing_asking_price',
+    ));
     await tester.pumpAndSettle();
 
     final field = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
