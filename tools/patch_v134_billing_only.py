@@ -133,23 +133,12 @@ app = app[:start] + billing_block + app[end:]
 queue_marker = '  Future<void> _saveQueue = Future<void>.value();\n'
 if queue_marker not in app:
     raise SystemExit('save queue marker not found')
-app = app.replace(
-    queue_marker,
-    queue_marker + '  bool _billingScheduled = false;\n',
-    1,
-)
+if '  bool _billingScheduled = false;\n' not in app:
+    app = app.replace(queue_marker, queue_marker + '  bool _billingScheduled = false;\n', 1)
 
-load_safe_start = app.index('  Future<void> _loadSafe() async {')
-load_start = app.index('  Future<void> _load() async {', load_safe_start)
-segment = app[load_safe_start:load_start]
-closing = segment.rfind('  }\n')
-if closing < 0:
-    raise SystemExit('loadSafe closing marker not found')
-segment = segment[:closing] + '    _scheduleBillingInit();\n' + segment[closing:]
-app = app[:load_safe_start] + segment + app[load_start:]
-
-method_marker = '  Future<void> _loadSafe() async {'
-scheduler = r'''  void _scheduleBillingInit() {
+if '  void _scheduleBillingInit() {' not in app:
+    method_marker = '  Future<void> _loadSafe() async {'
+    scheduler = r'''  void _scheduleBillingInit() {
     if (_billingScheduled) return;
     _billingScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -159,7 +148,19 @@ scheduler = r'''  void _scheduleBillingInit() {
   }
 
 '''
-app = app.replace(method_marker, scheduler + method_marker, 1)
+    if method_marker not in app:
+        raise SystemExit('loadSafe marker not found')
+    app = app.replace(method_marker, scheduler + method_marker, 1)
+
+load_safe_start = app.index('  Future<void> _loadSafe() async {')
+load_start = app.index('  Future<void> _load() async {', load_safe_start)
+segment = app[load_safe_start:load_start]
+if '_scheduleBillingInit();' not in segment:
+    closing = segment.rfind('  }\n')
+    if closing < 0:
+        raise SystemExit('loadSafe closing marker not found')
+    segment = segment[:closing] + '    _scheduleBillingInit();\n' + segment[closing:]
+    app = app[:load_safe_start] + segment + app[load_start:]
 
 app = app.replace(
     'SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.',
@@ -188,8 +189,10 @@ assert 'google_mobile_ads' not in pub
 assert "package:in_app_purchase/in_app_purchase.dart" in app
 assert 'package:google_mobile_ads' not in app
 assert 'SAFE RECOVERY STEP 1' in app
+assert app.count('bool _billingScheduled = false;') == 1
+assert app.count('void _scheduleBillingInit()') == 1
 assert '_scheduleBillingInit();' in app
-assert 'WidgetsBinding.instance.addPostFrameCallback' in app
+assert 'unawaited(monetization.init());' in app
 assert 'Future<bool> rewardedUnlock() async => false;' in app
 
 app_path.write_text(app)
