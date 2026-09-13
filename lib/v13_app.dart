@@ -880,6 +880,7 @@ class _V13ShellState extends State<V13Shell> {
           builder: (_) => V13CheckPage(
             english: widget.english,
             input: normalized,
+            backendBase: widget.backend,
             targetRoi: widget.targetRoi,
             minProfit: widget.minProfit,
             plan: widget.plan,
@@ -1293,6 +1294,8 @@ enum V13Decision { waiting, buy, negotiate, skip }
 class V13CheckPage extends StatefulWidget {
   final bool english;
   final V13SearchInput input;
+  final String backendBase;
+  final Future<SharedListingMeta?> Function(String raw)? listingResolver;
   final double targetRoi;
   final double minProfit;
   final UserPlan plan;
@@ -1307,6 +1310,8 @@ class V13CheckPage extends StatefulWidget {
     super.key,
     required this.english,
     required this.input,
+    this.backendBase = '',
+    this.listingResolver,
     required this.targetRoi,
     required this.minProfit,
     required this.plan,
@@ -1337,6 +1342,9 @@ class _V13CheckPageState extends State<V13CheckPage> {
   bool deepUnlocked = false;
   bool deepLoading = false;
   bool savedBought = false;
+  bool listingResolving = false;
+  bool listingResolved = false;
+  bool listingResolveFailed = false;
   int token = 0;
   V13Decision? lastHaptic;
 
@@ -1352,7 +1360,41 @@ class _V13CheckPageState extends State<V13CheckPage> {
           ? detected.toStringAsFixed(0)
           : detected.toStringAsFixed(2).replaceAll('.', ',');
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+    final canResolveListing = detected == null && SourceRegistry.sharedListingUrl(widget.input.raw) != null;
+    listingResolving = canResolveListing;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _search();
+      if (canResolveListing) unawaited(_resolveSharedListing());
+    });
+  }
+
+  Future<void> _resolveSharedListing() async {
+    SharedListingMeta? meta;
+    try {
+      final injected = widget.listingResolver;
+      meta = injected != null
+          ? await injected(widget.input.raw)
+          : await SourceRegistry.resolveSharedListing(widget.input.raw, backendBase: widget.backendBase);
+    } catch (_) {}
+    if (!mounted) return;
+    if (meta != null && meta.price > 0) {
+      if (buyPrice <= 0) {
+        buy.text = meta.price == meta.price.roundToDouble()
+            ? meta.price.toStringAsFixed(0)
+            : meta.price.toStringAsFixed(2).replaceAll('.', ',');
+      }
+      setState(() {
+        listingResolving = false;
+        listingResolved = true;
+        listingResolveFailed = false;
+      });
+      return;
+    }
+    setState(() {
+      listingResolving = false;
+      listingResolved = false;
+      listingResolveFailed = true;
+    });
   }
 
   Future<void> _search() async {
@@ -1373,7 +1415,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     pending.addAll(direct.map((e) => e.id));
     if (mounted) setState(() {});
     if (direct.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
+      if (!listingResolving) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
       return;
     }
     for (final source in direct) {
@@ -1407,7 +1449,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     }
     setState(() => listings = dedupe.values.toList()..sort((a, b) => a.total.compareTo(b.total)));
     if (pending.isEmpty && expectedSale == null) setState(() => manualMode = true);
-    if (buy.text.isEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
+    if (buy.text.isEmpty && !listingResolving) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
   }
 
   void _retryFailed() {
@@ -1588,7 +1630,20 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(labelText: t('Was sollst du zahlen?', 'What would you pay?'), hintText: '0,00', suffixText: '€', prefixIcon: const Icon(Icons.shopping_cart_checkout_rounded)),
           ),
-          if (widget.input.detectedPrice != null) ...[
+          if (listingResolving) ...[
+            const SizedBox(height: 5),
+            Row(key: const ValueKey('v146-listing-resolving'), children: [
+              const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 7),
+              Expanded(child: Text(t('Kleinanzeigen-Preis wird aus dem geteilten Link geladen …', 'Loading the Kleinanzeigen price from the shared link …'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483)))),
+            ]),
+          ] else if (listingResolved) ...[
+            const SizedBox(height: 4),
+            Text(key: const ValueKey('v146-listing-resolved'), t('Angebotspreis aus dem Kleinanzeigen-Link geladen – kurz prüfen und bei Bedarf ändern.', 'Listing price loaded from the Kleinanzeigen link – quickly verify and edit if needed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF087F5B), fontWeight: FontWeight.w700)),
+          ] else if (listingResolveFailed) ...[
+            const SizedBox(height: 4),
+            Text(key: const ValueKey('v146-listing-failed'), t('Preis konnte aus dem Kleinanzeigen-Link nicht geladen werden – bitte manuell eintragen.', 'Could not load the price from the Kleinanzeigen link – please enter it manually.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFFC47B00))),
+          ] else if (widget.input.detectedPrice != null) ...[
             const SizedBox(height: 4),
             Text(t('Angebotspreis automatisch erkannt – kurz prüfen und bei Bedarf ändern.', 'Listing price detected automatically – quickly verify and edit if needed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483))),
           ],

@@ -3,6 +3,33 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+class SharedListingMeta {
+  final String source;
+  final String title;
+  final double price;
+  final String currency;
+  final String url;
+  final String kind;
+
+  const SharedListingMeta({
+    required this.source,
+    required this.title,
+    required this.price,
+    required this.currency,
+    required this.url,
+    required this.kind,
+  });
+
+  factory SharedListingMeta.fromJson(Map<String, dynamic> json) => SharedListingMeta(
+        source: json['source']?.toString() ?? '',
+        title: json['title']?.toString().trim() ?? '',
+        price: SourceListing._toDouble(json['price']),
+        currency: (json['currency']?.toString() ?? 'EUR').toUpperCase(),
+        url: json['url']?.toString() ?? '',
+        kind: json['kind']?.toString() ?? '',
+      );
+}
+
 class SourceListing {
   final String sourceId;
   final String sourceName;
@@ -333,6 +360,46 @@ class SourceRegistry {
         colorHex: '111111',
       ),
     ];
+  }
+
+  static Uri? sharedListingUrl(String raw) {
+    final matches = RegExp(r'https?://[^\s]+', caseSensitive: false).allMatches(raw);
+    for (final match in matches) {
+      var value = match.group(0) ?? '';
+      value = value.replaceAll(RegExp(r'[\]\[),.;:]+$'), '');
+      final uri = Uri.tryParse(value);
+      if (uri == null || uri.scheme != 'https') continue;
+      final host = uri.host.toLowerCase();
+      if (host != 'kleinanzeigen.de' && host != 'www.kleinanzeigen.de') continue;
+      if (!uri.path.contains('/s-anzeige/')) continue;
+      return uri;
+    }
+    return null;
+  }
+
+  static Future<SharedListingMeta?> resolveSharedListing(
+    String raw, {
+    String backendBase = '',
+  }) async {
+    final shared = sharedListingUrl(raw);
+    if (shared == null) return null;
+    final manual = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
+    final base = manual.isEmpty ? defaultBackend : manual;
+    final baseUri = Uri.tryParse(base);
+    if (baseUri == null || baseUri.host.isEmpty || (baseUri.scheme != 'https' && baseUri.scheme != 'http')) {
+      return null;
+    }
+    final endpoint = Uri.parse('$base/v1/listing/resolve').replace(
+      queryParameters: {'url': shared.toString()},
+    );
+    final response = await http.get(endpoint).timeout(const Duration(seconds: 8));
+    if (response.statusCode < 200 || response.statusCode >= 300) return null;
+    if (response.bodyBytes.length > 64 * 1024) return null;
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) return null;
+    final meta = SharedListingMeta.fromJson(decoded);
+    if (meta.source != 'kleinanzeigen' || meta.currency != 'EUR' || meta.price <= 0) return null;
+    return meta;
   }
 
   static Future<List<PriceSource>> load({String backendBase = ''}) async {

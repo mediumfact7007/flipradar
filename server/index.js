@@ -3,6 +3,7 @@
 const http = require('http');
 const { URL, URLSearchParams } = require('url');
 const { filterMarketListings } = require('./market_quality');
+const { resolvePublicListing } = require('./listing_resolver');
 
 const PORT = Number(process.env.PORT || 8080);
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
@@ -329,13 +330,34 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         ok: true,
         service: 'flipradar-api',
-        version: '0.10.0',
+        version: '0.11.0',
         ebay_environment: EBAY_ENV,
       });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/status') {
       return json(res, 200, { sources: sourceStatus() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/listing/resolve') {
+      pruneRateBuckets();
+      if (!allowRequest(req)) {
+        return json(res, 429, { error: 'rate_limit' });
+      }
+      const listingUrl = String(url.searchParams.get('url') || '').trim();
+      if (!listingUrl) return json(res, 400, { error: 'url is required' });
+      try {
+        const result = await resolvePublicListing(listingUrl);
+        return json(res, 200, result);
+      } catch (error) {
+        const message = error?.name === 'AbortError'
+          ? 'upstream_timeout'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        const status = message === 'unsupported_listing_url' ? 400 : 502;
+        return json(res, status, { error: message });
+      }
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/market/search') {
