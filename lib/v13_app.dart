@@ -1483,6 +1483,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
               TextField(controller: costs, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}), decoration: InputDecoration(labelText: t('Zusatzkosten gesamt', 'Extra costs total'), suffixText: '€')),
               const SizedBox(height: 8),
               Align(alignment: Alignment.centerLeft, child: Text(t('Ziel: ${widget.targetRoi.toStringAsFixed(0)} % ROI + mindestens ${v13Euro(widget.minProfit)} Gewinn.', 'Target: ${widget.targetRoi.toStringAsFixed(0)}% ROI + at least ${v13Euro(widget.minProfit)} profit.'), style: const TextStyle(fontSize: 11.5, color: Color(0xFF707483)))),
+              const SizedBox(height: 14),
             ],
           ),
           if (widget.plan == UserPlan.free) ...[
