@@ -137,6 +137,8 @@ void main() {
           flips: [saved],
           monetization: monetization,
           onUpdate: (value) => updated = value,
+          onDelete: (_) {},
+          onRecheck: (_) {},
           onPro: () {},
         ),
       ),
