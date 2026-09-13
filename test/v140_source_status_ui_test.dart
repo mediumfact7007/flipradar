@@ -1,0 +1,18 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('V0.14 wires live source status into price sources page', () {
+    final app = File('lib/v13_app.dart').readAsStringSync();
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+
+    expect(pubspec, contains('version: 0.14.0+23'));
+    expect(app, contains("import 'source_status.dart';"));
+    expect(app, contains('MarketBackendStatus? runtimeStatus;'));
+    expect(app, contains('MarketStatusClient.fetch(items)'));
+    expect(app, contains("'Browser-Suche'"));
+    expect(app, contains("'Noch nicht verbunden'"));
+    expect(app, contains("'Live-Daten sind vorbereitet."));
+  });
+}

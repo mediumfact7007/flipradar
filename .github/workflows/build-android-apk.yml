@@ -20,26 +20,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply V0.13.5 lazy test-AdMob recovery patch
-        run: python3 tools/patch_v135_admob_safe.py
+      - name: Apply V0.14 live source status
+        run: python3 tools/patch_v140_live_source_status.py
 
-      - name: Apply V0.13.6 compact-screen UI fix
-        run: python3 tools/patch_v136_ui_spacing.py
-
-      - name: Verify startup-safe ads and UI boundary
+      - name: Verify stable startup and live-source boundary
         shell: bash
         run: |
-          grep -q 'version: 0.13.6+22' pubspec.yaml
+          grep -q 'version: 0.14.0+23' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
           grep -q 'workmanager_android: ^0.10.9' pubspec.yaml
-          grep -q "package:google_mobile_ads/google_mobile_ads.dart" lib/v13_app.dart
-          grep -q 'Future<bool> prepareAds() async' lib/v13_app.dart
-          grep -q 'MobileAds.instance.initialize()' lib/v13_app.dart
-          grep -q 'if (!await prepareAds()) return false;' lib/v13_app.dart
-          grep -q 'ca-app-pub-3940256099942544/5224354917' lib/v13_app.dart
-          grep -q 'class V13BannerAd extends StatelessWidget' lib/v13_app.dart
-          grep -q 'Widget build(BuildContext context) => const SizedBox.shrink();' lib/v13_app.dart
+          grep -q "import 'source_status.dart';" lib/v13_app.dart
+          grep -q 'MarketBackendStatus? runtimeStatus' lib/v13_app.dart
+          grep -q 'MarketStatusClient.fetch(items)' lib/v13_app.dart
+          grep -q 'class MarketBackendStatus' lib/source_status.dart
+          grep -q 'class MarketStatusClient' lib/source_status.dart
           grep -q 'const SizedBox(height: 14)' lib/v13_app.dart
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
@@ -186,8 +181,14 @@ jobs:
       - name: Run ads isolation regression explicitly
         run: flutter test test/v135_admob_safe_test.dart
 
-      - name: Run compact-screen UI regression explicitly
+      - name: Run compact-screen regression explicitly
         run: flutter test test/v136_ui_spacing_test.dart
+
+      - name: Run source status model regression explicitly
+        run: flutter test test/v140_source_status_test.dart
+
+      - name: Run source status UI regression explicitly
+        run: flutter test test/v140_source_status_ui_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -201,18 +202,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13.6-UI-FIX-APK
+          name: FlipRadar-V0.14.0-LIVE-STATUS-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.13.6 source
+      - name: Persist validated V0.14 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.13.6 UI spacing [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14 live source status [skip ci]'
             git push origin main
           fi
