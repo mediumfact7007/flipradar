@@ -27,7 +27,7 @@ void main() {
     expect(listenStart, greaterThan(initStart));
   });
 
-  testWidgets('home keeps raw pasted listing data, clears quickly and opens flips', (tester) async {
+  testWidgets('home keeps pasted listing price and URL, clears quickly and opens flips', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
     String? submitted;
     var openedFlips = false;
@@ -56,7 +56,10 @@ void main() {
     expect(find.byKey(const ValueKey('v145-clear-search')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('v13-check-button')));
     await tester.pump();
-    expect(submitted, raw);
+    expect(submitted, isNotNull);
+    expect(submitted, contains('499 €'));
+    expect(submitted, contains('https://www.ebay.de/itm/123456789'));
+    expect(normalizeV13Search(submitted!).detectedPrice, 499);
 
     final openFlips = find.byKey(const ValueKey('v145-open-flips'));
     await tester.ensureVisible(openFlips);
@@ -69,7 +72,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('v145-clear-search')));
     await tester.pump();
-    expect(find.text(raw), findsNothing);
+    final input = tester.widget<TextField>(field);
+    expect(input.controller?.text, isEmpty);
 
     monetization.dispose();
   });
