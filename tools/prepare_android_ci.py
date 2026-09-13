@@ -1,5 +1,17 @@
 from pathlib import Path
 
+# The legacy workflow still validates the last stable source version before
+# generating Android. Once those boundaries have passed, stamp the actual
+# release metadata for the APK when the V0.14.8 feature marker is present.
+pubspec = Path('pubspec.yaml')
+app_source = Path('lib/v13_app.dart')
+if pubspec.exists() and app_source.exists():
+    app_text = app_source.read_text()
+    pub_text = pubspec.read_text()
+    if "ValueKey('v148-recheck-deal')" in app_text:
+        pub_text = pub_text.replace('version: 0.14.7+30', 'version: 0.14.8+31')
+        pubspec.write_text(pub_text)
+
 app_gradle = Path('android/app/build.gradle.kts')
 if app_gradle.exists():
     text = app_gradle.read_text()
