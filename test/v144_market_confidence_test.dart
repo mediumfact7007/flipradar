@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flipradar/main.dart';
 import 'package:flipradar/source_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,5 +84,16 @@ void main() {
     ]);
     expect(result.score, lessThan(45));
     expect(result.label(false), 'Niedrig');
+  });
+
+  test('deal decision stays before detailed confidence UI', () {
+    final app = File('lib/v13_app.dart').readAsStringSync();
+    final buildStart = app.indexOf('class _V13CheckPageState');
+    final buildEnd = app.indexOf('  void _commitManual()', buildStart);
+    final flow = app.substring(buildStart, buildEnd);
+    final decision = flow.indexOf('_V13DecisionCard(');
+    final confidence = flow.indexOf('_V14ConfidenceCard(english:');
+    expect(decision, greaterThanOrEqualTo(0));
+    expect(confidence, greaterThan(decision));
   });
 }
