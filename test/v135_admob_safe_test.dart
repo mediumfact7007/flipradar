@@ -20,7 +20,7 @@ void main() {
 
     // No automatic Dart-side ad initialization during normal app startup.
     final appStateStart = app.indexOf('class _FlipRadarV13AppState');
-    final homeStart = app.indexOf('class V13HomePage');
+    final homeStart = app.indexOf('class V13Home extends StatefulWidget');
     final startupSlice = app.substring(appStateStart, homeStart);
     expect(startupSlice, isNot(contains('prepareAds()')));
     expect(startupSlice, isNot(contains('MobileAds.instance.initialize()')));
