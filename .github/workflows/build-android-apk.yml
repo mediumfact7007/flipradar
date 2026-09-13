@@ -30,6 +30,9 @@ jobs:
       - name: Apply V0.13.4 billing-only recovery patch
         run: python3 tools/patch_v134_billing_only.py
 
+      - name: Keep billing outside the timed startup path
+        run: python3 tools/patch_v134_billing_no_timers.py
+
       - name: Verify billing-only startup boundary
         shell: bash
         run: |
@@ -41,6 +44,8 @@ jobs:
           grep -q '_scheduleBillingInit();' lib/v13_app.dart
           grep -q 'unawaited(monetization.init());' lib/v13_app.dart
           grep -q 'Future<bool> rewardedUnlock() async => false;' lib/v13_app.dart
+          ! grep -q '.timeout(const Duration(seconds: 8)' lib/v13_app.dart
+          ! grep -q '.timeout(const Duration(seconds: 10)' lib/v13_app.dart
           grep -q 'version: 0.13.4+20' pubspec.yaml
 
       - name: Check backend syntax
