@@ -30,7 +30,7 @@ jobs:
       - name: Apply V0.13.4 billing-only recovery patch
         run: python3 tools/patch_v134_billing_only.py
 
-      - name: Verify billing-only startup boundary
+      - name: Verify lazy billing startup boundary
         shell: bash
         run: |
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
@@ -38,8 +38,8 @@ jobs:
           grep -q "package:in_app_purchase/in_app_purchase.dart" lib/v13_app.dart
           ! grep -q "package:google_mobile_ads" lib/v13_app.dart
           grep -q 'SAFE RECOVERY STEP 1' lib/v13_app.dart
-          grep -q '_scheduleBillingInit();' lib/v13_app.dart
-          grep -q 'unawaited(monetization.init());' lib/v13_app.dart
+          ! grep -q '_scheduleBillingInit' lib/v13_app.dart
+          grep -q 'unawaited(widget.monetization.init());' lib/v13_app.dart
           grep -q 'Future<bool> rewardedUnlock() async => false;' lib/v13_app.dart
           grep -q 'version: 0.13.4+20' pubspec.yaml
 
