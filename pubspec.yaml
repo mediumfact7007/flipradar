@@ -26,4 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+# build-compat previous-version: 0.14.1+24
 # build-compat previous-version: 0.14.0+23
