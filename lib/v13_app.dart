@@ -1255,7 +1255,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
   }
 
   List<double> _valuesFor(Set<String> roles) => listings
-      .where((e) => roles.contains(e.role))
+      .where((e) => e.live && roles.contains(e.role))
       .map((e) => e.total)
       .where((e) => e > 0 && e.isFinite)
       .toList();
@@ -1350,7 +1350,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     return lower;
   }
 
-  double? _sourceMedian(String id) => _median(_clean(listings.where((e) => e.sourceId == id).map((e) => e.total).where((e) => e > 0).toList()));
+  double? _sourceMedian(String id) => _median(_clean(listings.where((e) => e.live && e.sourceId == id).map((e) => e.total).where((e) => e > 0).toList()));
 
   List<PriceSource> get visibleSources {
     final input = widget.sources.where((s) => s.enabled).toList();
@@ -2192,6 +2192,7 @@ class _V13SourcesPageState extends State<V13SourcesPage> {
     if (status == null || !status.reachable) {
       return t('Server nicht erreichbar', 'Server unavailable');
     }
+    if (status.isSandbox(source.id)) return 'SANDBOX';
     if (status.isLive(source.id)) return 'LIVE';
     return t('Noch nicht verbunden', 'Not connected yet');
   }
@@ -2205,7 +2206,14 @@ class _V13SourcesPageState extends State<V13SourcesPage> {
         'Live server is currently unavailable. Browser searches still work.',
       );
     }
+    final sandbox = items.where((source) => status.isSandbox(source.id)).map((e) => e.name).toList();
     final live = items.where((source) => status.isLive(source.id)).map((e) => e.name).toList();
+    if (sandbox.isNotEmpty && live.isEmpty) {
+      return t(
+        'eBay Sandbox verbunden. Testdaten werden niemals für Kaufentscheidungen oder MAX-Preise verwendet.',
+        'eBay Sandbox connected. Test data is never used for buy decisions or MAX prices.',
+      );
+    }
     if (live.isEmpty) {
       return t(
         'Live-Daten sind vorbereitet. eBay/Amazon brauchen noch die Server-Zugangsdaten.',
