@@ -30,11 +30,12 @@ jobs:
           python3 tools/patch_v144_confidence_ui.py
           python3 tools/patch_v145_streamline.py
           python3 tools/patch_v145_multiline_search.py
+          python3 tools/patch_v146_kleinanzeigen_share_price.py
 
-      - name: Verify V0.14.5 boundaries
+      - name: Verify V0.14.6 boundaries
         shell: bash
         run: |
-          grep -q '^version: 0.14.5+28$' pubspec.yaml
+          grep -q '^version: 0.14.6+29$' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
           grep -q 'e.live && roles.contains(e.role)' lib/v13_app.dart
@@ -48,16 +49,23 @@ jobs:
           grep -q 'void _retryFailed()' lib/v13_app.dart
           grep -q 'widget.onSearch(raw)' lib/v13_app.dart
           grep -q 'maxLines: 3' lib/v13_app.dart
-          grep -q "require('./market_quality')" server/index.js
+          grep -q 'class SharedListingMeta' lib/source_registry.dart
+          grep -q 'static Uri? sharedListingUrl' lib/source_registry.dart
+          grep -q 'resolveSharedListing' lib/source_registry.dart
+          grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart
+          grep -q "require('./listing_resolver')" server/index.js
+          grep -q "url.pathname === '/v1/listing/resolve'" server/index.js
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
-      - name: Check backend and market quality
+      - name: Check backend and listing resolver
         run: |
           node --check server/index.js
           node --check server/market_quality.js
+          node --check server/listing_resolver.js
           node server/market_quality_test.js
+          node server/listing_resolver_test.js
 
-      - name: Smoke test sandbox boundary
+      - name: Smoke test sandbox and resolver boundary
         shell: bash
         run: |
           PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
@@ -71,6 +79,9 @@ jobs:
           grep -q '"ebay_environment":"sandbox"' /tmp/health.json
           curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
           grep -q '"data_kind":"sandbox_mock_data"' /tmp/status.json
+          code=$(curl -sS -o /tmp/resolve.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/listing/resolve?url=https%3A%2F%2Fexample.com%2Fs-anzeige%2Ffake%2F123')
+          test "$code" = '400'
+          grep -q 'unsupported_listing_url' /tmp/resolve.json
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -108,6 +119,7 @@ jobs:
           flutter test test/v143_market_quality_test.dart
           flutter test test/v144_market_confidence_test.dart
           flutter test test/v145_streamline_test.dart
+          flutter test test/v146_kleinanzeigen_share_price_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -121,18 +133,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.14.5-STREAMLINE-APK
+          name: FlipRadar-V0.14.6-KLEINANZEIGEN-SHARE-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.14.5 source
+      - name: Persist validated V0.14.6 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/v13_app.dart pubspec.yaml
+          git add lib/v13_app.dart lib/source_registry.dart server/index.js pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.14.5 streamline [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14.6 Kleinanzeigen share price [skip ci]'
             git push origin main
           fi
