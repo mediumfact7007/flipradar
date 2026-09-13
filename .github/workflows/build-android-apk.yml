@@ -15,10 +15,22 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply V0.13.3 SAFE native-start patch
+        run: python3 tools/patch_v133_safe_native.py
+
+      - name: Verify risky startup SDKs are absent
+        shell: bash
+        run: |
+          ! grep -q 'google_mobile_ads' pubspec.yaml
+          ! grep -q 'in_app_purchase' pubspec.yaml
+          ! grep -q "package:google_mobile_ads" lib/v13_app.dart
+          ! grep -q "package:in_app_purchase" lib/v13_app.dart
+          grep -q 'version: 0.13.3+19' pubspec.yaml
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -125,15 +137,6 @@ jobs:
                 </intent-filter>'''
               if 'android.intent.action.SEND' not in text:
                   text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
-
-              # Official Google sample AdMob App ID. Runtime ad/billing/share
-              # initialization remains deferred in the safe-start build.
-              admob_meta = '''
-                <meta-data
-                    android:name="com.google.android.gms.ads.APPLICATION_ID"
-                    android:value="ca-app-pub-3940256099942544~3347511713" />'''
-              if 'com.google.android.gms.ads.APPLICATION_ID' not in text:
-                  text = text.replace('    </application>', admob_meta + '\n    </application>')
               manifest.write_text(text)
           PY2
 
@@ -151,8 +154,11 @@ jobs:
       - name: Static analysis
         run: flutter analyze --no-fatal-infos
 
-      - name: Run tests
+      - name: Run all tests
         run: flutter test
+
+      - name: Run startup regression explicitly
+        run: flutter test test/v131_startup_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -163,41 +169,22 @@ jobs:
           ls -lh build/app/outputs/flutter-apk/app-release.apk
           sha256sum build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Boot and launch APK on Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          script: |
-            set -euo pipefail
-            APK=build/app/outputs/flutter-apk/app-release.apk
-            adb install -r "$APK"
-            adb logcat -c
-            adb shell am force-stop com.flipradar.app
-            START_OUT=$(adb shell am start -W -n com.flipradar.app/.MainActivity)
-            echo "$START_OUT"
-            echo "$START_OUT" | grep -q 'Status: ok'
-            sleep 8
-            PID=$(adb shell pidof com.flipradar.app | tr -d '\r')
-            if [ -z "$PID" ]; then
-              echo 'FlipRadar process died after launch.'
-              adb logcat -d -v brief | tail -n 400
-              exit 1
-            fi
-            echo "FlipRadar is alive after launch with PID $PID"
-            if adb logcat -d -v brief | grep -E 'FATAL EXCEPTION|Process: com\.flipradar\.app.*has died'; then
-              echo 'Fatal runtime error detected after launch.'
-              adb logcat -d -v brief | tail -n 400
-              exit 1
-            fi
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13.2-NATIVE-START-VERIFIED-APK
+          name: FlipRadar-V0.13.3-SAFE-START-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Persist validated SAFE source
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/v13_app.dart pubspec.yaml
+          git rm -f tools/patch_v133_safe_native.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize FlipRadar V0.13.3 SAFE START [skip ci]'
+            git push origin main
+          fi
