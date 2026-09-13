@@ -54,8 +54,9 @@ class V13SearchInput {
   final String query;
   final V13InputKind kind;
   final String? correction;
+  final double? detectedPrice;
 
-  const V13SearchInput({required this.raw, required this.query, required this.kind, this.correction});
+  const V13SearchInput({required this.raw, required this.query, required this.kind, this.correction, this.detectedPrice});
 }
 
 String _slugWords(String raw) => Uri.decodeComponent(raw)
@@ -92,16 +93,36 @@ String _commonCorrection(String input) {
   return words.join(' ');
 }
 
+double? _detectSharedPrice(String raw) {
+  final lines = raw.replaceAll('\u00a0', ' ').split(RegExp(r'[\r\n]+'));
+  final pattern = RegExp(r'(\d{1,6}(?:[. ]\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|EUR)\b', caseSensitive: false);
+  double? fallback;
+  for (final line in lines) {
+    final lower = line.toLowerCase();
+    final match = pattern.firstMatch(line);
+    if (match == null) continue;
+    final value = v13Money(match.group(1)!);
+    if (value < 2 || value > 100000) continue;
+    if (RegExp(r'\b(versand|porto|shipping)\b').hasMatch(lower)) {
+      fallback ??= value;
+      continue;
+    }
+    return value;
+  }
+  return fallback;
+}
+
 V13SearchInput normalizeV13Search(String rawInput) {
   final raw = rawInput.trim();
   if (raw.isEmpty) return const V13SearchInput(raw: '', query: '', kind: V13InputKind.text);
+  final detectedPrice = _detectSharedPrice(raw);
 
   final compact = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (RegExp(r'^\d{8,14}$').hasMatch(compact)) {
-    return V13SearchInput(raw: raw, query: compact, kind: V13InputKind.ean);
+    return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: compact, kind: V13InputKind.ean);
   }
   if (RegExp(r'^[A-Z0-9]{10}$', caseSensitive: false).hasMatch(compact) && RegExp(r'[A-Z]', caseSensitive: false).hasMatch(compact)) {
-    return V13SearchInput(raw: raw, query: compact.toUpperCase(), kind: V13InputKind.asin);
+    return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: compact.toUpperCase(), kind: V13InputKind.asin);
   }
 
   final urlMatch = RegExp(r'https?://[^\s]+', caseSensitive: false).firstMatch(compact);
@@ -114,7 +135,7 @@ V13SearchInput normalizeV13Search(String rawInput) {
     if (cleanBefore.length >= 4 && !cleanBefore.toLowerCase().contains('gerade bei')) {
       final corrected = _commonCorrection(cleanBefore);
       return V13SearchInput(
-        raw: raw,
+        raw: raw, detectedPrice: detectedPrice,
         query: corrected,
         kind: V13InputKind.url,
         correction: corrected == cleanBefore ? null : corrected,
@@ -127,38 +148,38 @@ V13SearchInput normalizeV13Search(String rawInput) {
         final value = uri.queryParameters[key];
         if (value != null && value.trim().isNotEmpty) {
           final query = _commonCorrection(_slugWords(value));
-          return V13SearchInput(raw: raw, query: query, kind: V13InputKind.url);
+          return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: query, kind: V13InputKind.url);
         }
       }
       final path = uri.path;
       final asin = RegExp(r'/(?:dp|gp/product)/([A-Z0-9]{10})(?:/|$)', caseSensitive: false).firstMatch(path);
       if (asin != null) {
-        return V13SearchInput(raw: raw, query: asin.group(1)!.toUpperCase(), kind: V13InputKind.asin);
+        return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: asin.group(1)!.toUpperCase(), kind: V13InputKind.asin);
       }
       if (uri.host.contains('kleinanzeigen')) {
         final match = RegExp(r'/s-anzeige/([^/]+)').firstMatch(path);
         if (match != null) {
-          return V13SearchInput(raw: raw, query: _commonCorrection(_slugWords(match.group(1)!)), kind: V13InputKind.url);
+          return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: _commonCorrection(_slugWords(match.group(1)!)), kind: V13InputKind.url);
         }
       }
       if (uri.host.contains('ebay.')) {
         final segments = uri.pathSegments.where((e) => e.isNotEmpty).toList();
         if (segments.length >= 2 && segments.first != 'itm') {
           final candidate = _slugWords(segments[segments.length - 2]);
-          if (candidate.length >= 4) return V13SearchInput(raw: raw, query: _commonCorrection(candidate), kind: V13InputKind.url);
+          if (candidate.length >= 4) return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: _commonCorrection(candidate), kind: V13InputKind.url);
         }
       }
       final slug = uri.pathSegments.reversed.firstWhere(
         (e) => e.length >= 5 && !RegExp(r'^\d+$').hasMatch(e),
         orElse: () => '',
       );
-      if (slug.isNotEmpty) return V13SearchInput(raw: raw, query: _commonCorrection(_slugWords(slug)), kind: V13InputKind.url);
+      if (slug.isNotEmpty) return V13SearchInput(raw: raw, detectedPrice: detectedPrice, query: _commonCorrection(_slugWords(slug)), kind: V13InputKind.url);
     }
   }
 
   final corrected = _commonCorrection(compact);
   return V13SearchInput(
-    raw: raw,
+    raw: raw, detectedPrice: detectedPrice,
     query: corrected,
     kind: V13InputKind.text,
     correction: corrected == compact ? null : corrected,
@@ -672,7 +693,7 @@ class _V13ShellState extends State<V13Shell> {
         if (normalized.query.toLowerCase() == lastShare.toLowerCase() && lastShareAt != null && now.difference(lastShareAt!).inSeconds < 4) return;
         lastShare = normalized.query;
         lastShareAt = now;
-        unawaited(_openCheck(normalized.query));
+        unawaited(_openCheck(item.path));
         return;
       }
     }
@@ -1014,6 +1035,12 @@ class _V13CheckPageState extends State<V13CheckPage> {
   void initState() {
     super.initState();
     query = TextEditingController(text: widget.input.query);
+    final detected = widget.input.detectedPrice;
+    if (detected != null && detected > 0) {
+      buy.text = detected == detected.roundToDouble()
+          ? detected.toStringAsFixed(0)
+          : detected.toStringAsFixed(2).replaceAll('.', ',');
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _search());
   }
 
@@ -1092,7 +1119,9 @@ class _V13CheckPageState extends State<V13CheckPage> {
 
   double? get baseExpectedSale {
     if (manualCommitted != null && manualCommitted! > 0) return manualCommitted;
-    final median = activeMedian;
+    final values = resaleValues;
+    if (values.length < 3) return null;
+    final median = _median(values);
     if (median == null || median <= 0) return null;
     // Asking-price heuristic only; deliberately not labelled as sold data.
     return median * .90;
@@ -1223,6 +1252,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(labelText: t('Was sollst du zahlen?', 'What would you pay?'), hintText: '0,00', suffixText: '€', prefixIcon: const Icon(Icons.shopping_cart_checkout_rounded)),
           ),
+          if (widget.input.detectedPrice != null) ...[
+            const SizedBox(height: 4),
+            Text(t('Angebotspreis automatisch erkannt – kurz prüfen und bei Bedarf ändern.', 'Listing price detected automatically – quickly verify and edit if needed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483))),
+          ],
           if (expectedSale == null || manualMode) ...[
             const SizedBox(height: 9),
             TextField(
@@ -1253,6 +1286,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
             expectedSale: expectedSale,
             profit: profit,
             roi: roi,
+            buyPrice: buyPrice,
             speed: personal.speedLabel(widget.english),
             confidence: confidence,
             minProfit: widget.minProfit,
@@ -1528,6 +1562,7 @@ class _V13DecisionCard extends StatelessWidget {
   final double? expectedSale;
   final double profit;
   final double roi;
+  final double buyPrice;
   final String speed;
   final String confidence;
   final double minProfit;
@@ -1535,7 +1570,7 @@ class _V13DecisionCard extends StatelessWidget {
   final VoidCallback? onBought;
   final VoidCallback? onNegotiate;
 
-  const _V13DecisionCard({required this.english, required this.decision, required this.maxBuy, required this.expectedSale, required this.profit, required this.roi, required this.speed, required this.confidence, required this.minProfit, required this.targetRoi, this.onBought, this.onNegotiate});
+  const _V13DecisionCard({required this.english, required this.decision, required this.maxBuy, required this.expectedSale, required this.profit, required this.roi, required this.buyPrice, required this.speed, required this.confidence, required this.minProfit, required this.targetRoi, this.onBought, this.onNegotiate});
 
   String t(String de, String en) => english ? en : de;
 
@@ -1570,6 +1605,14 @@ class _V13DecisionCard extends StatelessWidget {
             Expanded(child: _V13LightMetric(label: t('TEMPO', 'SPEED'), value: speed)),
           ]),
           const SizedBox(height: 7),
+          if (maxBuy != null && buyPrice > 0)
+            Text(
+              buyPrice <= maxBuy!
+                  ? t('${v13Euro(maxBuy! - buyPrice)} Puffer bis zu deinem MAX.', '${v13Euro(maxBuy! - buyPrice)} buffer below your MAX.')
+                  : t('${v13Euro(buyPrice - maxBuy!)} über deinem MAX.', '${v13Euro(buyPrice - maxBuy!)} above your MAX.'),
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: color),
+            ),
+          const SizedBox(height: 3),
           Text(t('Ziel: ≥ ${targetRoi.toStringAsFixed(0)} % ROI und ≥ ${v13Euro(minProfit)} Gewinn · Datenqualität $confidence.', 'Target: ≥ ${targetRoi.toStringAsFixed(0)}% ROI and ≥ ${v13Euro(minProfit)} profit · data quality $confidence.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF686C79))),
           const SizedBox(height: 10),
           Row(children: [
