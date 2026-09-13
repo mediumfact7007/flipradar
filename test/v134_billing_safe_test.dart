@@ -14,7 +14,7 @@ void main() {
     expect(app, isNot(contains('  void _scheduleBillingInit() {')));
 
     final appStateStart = app.indexOf('class _FlipRadarV13AppState');
-    final homeStart = app.indexOf('class V13HomePage');
+    final homeStart = app.indexOf('class V13Home extends StatefulWidget');
     final startupSlice = app.substring(appStateStart, homeStart);
     expect(startupSlice, isNot(contains('monetization.init()')));
   });
