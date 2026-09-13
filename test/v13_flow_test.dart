@@ -28,6 +28,19 @@ void main() {
     expect(typo.query.toLowerCase(), 'playstation 5 slim');
   });
 
+  test('V0.13 shared listing detects item price but ignores shipping price', () {
+    final shared = normalizeV13Search(
+      'Apple iPhone 15 Pro 256 GB 650 € VB https://www.kleinanzeigen.de/s-anzeige/apple-iphone-15-pro-256gb/1234567890-173-1234',
+    );
+    expect(shared.detectedPrice, 650);
+    expect(shared.query, isNot(contains('650')));
+
+    final shippingOnly = normalizeV13Search(
+      'Apple iPhone 15 Pro\nVersand 4,99 €\nhttps://www.kleinanzeigen.de/s-anzeige/apple-iphone-15-pro/1234567890-173-1234',
+    );
+    expect(shippingOnly.detectedPrice, isNull);
+  });
+
   test('V0.13 personal stats learn sell speed and actual-vs-expected ratio', () {
     final base = DateTime(2026, 1, 1);
     final flips = <V13Flip>[
@@ -138,6 +151,33 @@ void main() {
     monetization.dispose();
   });
 
+  testWidgets('V0.13 shared item price is prefilled as buy price', (tester) async {
+    final monetization = V13Monetization(onProUnlocked: () {});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: V13CheckPage(
+          english: false,
+          input: normalizeV13Search('Test Produkt 149,99 € https://example.com/test-product'),
+          targetRoi: 35,
+          minProfit: 20,
+          plan: UserPlan.free,
+          taxMode: V13TaxMode.privateSeller,
+          sources: const [],
+          flips: const [],
+          monetization: monetization,
+          onHistory: (_) {},
+          onAddFlip: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
+    expect(field.controller?.text, '149,99');
+    expect(find.textContaining('Angebotspreis automatisch erkannt'), findsOneWidget);
+    monetization.dispose();
+  });
+
   testWidgets('V0.13 manual sale price waits for confirmation before deciding', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
     await tester.pumpWidget(
@@ -175,6 +215,7 @@ void main() {
     await tester.pump();
     expect(find.text('KAUFEN'), findsOneWidget);
     expect(find.textContaining('MAX 148'), findsOneWidget);
+    expect(find.textContaining('Puffer bis zu deinem MAX'), findsOneWidget);
 
     monetization.dispose();
   });
