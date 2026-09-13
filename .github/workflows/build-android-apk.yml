@@ -31,11 +31,13 @@ jobs:
           if ! grep -q "ValueKey('v145-open-flips')" lib/v13_app.dart; then python3 tools/patch_v145_streamline.py; fi
           if ! grep -q 'maxLines: 3' lib/v13_app.dart; then python3 tools/patch_v145_multiline_search.py; fi
           if ! grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart; then python3 tools/patch_v146_kleinanzeigen_share_price.py; fi
+          if ! grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart; then python3 tools/patch_v147_deal_memory.py; fi
+          python3 tools/patch_v147_deal_memory_fix.py
 
-      - name: Verify V0.14.6 boundaries
+      - name: Verify V0.14.7 boundaries
         shell: bash
         run: |
-          grep -q '^version: 0.14.6+29$' pubspec.yaml
+          grep -q '^version: 0.14.7+30$' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
           grep -q 'e.live && roles.contains(e.role)' lib/v13_app.dart
@@ -53,6 +55,11 @@ jobs:
           grep -q 'static Uri? sharedListingUrl' lib/source_registry.dart
           grep -q 'resolveSharedListing' lib/source_registry.dart
           grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart
+          grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart
+          grep -q "status == 'Saved'" lib/v13_app.dart
+          grep -q 'maxBuyAtCheck' lib/v13_app.dart
+          grep -q 'confidenceScore' lib/v13_app.dart
+          grep -q 'String v147AgeLabel' lib/v13_app.dart
           grep -q "require('./listing_resolver')" server/index.js
           grep -q "url.pathname === '/v1/listing/resolve'" server/index.js
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
@@ -120,6 +127,7 @@ jobs:
           flutter test test/v144_market_confidence_test.dart
           flutter test test/v145_streamline_test.dart
           flutter test test/v146_kleinanzeigen_share_price_test.dart
+          flutter test test/v147_deal_memory_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -133,18 +141,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.14.6-KLEINANZEIGEN-SHARE-APK
+          name: FlipRadar-V0.14.7-DEAL-MEMORY-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.14.6 source
+      - name: Persist validated V0.14.7 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/v13_app.dart lib/source_registry.dart server/index.js pubspec.yaml
+          git add lib/v13_app.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.14.6 Kleinanzeigen share price [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14.7 deal memory [skip ci]'
             git push origin main
           fi
