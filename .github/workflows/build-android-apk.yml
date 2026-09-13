@@ -20,6 +20,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply any pending SAFE UX patch
+        shell: bash
+        run: |
+          if [ -f tools/patch_v133_safe_native.py ]; then
+            python3 tools/patch_v133_safe_native.py
+          fi
+
       - name: Apply V0.13.4 billing-only recovery patch
         run: python3 tools/patch_v134_billing_only.py
 
@@ -190,6 +197,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
+          git rm -f tools/patch_v133_safe_native.py 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m 'Finalize FlipRadar V0.13.4 billing-safe [skip ci]'
             git push origin main
