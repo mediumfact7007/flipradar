@@ -20,17 +20,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply V0.13.3 SAFE native-start patch
-        run: python3 tools/patch_v133_safe_native.py
-
-      - name: Verify risky startup SDKs are absent
+      - name: Apply any pending SAFE UX patch
         shell: bash
         run: |
+          if [ -f tools/patch_v133_safe_native.py ]; then
+            python3 tools/patch_v133_safe_native.py
+          fi
+
+      - name: Apply V0.13.4 billing-only recovery patch
+        run: python3 tools/patch_v134_billing_only.py
+
+      - name: Verify billing-only startup boundary
+        shell: bash
+        run: |
+          grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           ! grep -q 'google_mobile_ads' pubspec.yaml
-          ! grep -q 'in_app_purchase' pubspec.yaml
+          grep -q "package:in_app_purchase/in_app_purchase.dart" lib/v13_app.dart
           ! grep -q "package:google_mobile_ads" lib/v13_app.dart
-          ! grep -q "package:in_app_purchase" lib/v13_app.dart
-          grep -q 'version: 0.13.3+19' pubspec.yaml
+          grep -q 'SAFE RECOVERY STEP 1' lib/v13_app.dart
+          grep -q '_scheduleBillingInit();' lib/v13_app.dart
+          grep -q 'unawaited(monetization.init());' lib/v13_app.dart
+          grep -q 'Future<bool> rewardedUnlock() async => false;' lib/v13_app.dart
+          grep -q 'version: 0.13.4+20' pubspec.yaml
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -160,6 +171,9 @@ jobs:
       - name: Run startup regression explicitly
         run: flutter test test/v131_startup_test.dart
 
+      - name: Run billing-safe regression explicitly
+        run: flutter test test/v134_billing_safe_test.dart
+
       - name: Build release APK
         run: flutter build apk --release
 
@@ -172,19 +186,19 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13.3-SAFE-START-APK
+          name: FlipRadar-V0.13.4-BILLING-SAFE-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated SAFE source
+      - name: Persist validated V0.13.4 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
-          git rm -f tools/patch_v133_safe_native.py
+          git rm -f tools/patch_v133_safe_native.py 2>/dev/null || true
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.13.3 SAFE START [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.13.4 billing-safe [skip ci]'
             git push origin main
           fi
