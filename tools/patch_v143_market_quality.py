@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 app_path = Path('lib/v13_app.dart')
@@ -143,9 +144,17 @@ if old_clean in app:
 elif 'v13CleanMarketValues(raw)' not in app:
     raise SystemExit('V13 _clean block not found')
 
-pub = pub.replace('version: 0.14.2+25', 'version: 0.14.3+26')
+# Bump only the real version line, never compatibility comments used by older
+# regression tests.
+pub = re.sub(
+    r'^version: 0\.14\.2\+25$',
+    'version: 0.14.3+26',
+    pub,
+    count=1,
+    flags=re.MULTILINE,
+)
 
-assert 'version: 0.14.3+26' in pub
+assert re.search(r'^version: 0\.14\.3\+26$', pub, flags=re.MULTILINE)
 assert "require('./market_quality')" in server
 assert 'return filterMarketListings(q, items);' in server
 assert 'List<double> v13CleanMarketValues' in app
