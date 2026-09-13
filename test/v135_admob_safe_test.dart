@@ -1,0 +1,32 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('V0.13.5 restores only explicit test-AdMob actions', () {
+    final app = File('lib/v13_app.dart').readAsStringSync();
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+
+    expect(pubspec, contains('version: 0.13.5+21'));
+    expect(pubspec, contains('google_mobile_ads: ^9.1.0'));
+    expect(app, contains("package:google_mobile_ads/google_mobile_ads.dart"));
+    expect(app, contains('Future<bool> prepareAds() async'));
+    expect(app, contains('MobileAds.instance.initialize()'));
+    expect(app, contains('if (!await prepareAds()) return false;'));
+
+    // Google sample IDs only in this recovery build; no publisher IDs yet.
+    expect(app, contains('ca-app-pub-3940256099942544/6300978111'));
+    expect(app, contains('ca-app-pub-3940256099942544/5224354917'));
+
+    // No automatic Dart-side ad initialization during normal app startup.
+    final appStateStart = app.indexOf('class _FlipRadarV13AppState');
+    final homeStart = app.indexOf('class V13HomePage');
+    final startupSlice = app.substring(appStateStart, homeStart);
+    expect(startupSlice, isNot(contains('prepareAds()')));
+    expect(startupSlice, isNot(contains('MobileAds.instance.initialize()')));
+
+    // Banner surfaces intentionally remain inert until the next isolated step.
+    expect(app, contains('class V13BannerAd extends StatelessWidget'));
+    expect(app, contains('Widget build(BuildContext context) => const SizedBox.shrink();'));
+  });
+}
