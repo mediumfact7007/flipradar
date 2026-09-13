@@ -3,36 +3,32 @@ from pathlib import Path
 app_path = Path('lib/v13_app.dart')
 app = app_path.read_text()
 
-old_call = """          _V13MarketStrip(
+# Keep the core BUY / NEGOTIATE / SKIP decision in its original high-priority
+# position. The detailed confidence card belongs immediately after it so small
+# Android screens still render the decision without requiring a scroll.
+decision_block = """          _V13DecisionCard(
             english: widget.english,
+            decision: d,
+            maxBuy: maxBuy,
             expectedSale: expectedSale,
-            activeMedian: activeMedian,
-            count: resaleValues.length,
+            profit: profit,
+            roi: roi,
+            buyPrice: buyPrice,
+            speed: personal.speedLabel(widget.english),
             confidence: confidence,
-            pending: pending.length,
-            personal: personal,
-            isPro: widget.plan != UserPlan.free,
+            minProfit: widget.minProfit,
+            targetRoi: widget.targetRoi,
+            onBought: d == V13Decision.waiting || savedBought ? null : _bought,
+            onNegotiate: d == V13Decision.negotiate ? _copyOffer : null,
           ),
-          const SizedBox(height: 10),
 """
-new_call = """          _V13MarketStrip(
-            english: widget.english,
-            expectedSale: expectedSale,
-            activeMedian: activeMedian,
-            count: resaleValues.length,
-            confidence: confidence,
-            pending: pending.length,
-            personal: personal,
-            isPro: widget.plan != UserPlan.free,
-          ),
-          const SizedBox(height: 8),
+with_confidence = decision_block + """          const SizedBox(height: 8),
           _V14ConfidenceCard(english: widget.english, confidence: marketConfidence),
-          const SizedBox(height: 10),
 """
-if old_call in app:
-    app = app.replace(old_call, new_call, 1)
-elif '_V14ConfidenceCard(english:' not in app:
-    raise SystemExit('market strip call not found')
+if '_V14ConfidenceCard(english:' not in app:
+    if decision_block not in app:
+        raise SystemExit('decision card call not found')
+    app = app.replace(decision_block, with_confidence, 1)
 
 card = r'''class _V14ConfidenceCard extends StatelessWidget {
   final bool english;
@@ -106,5 +102,6 @@ if 'class _V14ConfidenceCard extends StatelessWidget {' not in app:
 
 assert "ValueKey('v0144-confidence-card')" in app
 assert "ValueKey('v0144-confidence-progress')" in app
+assert app.index('_V13DecisionCard(') < app.index('_V14ConfidenceCard(english:')
 app_path.write_text(app)
-print('V0.14.4 confidence UI applied')
+print('V0.14.4 confidence UI applied after the deal decision')
