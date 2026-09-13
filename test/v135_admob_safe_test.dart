@@ -3,11 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('V0.13.5 restores only explicit test-AdMob actions', () {
+  test('AdMob stays explicit and isolated from normal startup', () {
     final app = File('lib/v13_app.dart').readAsStringSync();
     final pubspec = File('pubspec.yaml').readAsStringSync();
 
-    expect(pubspec, contains('version: 0.13.5+21'));
     expect(pubspec, contains('google_mobile_ads: ^9.1.0'));
     expect(app, contains("package:google_mobile_ads/google_mobile_ads.dart"));
     expect(app, contains('Future<bool> prepareAds() async'));
@@ -25,7 +24,7 @@ void main() {
     expect(startupSlice, isNot(contains('prepareAds()')));
     expect(startupSlice, isNot(contains('MobileAds.instance.initialize()')));
 
-    // Banner surfaces intentionally remain inert until the next isolated step.
+    // Banner surfaces intentionally remain inert until a later isolated step.
     expect(app, contains('class V13BannerAd extends StatelessWidget'));
     expect(app, contains('Widget build(BuildContext context) => const SizedBox.shrink();'));
   });
