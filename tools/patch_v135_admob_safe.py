@@ -132,8 +132,6 @@ if reward_stub in app:
 elif "Future<bool> rewardedUnlock() async" not in app:
     raise SystemExit('Rewarded stub not found')
 
-# Banner surfaces stay intentionally disabled in V0.13.5 so this build tests
-# the native ads SDK/consent path without adding automatic ad requests.
 app = app.replace(
     "SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.",
     "SAFE RECOVERY 2: Test-AdMob wird nur nach einer Werbe-/Datenschutz-Aktion geladen. Banner bleiben in dieser Version deaktiviert.",
@@ -157,7 +155,9 @@ assert 'ca-app-pub-3940256099942544/5224354917' in app
 assert 'class V13BannerAd extends StatelessWidget' in app
 assert 'Widget build(BuildContext context) => const SizedBox.shrink();' in app
 assert 'unawaited(monetization.prepareAds())' not in app
-assert 'prepareAds();' not in app[app.index('class _FlipRadarV13AppState'):app.index('class V13HomePage')]
+startup_slice = app[app.index('class _FlipRadarV13AppState'):app.index('class V13Home extends StatefulWidget')]
+assert 'prepareAds()' not in startup_slice
+assert 'MobileAds.instance.initialize()' not in startup_slice
 
 app_path.write_text(app)
 pub_path.write_text(pub)
