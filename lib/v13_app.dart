@@ -829,11 +829,16 @@ class _V13ShellState extends State<V13Shell> {
   @override
   void initState() {
     super.initState();
-    // Safe-start build: optional share listener is not part of first-frame startup.
+    // Keep first-frame startup clean, then restore the native share listener.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (Platform.isAndroid || Platform.isIOS) _listenShares();
+    });
   }
 
   // ignore: unused_element
   void _listenShares() {
+    if (shareSub != null) return;
     try {
       shareSub = ReceiveSharingIntent.instance.getMediaStream().listen(_handleShare, onError: (_) {});
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -936,6 +941,7 @@ class _V13ShellState extends State<V13Shell> {
         onSearch: _openCheck,
         onScan: _scan,
         onSettings: _settings,
+        onOpenFlips: () => setState(() => tab = 1),
       ),
       V13FlipsPage(
         english: widget.english,
@@ -980,6 +986,7 @@ class V13Home extends StatefulWidget {
   final ValueChanged<String> onSearch;
   final VoidCallback onScan;
   final VoidCallback onSettings;
+  final VoidCallback onOpenFlips;
 
   const V13Home({
     super.key,
@@ -991,6 +998,7 @@ class V13Home extends StatefulWidget {
     required this.onSearch,
     required this.onScan,
     required this.onSettings,
+    required this.onOpenFlips,
   });
 
   @override
@@ -1006,8 +1014,14 @@ class _V13HomeState extends State<V13Home> {
   void _changed(String value) => setState(() => preview = normalizeV13Search(value));
 
   void _submit([String? value]) {
-    final normalized = normalizeV13Search(value ?? query.text);
-    if (normalized.query.isNotEmpty) widget.onSearch(normalized.query);
+    final raw = value ?? query.text;
+    final normalized = normalizeV13Search(raw);
+    if (normalized.query.isNotEmpty) widget.onSearch(raw);
+  }
+
+  void _clearSearch() {
+    query.clear();
+    setState(() => preview = const V13SearchInput(raw: '', query: '', kind: V13InputKind.text));
   }
 
   Future<void> _paste() async {
@@ -1049,6 +1063,8 @@ class _V13HomeState extends State<V13Home> {
           key: const ValueKey('v13-universal-search'),
           controller: query,
           autofocus: true,
+          minLines: 1,
+          maxLines: 3,
           onChanged: _changed,
           onSubmitted: _submit,
           textInputAction: TextInputAction.search,
@@ -1057,7 +1073,9 @@ class _V13HomeState extends State<V13Home> {
             labelText: t('Produkt, Link, EAN oder ASIN', 'Product, link, EAN or ASIN'),
             hintText: t('z. B. Samsung Fold 8 512 GB', 'e.g. Samsung Fold 8 512 GB'),
             prefixIcon: const Icon(Icons.search_rounded, size: 25),
-            suffixIcon: IconButton(onPressed: _paste, tooltip: t('Einfügen', 'Paste'), icon: const Icon(Icons.content_paste_rounded)),
+            suffixIcon: query.text.trim().isEmpty
+                ? IconButton(onPressed: _paste, tooltip: t('Einfügen', 'Paste'), icon: const Icon(Icons.content_paste_rounded))
+                : IconButton(key: const ValueKey('v145-clear-search'), onPressed: _clearSearch, tooltip: t('Leeren', 'Clear'), icon: const Icon(Icons.close_rounded)),
           ),
         ),
         if (query.text.trim().isNotEmpty) ...[
@@ -1111,7 +1129,12 @@ class _V13HomeState extends State<V13Home> {
         ),
         if (widget.openFlips > 0) ...[
           const SizedBox(height: 13),
-          Text(t('${widget.openFlips} offene Flips warten auf Verkauf.', '${widget.openFlips} open flips are waiting to sell.'), style: const TextStyle(fontSize: 12, color: Color(0xFF777B88))),
+          OutlinedButton.icon(
+            key: const ValueKey('v145-open-flips'),
+            onPressed: widget.onOpenFlips,
+            icon: const Icon(Icons.inventory_2_outlined, size: 18),
+            label: Text(t('${widget.openFlips} offene Flips ansehen', 'View ${widget.openFlips} open flips')),
+          ),
         ],
         if (widget.plan == UserPlan.free) ...[
           const SizedBox(height: 26),
@@ -1308,6 +1331,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
   final manualFocus = FocusNode();
   List<SourceListing> listings = [];
   final Set<String> pending = {};
+  final Set<String> failed = {};
   bool manualMode = false;
   double? manualCommitted;
   bool deepUnlocked = false;
@@ -1339,6 +1363,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     setState(() {
       listings = [];
       pending.clear();
+      failed.clear();
       manualCommitted = null;
       manualSell.clear();
       manualMode = false;
@@ -1358,9 +1383,12 @@ class _V13CheckPageState extends State<V13CheckPage> {
 
   Future<void> _fetchOne(PriceSource source, String q, int myToken) async {
     List<SourceListing> result = [];
+    var didFail = false;
     try {
       result = await SourceRegistry.fetch(source, q);
-    } catch (_) {}
+    } catch (_) {
+      didFail = true;
+    }
     if (!mounted || myToken != token) return;
     final combined = [...listings, ...result];
     final dedupe = <String, SourceListing>{};
@@ -1372,9 +1400,38 @@ class _V13CheckPageState extends State<V13CheckPage> {
       dedupe[key] = item;
     }
     pending.remove(source.id);
+    if (didFail) {
+      failed.add(source.id);
+    } else {
+      failed.remove(source.id);
+    }
     setState(() => listings = dedupe.values.toList()..sort((a, b) => a.total.compareTo(b.total)));
     if (pending.isEmpty && expectedSale == null) setState(() => manualMode = true);
     if (buy.text.isEmpty) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
+  }
+
+  void _retryFailed() {
+    if (failed.isEmpty) return;
+    final q = normalizeV13Search(query.text).query;
+    if (q.isEmpty) return;
+    final ids = failed.toSet();
+    final retry = widget.sources
+        .where((s) => ids.contains(s.id) && s.enabled && s.canFetchInApp)
+        .toList();
+    if (retry.isEmpty) {
+      setState(() => failed.clear());
+      return;
+    }
+    final myToken = token;
+    setState(() {
+      for (final source in retry) {
+        failed.remove(source.id);
+        pending.add(source.id);
+      }
+    });
+    for (final source in retry) {
+      unawaited(_fetchOne(source, q, myToken));
+    }
   }
 
   List<double> _valuesFor(Set<String> roles) => listings
@@ -1518,6 +1575,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onOpen: _openSource,
             onEbaySold: _openEbaySold,
           ),
+          if (failed.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _V145RetrySources(english: widget.english, failed: failed.length, onRetry: _retryFailed),
+          ],
           const SizedBox(height: 12),
           TextField(
             key: const ValueKey('v13-buy-input'),
@@ -1831,6 +1892,29 @@ class _V13Metric extends StatelessWidget {
           Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontSize: strong ? 15 : 13, fontWeight: FontWeight.w900)),
         ]),
       );
+}
+
+class _V145RetrySources extends StatelessWidget {
+  final bool english;
+  final int failed;
+  final VoidCallback onRetry;
+  const _V145RetrySources({required this.english, required this.failed, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        const Icon(Icons.cloud_off_rounded, size: 16, color: Color(0xFFC47B00)),
+        const SizedBox(width: 6),
+        Expanded(child: Text(
+          english ? '$failed source(s) could not be reached.' : '$failed Quelle(n) nicht erreichbar.',
+          style: const TextStyle(fontSize: 10.8, color: Color(0xFF6C7080)),
+        )),
+        TextButton.icon(
+          key: const ValueKey('v145-retry-sources'),
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded, size: 16),
+          label: Text(english ? 'Retry' : 'Erneut'),
+        ),
+      ]);
 }
 
 class _V13SourceScroller extends StatelessWidget {
