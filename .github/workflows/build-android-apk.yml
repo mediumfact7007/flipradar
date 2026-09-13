@@ -23,8 +23,8 @@ jobs:
       - name: Apply V0.14 live source status
         shell: bash
         run: |
-          if grep -q '^version: 0.14.2+25$' pubspec.yaml; then
-            echo 'V0.14.2 source already finalized; V0.14.1 base patch not needed.'
+          if grep -Eq '^version: 0\.14\.(2|3)\+' pubspec.yaml; then
+            echo 'V0.14.x source already finalized; V0.14.1 base patch not needed.'
           else
             python3 tools/patch_v140_live_source_status.py
           fi
@@ -32,10 +32,13 @@ jobs:
       - name: Apply V0.14.2 non-live market guard
         run: python3 tools/patch_v142_nonlive_market_guard.py
 
+      - name: Apply V0.14.3 market quality filters
+        run: python3 tools/patch_v143_market_quality.py
+
       - name: Verify stable startup and market-data boundary
         shell: bash
         run: |
-          grep -q '^version: 0.14.2+25$' pubspec.yaml
+          grep -q '^version: 0.14.3+26$' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
           grep -q 'workmanager_android: ^0.10.9' pubspec.yaml
@@ -46,13 +49,23 @@ jobs:
           grep -q 'e.live && e.sourceId == id' lib/v13_app.dart
           grep -q 'status.isSandbox(source.id)' lib/v13_app.dart
           grep -q 'eBay Sandbox verbunden' lib/v13_app.dart
+          grep -q 'List<double> v13CleanMarketValues' lib/v13_app.dart
+          grep -q 'v13CleanMarketValues(raw)' lib/v13_app.dart
+          grep -q "require('./market_quality')" server/index.js
+          grep -q 'return filterMarketListings(q, items);' server/index.js
           grep -q 'final String environment;' lib/source_status.dart
           grep -q 'bool isSandbox(String sourceId)' lib/source_status.dart
           grep -q 'const SizedBox(height: 14)' lib/v13_app.dart
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
       - name: Check backend syntax
-        run: node --check server/index.js
+        run: |
+          node --check server/index.js
+          node --check server/market_quality.js
+          node --check server/market_quality_test.js
+
+      - name: Run backend market quality regression
+        run: node server/market_quality_test.js
 
       - name: Smoke test backend sandbox boundary
         shell: bash
@@ -210,6 +223,9 @@ jobs:
       - name: Run Sandbox market-data isolation regression explicitly
         run: flutter test test/v142_nonlive_market_guard_test.dart
 
+      - name: Run market quality regression explicitly
+        run: flutter test test/v143_market_quality_test.dart
+
       - name: Build release APK
         run: flutter build apk --release
 
@@ -222,18 +238,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.14.2-MARKET-DATA-SAFE-APK
+          name: FlipRadar-V0.14.3-MARKET-QUALITY-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.14.2 source
+      - name: Persist validated V0.14.3 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/v13_app.dart lib/source_status.dart pubspec.yaml
+          git add lib/v13_app.dart server/index.js pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.14.2 market-data safety [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14.3 market quality [skip ci]'
             git push origin main
           fi
