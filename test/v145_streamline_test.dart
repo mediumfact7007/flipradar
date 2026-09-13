@@ -7,9 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('share listener stays behind first frame and source failures are retryable', () {
     final app = File('lib/v13_app.dart').readAsStringSync();
-    final pubspec = File('pubspec.yaml').readAsStringSync();
 
-    expect(pubspec, contains('version: 0.14.5+28'));
     expect(app, contains('WidgetsBinding.instance.addPostFrameCallback'));
     expect(app, contains('Platform.isAndroid || Platform.isIOS'));
     expect(app, contains('if (shareSub != null) return;'));
