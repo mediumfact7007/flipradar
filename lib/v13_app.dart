@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -338,151 +335,39 @@ String v13TaxLabel(V13TaxMode mode, bool english) {
   }
 }
 
+class V13StoreProduct {
+  final String id;
+  final String price;
+  const V13StoreProduct({required this.id, required this.price});
+}
+
 class V13Monetization extends ChangeNotifier {
   static const monthlyId = 'flipradar_pro_monthly';
   static const yearlyId = 'flipradar_pro_yearly';
-  static const testAds = true;
-  static const androidBanner = 'ca-app-pub-3940256099942544/6300978111';
-  static const androidRewarded = 'ca-app-pub-3940256099942544/5224354917';
-  static const iosBanner = 'ca-app-pub-3940256099942544/2934735716';
-  static const iosRewarded = 'ca-app-pub-3940256099942544/1712485313';
 
   final VoidCallback onProUnlocked;
-  StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   bool adsAllowed = false;
   bool billingAvailable = false;
-  bool loadingBilling = true;
-  List<ProductDetails> products = [];
+  bool loadingBilling = false;
+  List<V13StoreProduct> products = const [];
 
   V13Monetization({required this.onProUnlocked});
 
-  String get bannerId => Platform.isAndroid ? androidBanner : iosBanner;
-  String get rewardedId => Platform.isAndroid ? androidRewarded : iosRewarded;
+  // SAFE START: no native ads/billing SDK is touched. This deliberately keeps
+  // startup independent from Google Play Services and ad-consent state.
+  Future<void> init() async {}
+  Future<void> showPrivacyOptions() async {}
 
-  Future<void> init() async {
-    try {
-      _purchaseSub = InAppPurchase.instance.purchaseStream.listen(_purchaseUpdate, onError: (_) {});
-    } catch (_) {}
-    unawaited(_initBilling());
-    unawaited(_initAds());
-  }
-
-  Future<void> _initBilling() async {
-    try {
-      billingAvailable = await InAppPurchase.instance.isAvailable();
-      if (billingAvailable) {
-        final response = await InAppPurchase.instance.queryProductDetails({monthlyId, yearlyId});
-        products = response.productDetails;
-      }
-    } catch (_) {
-      billingAvailable = false;
-    }
-    loadingBilling = false;
-    notifyListeners();
-  }
-
-  Future<void> _initAds() async {
-    try {
-      final params = ConsentRequestParameters();
-      final completer = Completer<void>();
-      ConsentInformation.instance.requestConsentInfoUpdate(
-        params,
-        () {
-          ConsentForm.loadAndShowConsentFormIfRequired((error) {
-            if (!completer.isCompleted) completer.complete();
-          });
-        },
-        (_) {
-          if (!completer.isCompleted) completer.complete();
-        },
-      );
-      await completer.future.timeout(const Duration(seconds: 30), onTimeout: () {});
-      adsAllowed = await ConsentInformation.instance.canRequestAds();
-      if (adsAllowed) await MobileAds.instance.initialize();
-    } catch (_) {
-      adsAllowed = false;
-    }
-    notifyListeners();
-  }
-
-  Future<void> showPrivacyOptions() async {
-    try {
-      ConsentForm.showPrivacyOptionsForm((_) {});
-    } catch (_) {}
-  }
-
-  ProductDetails? product(String id) {
+  V13StoreProduct? product(String id) {
     for (final p in products) {
       if (p.id == id) return p;
     }
     return null;
   }
 
-  Future<void> buy(ProductDetails product) async {
-    try {
-      await InAppPurchase.instance.buyNonConsumable(purchaseParam: PurchaseParam(productDetails: product));
-    } catch (_) {}
-  }
-
-  Future<void> restore() async {
-    try {
-      await InAppPurchase.instance.restorePurchases();
-    } catch (_) {}
-  }
-
-  Future<void> _purchaseUpdate(List<PurchaseDetails> purchases) async {
-    for (final purchase in purchases) {
-      if ((purchase.productID == monthlyId || purchase.productID == yearlyId) &&
-          (purchase.status == PurchaseStatus.purchased || purchase.status == PurchaseStatus.restored)) {
-        // Prototype behavior: unlock locally. Production must verify the receipt/server token.
-        onProUnlocked();
-      }
-      if (purchase.pendingCompletePurchase) {
-        try {
-          await InAppPurchase.instance.completePurchase(purchase);
-        } catch (_) {}
-      }
-    }
-  }
-
-  Future<bool> rewardedUnlock() async {
-    if (!adsAllowed) return false;
-    final completer = Completer<bool>();
-    var earned = false;
-    try {
-      await RewardedAd.load(
-        adUnitId: rewardedId,
-        request: const AdRequest(),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          onAdLoaded: (ad) {
-            ad.fullScreenContentCallback = FullScreenContentCallback(
-              onAdDismissedFullScreenContent: (value) {
-                value.dispose();
-                if (!completer.isCompleted) completer.complete(earned);
-              },
-              onAdFailedToShowFullScreenContent: (value, error) {
-                value.dispose();
-                if (!completer.isCompleted) completer.complete(false);
-              },
-            );
-            ad.show(onUserEarnedReward: (_, __) => earned = true);
-          },
-          onAdFailedToLoad: (_) {
-            if (!completer.isCompleted) completer.complete(false);
-          },
-        ),
-      );
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete(false);
-    }
-    return completer.future.timeout(const Duration(seconds: 45), onTimeout: () => false);
-  }
-
-  @override
-  void dispose() {
-    _purchaseSub?.cancel();
-    super.dispose();
-  }
+  Future<void> buy(V13StoreProduct product) async {}
+  Future<void> restore() async {}
+  Future<bool> rewardedUnlock() async => false;
 }
 
 class FlipRadarV13App extends StatefulWidget {
@@ -1742,7 +1627,7 @@ class _V13DeepCheck extends StatelessWidget {
           Text(t('Konservativer Exit · Kapitaltempo · persönliches Muster · Risiko', 'Conservative exit · capital speed · personal pattern · risk'), style: const TextStyle(color: Color(0xFFD4D5EE), fontSize: 11.5)),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: OutlinedButton.icon(style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Color(0x66FFFFFF))), onPressed: loading ? null : onReward, icon: loading ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.ondemand_video_rounded, size: 18), label: Text(t('1× MIT WERBUNG', '1× WITH AD')))),
+            Expanded(child: OutlinedButton.icon(style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Color(0x66FFFFFF))), onPressed: loading ? null : onReward, icon: loading ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.ondemand_video_rounded, size: 18), label: Text(t('WERBUNG SPÄTER', 'ADS LATER')))),
             const SizedBox(width: 7),
             Expanded(child: FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _v13Primary), onPressed: onPro, child: const Text('PRO'))),
           ]),
@@ -2021,7 +1906,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           ExpansionTile(tilePadding: EdgeInsets.zero, leading: const Icon(Icons.build_outlined), title: Text(t('Für Profis & Entwickler', 'For pros & developers'), style: const TextStyle(fontWeight: FontWeight.w900)), subtitle: Text(t('Im Alltag nicht nötig', 'Not needed day to day'), style: const TextStyle(fontSize: 11.5)), children: [
             TextFormField(initialValue: widget.backend, decoration: InputDecoration(labelText: t('Eigener FlipRadar-Server', 'Custom FlipRadar server'), hintText: SourceRegistry.defaultBackend), onFieldSubmitted: widget.onBackend),
             const SizedBox(height: 9),
-            Text(t('Test-APK: AdMob verwendet offizielle Google-Testanzeigen. Für Einnahmen müssen später deine AdMob-IDs eingesetzt werden.', 'Test APK: AdMob uses official Google test ads. Your AdMob IDs are required for real revenue.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
+            Text(t('SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.', 'SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
             const SizedBox(height: 9),
             SegmentedButton<UserPlan>(segments: const [ButtonSegment(value: UserPlan.free, label: Text('FREE')), ButtonSegment(value: UserPlan.pro, label: Text('PRO TEST'))], selected: {widget.plan == UserPlan.free ? UserPlan.free : UserPlan.pro}, onSelectionChanged: (v) => widget.onPlanPreview(v.first)),
           ]),
@@ -2114,7 +1999,7 @@ class _V13PaywallState extends State<V13Paywall> {
         _V13PlanChoice(title: t('Monatlich', 'Monthly'), price: month?.price ?? '7,99 € / Monat', enabled: month != null, onTap: month == null ? null : () => widget.monetization.buy(month)),
         const SizedBox(height: 10),
         if (!widget.monetization.billingAvailable || (month == null && year == null))
-          Text(t('In dieser Test-APK sind die Play-Store-Produkte noch nicht veröffentlicht. Die Kaufoberfläche ist bereits technisch angebunden.', 'The Play Store products are not published for this test APK yet. The purchase flow is already integrated.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B))),
+          Text(t('SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.', 'SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7A7E8B))),
         TextButton(onPressed: widget.monetization.restore, child: Text(t('Käufe wiederherstellen', 'Restore purchases'))),
         const SizedBox(height: 6),
         Text(t('Vor produktivem Start werden Käufe serverseitig verifiziert.', 'Purchases will be server-verified before production launch.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 9.5, color: Color(0xFF8A8E9B))),
@@ -2136,50 +2021,12 @@ class _V13PlanChoice extends StatelessWidget {
   Widget build(BuildContext context) => Material(color: enabled ? Colors.white : const Color(0xFFF0F1F4), borderRadius: BorderRadius.circular(18), child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(18), child: Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(border: Border.all(color: enabled ? const Color(0xFFDADCE8) : const Color(0xFFE2E3E8)), borderRadius: BorderRadius.circular(18)), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)), if (badge != null) ...[const SizedBox(width: 6), _V13Pill(text: badge!, foreground: const Color(0xFF087F5B), background: const Color(0xFFE1F5EE))]]), const SizedBox(height: 2), Text(price, style: const TextStyle(color: Color(0xFF656978), fontSize: 12))])), Icon(enabled ? Icons.arrow_forward_rounded : Icons.lock_outline_rounded)]))));
 }
 
-class V13BannerAd extends StatefulWidget {
+class V13BannerAd extends StatelessWidget {
   final V13Monetization monetization;
   const V13BannerAd({super.key, required this.monetization});
-  @override
-  State<V13BannerAd> createState() => _V13BannerAdState();
-}
 
-class _V13BannerAdState extends State<V13BannerAd> {
-  BannerAd? ad;
-  bool loaded = false;
-  bool failed = false;
   @override
-  void initState() { super.initState(); widget.monetization.addListener(_maybeLoad); WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad()); }
-  void _maybeLoad() {
-    if (!mounted || ad != null || failed || !widget.monetization.adsAllowed) return;
-    final next = BannerAd(
-      size: AdSize.banner,
-      adUnitId: widget.monetization.bannerId,
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          loaded = true;
-          if (mounted) setState(() {});
-        },
-        onAdFailedToLoad: (value, error) {
-          value.dispose();
-          ad = null;
-          failed = true;
-          loaded = false;
-          if (mounted) setState(() {});
-        },
-      ),
-      request: const AdRequest(),
-    );
-    ad = next;
-    next.load();
-  }
-  @override
-  Widget build(BuildContext context) {
-    final current = ad;
-    if (current == null || !loaded) return const SizedBox.shrink();
-    return Center(child: Column(children: [const Text('ANZEIGE', style: TextStyle(fontSize: 8, color: Color(0xFF9598A4), fontWeight: FontWeight.w800)), const SizedBox(height: 3), SizedBox(width: current.size.width.toDouble(), height: current.size.height.toDouble(), child: AdWidget(ad: current))]));
-  }
-  @override
-  void dispose() { widget.monetization.removeListener(_maybeLoad); ad?.dispose(); super.dispose(); }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _V13Pill extends StatelessWidget {
