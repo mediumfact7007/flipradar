@@ -26,11 +26,11 @@ jobs:
           if ! grep -q "import 'source_status.dart';" lib/v13_app.dart; then python3 tools/patch_v140_live_source_status.py; fi
           if ! grep -q 'e.live && roles.contains(e.role)' lib/v13_app.dart; then python3 tools/patch_v142_nonlive_market_guard.py; fi
           if ! grep -q 'List<double> v13CleanMarketValues' lib/v13_app.dart; then python3 tools/patch_v143_market_quality.py; fi
-          python3 tools/patch_v144_confidence_model.py
-          python3 tools/patch_v144_confidence_ui.py
-          python3 tools/patch_v145_streamline.py
-          python3 tools/patch_v145_multiline_search.py
-          python3 tools/patch_v146_kleinanzeigen_share_price.py
+          if ! grep -q 'class V13MarketConfidence' lib/v13_app.dart; then python3 tools/patch_v144_confidence_model.py; fi
+          if ! grep -q "ValueKey('v0144-confidence-card')" lib/v13_app.dart; then python3 tools/patch_v144_confidence_ui.py; fi
+          if ! grep -q "ValueKey('v145-open-flips')" lib/v13_app.dart; then python3 tools/patch_v145_streamline.py; fi
+          if ! grep -q 'maxLines: 3' lib/v13_app.dart; then python3 tools/patch_v145_multiline_search.py; fi
+          if ! grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart; then python3 tools/patch_v146_kleinanzeigen_share_price.py; fi
 
       - name: Verify V0.14.6 boundaries
         shell: bash
