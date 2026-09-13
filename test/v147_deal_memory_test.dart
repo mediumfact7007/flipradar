@@ -89,6 +89,8 @@ void main() {
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
     expect(remember, findsOneWidget);
+    await tester.ensureVisible(remember);
+    await tester.pump();
     await tester.tap(remember);
     await tester.pump();
 
