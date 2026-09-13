@@ -1,4 +1,5 @@
 import 'package:flipradar/main.dart';
+import 'package:flipradar/source_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
