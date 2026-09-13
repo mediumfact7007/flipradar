@@ -2,6 +2,7 @@
 
 const http = require('http');
 const { URL, URLSearchParams } = require('url');
+const { filterMarketListings } = require('./market_quality');
 
 const PORT = Number(process.env.PORT || 8080);
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
@@ -152,7 +153,7 @@ async function searchEbay(q) {
   if (!response.ok) throw new Error(`eBay Browse failed (${response.status})`);
 
   const data = await response.json();
-  return (data.itemSummaries || [])
+  const items = (data.itemSummaries || [])
     .map((item) => {
       const buyingOptions = Array.isArray(item.buyingOptions) ? item.buyingOptions : [];
       if (!buyingOptions.includes('FIXED_PRICE')) return null;
@@ -177,6 +178,7 @@ async function searchEbay(q) {
       };
     })
     .filter((item) => item && item.price > 0);
+  return filterMarketListings(q, items);
 }
 
 function keepaRequestUrl(q) {

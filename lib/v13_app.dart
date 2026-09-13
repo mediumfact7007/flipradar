@@ -1142,6 +1142,47 @@ class _V13HomeState extends State<V13Home> {
   }
 }
 
+List<double> v13CleanMarketValues(List<double> raw) {
+  final values = raw.where((e) => e.isFinite && e > 0).toList()..sort();
+  if (values.length < 3) return values;
+
+  double median(List<double> input) {
+    final mid = input.length ~/ 2;
+    return input.length.isOdd
+        ? input[mid]
+        : (input[mid - 1] + input[mid]) / 2;
+  }
+
+  double quantile(List<double> input, double q) {
+    if (input.length == 1) return input.first;
+    final position = (input.length - 1) * q;
+    final lower = position.floor();
+    final upper = position.ceil();
+    if (lower == upper) return input[lower];
+    final fraction = position - lower;
+    return input[lower] + (input[upper] - input[lower]) * fraction;
+  }
+
+  final med = median(values);
+  final ratioFiltered = values
+      .where((v) => v >= med * .45 && v <= med * 1.85)
+      .toList();
+  final working = ratioFiltered.length >= 2 ? ratioFiltered : values;
+  if (working.length < 5) return working;
+
+  final q1 = quantile(working, .25);
+  final q3 = quantile(working, .75);
+  final iqr = q3 - q1;
+  if (iqr <= 0) return working;
+
+  final lowerFence = math.max(med * .45, q1 - iqr * 1.5);
+  final upperFence = math.min(med * 1.85, q3 + iqr * 1.5);
+  final filtered = working
+      .where((v) => v >= lowerFence && v <= upperFence)
+      .toList();
+  return filtered.length >= 3 ? filtered : working;
+}
+
 enum V13Decision { waiting, buy, negotiate, skip }
 
 class V13CheckPage extends StatefulWidget {
@@ -1267,13 +1308,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     return values.length.isOdd ? values[mid] : (values[mid - 1] + values[mid]) / 2;
   }
 
-  List<double> _clean(List<double> raw) {
-    final values = [...raw]..sort();
-    if (values.length < 5) return values;
-    final med = _median(values)!;
-    final filtered = values.where((v) => v >= med * .60 && v <= med * 1.60).toList();
-    return filtered.length >= 3 ? filtered : values;
-  }
+  List<double> _clean(List<double> raw) => v13CleanMarketValues(raw);
 
   double? get activeMedian => _median(_clean(_valuesFor({'resale', 'local'})));
   double? get retailMedian => _median(_clean(_valuesFor({'retail', 'refurb'})));
