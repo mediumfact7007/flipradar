@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('V0.14.1 protects the extra-cost floating label from ExpansionTile clipping', () {
+  test('V0.14.2 preserves the V0.14.1 extra-cost label clipping fix', () {
     final app = File('lib/v13_app.dart').readAsStringSync();
     final pubspec = File('pubspec.yaml').readAsStringSync();
 
-    expect(pubspec, contains('version: 0.14.1+24'));
+    expect(pubspec, contains('version: 0.14.2+25'));
     expect(app, contains("v0141-cost-label-top-space"));
     expect(app, contains("v0141-extra-costs-input"));
 
