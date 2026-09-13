@@ -1,0 +1,103 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'source_registry.dart';
+
+class SourceRuntimeStatus {
+  final bool configured;
+  final String mode;
+  final String estimate;
+
+  const SourceRuntimeStatus({
+    required this.configured,
+    required this.mode,
+    this.estimate = '',
+  });
+
+  factory SourceRuntimeStatus.fromJson(Map<String, dynamic> json) =>
+      SourceRuntimeStatus(
+        configured: json['configured'] == true,
+        mode: json['mode']?.toString() ?? '',
+        estimate: json['estimate']?.toString() ?? '',
+      );
+}
+
+class MarketBackendStatus {
+  final bool reachable;
+  final Map<String, SourceRuntimeStatus> sources;
+  final String error;
+
+  const MarketBackendStatus({
+    required this.reachable,
+    required this.sources,
+    this.error = '',
+  });
+
+  const MarketBackendStatus.offline([String message = ''])
+      : reachable = false,
+        sources = const <String, SourceRuntimeStatus>{},
+        error = message;
+
+  bool isLive(String sourceId) =>
+      reachable && (sources[sourceId]?.configured ?? false);
+
+  factory MarketBackendStatus.fromJson(Map<String, dynamic> json) {
+    final rawSources = json['sources'];
+    final parsed = <String, SourceRuntimeStatus>{};
+    if (rawSources is Map) {
+      for (final entry in rawSources.entries) {
+        final value = entry.value;
+        if (value is Map) {
+          parsed[entry.key.toString()] = SourceRuntimeStatus.fromJson(
+            Map<String, dynamic>.from(value),
+          );
+        }
+      }
+    }
+    return MarketBackendStatus(reachable: true, sources: parsed);
+  }
+}
+
+class MarketStatusClient {
+  static Uri? endpointFor(List<PriceSource> sources) {
+    for (final source in sources) {
+      if (!source.builtIn || !source.canFetchInApp) continue;
+      final adapter = source.adapterUrl('flipradar-status');
+      final uri = adapter == null ? null : Uri.tryParse(adapter);
+      if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) continue;
+      return Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        path: '/v1/status',
+      );
+    }
+    return null;
+  }
+
+  static Future<MarketBackendStatus> fetch(List<PriceSource> sources) async {
+    final endpoint = endpointFor(sources);
+    if (endpoint == null) {
+      return const MarketBackendStatus.offline('no_backend');
+    }
+    try {
+      final response = await http
+          .get(endpoint)
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return MarketBackendStatus.offline('http_${response.statusCode}');
+      }
+      if (response.bodyBytes.length > 256 * 1024) {
+        return const MarketBackendStatus.offline('response_too_large');
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        return const MarketBackendStatus.offline('invalid_response');
+      }
+      return MarketBackendStatus.fromJson(decoded);
+    } catch (_) {
+      return const MarketBackendStatus.offline('unreachable');
+    }
+  }
+}
