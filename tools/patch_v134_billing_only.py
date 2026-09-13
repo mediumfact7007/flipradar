@@ -2,12 +2,11 @@ from pathlib import Path
 
 app_path = Path('lib/v13_app.dart')
 pub_path = Path('pubspec.yaml')
-
 app = app_path.read_text()
 pub = pub_path.read_text()
 
-# V0.13.4 is the first controlled SAFE START recovery step:
-# Play Billing returns, but AdMob/UMP stays completely absent.
+# V0.13.4 = controlled SAFE START recovery step 1:
+# restore Google Play Billing only; keep AdMob/UMP completely absent.
 if "package:in_app_purchase/in_app_purchase.dart" not in app:
     app = app.replace(
         "import 'package:flutter/services.dart';\n",
@@ -32,8 +31,7 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
 
   V13Monetization({required this.onProUnlocked});
 
-  // SAFE RECOVERY STEP 1: Billing is initialized only after the first frame.
-  // Ads/consent remain disabled so any startup regression stays attributable.
+  // SAFE RECOVERY STEP 1: this is called only after FlipRadar's first frame.
   Future<void> init() async {
     if (_purchaseSub != null) return;
     try {
@@ -75,7 +73,7 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Ad privacy remains a no-op until SAFE RECOVERY STEP 2.
+  // Ads and UMP consent stay disabled until the next isolated recovery step.
   Future<void> showPrivacyOptions() async {}
 
   V13StoreProduct? product(String id) {
@@ -107,8 +105,8 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
       if ((purchase.productID == monthlyId || purchase.productID == yearlyId) &&
           (purchase.status == PurchaseStatus.purchased ||
               purchase.status == PurchaseStatus.restored)) {
-        // Test-track behavior. Production launch must verify the Play token on
-        // a trusted server before granting the durable entitlement.
+        // Test-track behavior only. Production must verify the Play token on a
+        // trusted server before granting a durable entitlement.
         onProUnlocked();
       }
       if (purchase.pendingCompletePurchase) {
@@ -119,7 +117,7 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
     }
   }
 
-  // Ads remain intentionally disabled in V0.13.4.
+  // Rewarded ads intentionally remain unavailable in V0.13.4.
   Future<bool> rewardedUnlock() async => false;
 
   @override
@@ -130,45 +128,73 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
 }
 
 '''
-
 app = app[:start] + billing_block + app[end:]
 
-first_frame_marker = """      sources = loadedSources;\n      loading = false;\n    });\n  }\n\n  void _unlockPro()"""
-first_frame_replacement = """      sources = loadedSources;\n      loading = false;\n    });\n    WidgetsBinding.instance.addPostFrameCallback((_) {\n      unawaited(monetization.init());\n    });\n  }\n\n  void _unlockPro()"""
-if first_frame_marker in app:
-    app = app.replace(first_frame_marker, first_frame_replacement, 1)
-elif 'unawaited(monetization.init());' not in app:
-    raise SystemExit('Could not place post-frame billing initialization')
+queue_marker = '  Future<void> _saveQueue = Future<void>.value();\n'
+if queue_marker not in app:
+    raise SystemExit('save queue marker not found')
+app = app.replace(
+    queue_marker,
+    queue_marker + '  bool _billingScheduled = false;\n',
+    1,
+)
+
+load_safe_start = app.index('  Future<void> _loadSafe() async {')
+load_start = app.index('  Future<void> _load() async {', load_safe_start)
+segment = app[load_safe_start:load_start]
+closing = segment.rfind('  }\n')
+if closing < 0:
+    raise SystemExit('loadSafe closing marker not found')
+segment = (
+    segment[:closing]
+    + '    _scheduleBillingInit();\n'
+    + segment[closing:]
+)
+app = app[:load_safe_start] + segment + app[load_start:]
+
+method_marker = '  Future<void> _loadSafe() async {'
+scheduler = r'''  void _scheduleBillingInit() {
+    if (_billingScheduled) return;
+    _billingScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(monetization.init());
+    });
+  }
+
+'''
+app = app.replace(method_marker, scheduler + method_marker, 1)
 
 app = app.replace(
-    "SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.",
-    "SAFE RECOVERY 1: Play Billing ist wieder aktiv und startet erst nach dem ersten Bild. Werbung bleibt in dieser Version deaktiviert.",
+    'SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.',
+    'SAFE RECOVERY 1: Play Billing ist wieder aktiv und startet erst nach dem ersten Bild. Werbung bleibt in dieser Version deaktiviert.',
 )
 app = app.replace(
-    "SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.",
-    "SAFE RECOVERY 1: Play Billing is active again and starts only after the first frame. Ads remain disabled in this build.",
+    'SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.',
+    'SAFE RECOVERY 1: Play Billing is active again and starts only after the first frame. Ads remain disabled in this build.',
 )
 app = app.replace(
-    "SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.",
-    "Play Billing ist in dieser Testversion aktiviert. Produkte erscheinen nur, wenn die App über einen passenden Google-Play-Testtrack installiert wurde und die Produkte dort eingerichtet sind.",
+    'SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.',
+    'Play Billing ist in dieser Testversion aktiviert. Produkte erscheinen nur, wenn die App über einen passenden Google-Play-Testtrack installiert wurde und die Produkte dort eingerichtet sind.',
 )
 app = app.replace(
-    "SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.",
-    "Play Billing is enabled in this test build. Products appear only when the app is installed through a matching Google Play test track and the products are configured there.",
+    'SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.',
+    'Play Billing is enabled in this test build. Products appear only when the app is installed through a matching Google Play test track and the products are configured there.',
 )
 
 pub = pub.replace('version: 0.13.3+19', 'version: 0.13.4+20')
 if 'in_app_purchase:' not in pub:
     pub = pub.replace('  http: ^1.3.0\n', '  http: ^1.3.0\n  in_app_purchase: ^3.3.0\n', 1)
 
-assert "version: 0.13.4+20" in pub
-assert "in_app_purchase: ^3.3.0" in pub
-assert "google_mobile_ads" not in pub
+assert 'version: 0.13.4+20' in pub
+assert 'in_app_purchase: ^3.3.0' in pub
+assert 'google_mobile_ads' not in pub
 assert "package:in_app_purchase/in_app_purchase.dart" in app
-assert "package:google_mobile_ads" not in app
-assert "SAFE RECOVERY STEP 1" in app
-assert "unawaited(monetization.init());" in app
-assert "Future<bool> rewardedUnlock() async => false;" in app
+assert 'package:google_mobile_ads' not in app
+assert 'SAFE RECOVERY STEP 1' in app
+assert '_scheduleBillingInit();' in app
+assert 'WidgetsBinding.instance.addPostFrameCallback' in app
+assert 'Future<bool> rewardedUnlock() async => false;' in app
 
 app_path.write_text(app)
 pub_path.write_text(pub)
