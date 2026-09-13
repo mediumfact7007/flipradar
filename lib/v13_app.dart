@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -364,6 +366,10 @@ class V13StoreProduct {
 class V13Monetization extends ChangeNotifier {
   static const monthlyId = 'flipradar_pro_monthly';
   static const yearlyId = 'flipradar_pro_yearly';
+  static const androidBanner = 'ca-app-pub-3940256099942544/6300978111';
+  static const androidRewarded = 'ca-app-pub-3940256099942544/5224354917';
+  static const iosBanner = 'ca-app-pub-3940256099942544/2934735716';
+  static const iosRewarded = 'ca-app-pub-3940256099942544/1712485313';
 
   final VoidCallback onProUnlocked;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
@@ -372,9 +378,14 @@ class V13Monetization extends ChangeNotifier {
   bool billingAvailable = false;
   bool loadingBilling = false;
   bool _billingPrepared = false;
+  bool _adsPrepared = false;
+  bool _adsLoading = false;
   List<V13StoreProduct> products = const [];
 
   V13Monetization({required this.onProUnlocked});
+
+  String get bannerId => Platform.isAndroid ? androidBanner : iosBanner;
+  String get rewardedId => Platform.isAndroid ? androidRewarded : iosRewarded;
 
   // SAFE RECOVERY STEP 1: nothing native is touched during normal app boot.
   // Billing is initialized lazily by V13Paywall only.
@@ -418,8 +429,47 @@ class V13Monetization extends ChangeNotifier {
     }
   }
 
-  // Ads and UMP consent stay disabled until the next isolated recovery step.
-  Future<void> showPrivacyOptions() async {}
+  // SAFE RECOVERY STEP 2: test ads are prepared only after an explicit
+  // ad/privacy action. Normal app boot never calls this method.
+  Future<bool> prepareAds() async {
+    if (_adsPrepared) return adsAllowed;
+    if (_adsLoading) return adsAllowed;
+    _adsLoading = true;
+    notifyListeners();
+    try {
+      final completer = Completer<void>();
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        ConsentRequestParameters(),
+        () {
+          ConsentForm.loadAndShowConsentFormIfRequired((_) {
+            if (!completer.isCompleted) completer.complete();
+          });
+        },
+        (_) {
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+      await completer.future.timeout(const Duration(seconds: 30), onTimeout: () {});
+      adsAllowed = await ConsentInformation.instance.canRequestAds();
+      if (adsAllowed) {
+        await MobileAds.instance.initialize();
+      }
+    } catch (_) {
+      adsAllowed = false;
+    } finally {
+      _adsPrepared = true;
+      _adsLoading = false;
+      notifyListeners();
+    }
+    return adsAllowed;
+  }
+
+  Future<void> showPrivacyOptions() async {
+    await prepareAds();
+    try {
+      ConsentForm.showPrivacyOptionsForm((_) {});
+    } catch (_) {}
+  }
 
   V13StoreProduct? product(String id) {
     for (final p in products) {
@@ -464,8 +514,38 @@ class V13Monetization extends ChangeNotifier {
     }
   }
 
-  // Rewarded ads intentionally remain unavailable in V0.13.4.
-  Future<bool> rewardedUnlock() async => false;
+  Future<bool> rewardedUnlock() async {
+    if (!await prepareAds()) return false;
+    final completer = Completer<bool>();
+    var earned = false;
+    try {
+      await RewardedAd.load(
+        adUnitId: rewardedId,
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            ad.fullScreenContentCallback = FullScreenContentCallback(
+              onAdDismissedFullScreenContent: (value) {
+                value.dispose();
+                if (!completer.isCompleted) completer.complete(earned);
+              },
+              onAdFailedToShowFullScreenContent: (value, _) {
+                value.dispose();
+                if (!completer.isCompleted) completer.complete(false);
+              },
+            );
+            ad.show(onUserEarnedReward: (_, __) => earned = true);
+          },
+          onAdFailedToLoad: (_) {
+            if (!completer.isCompleted) completer.complete(false);
+          },
+        ),
+      );
+    } catch (_) {
+      if (!completer.isCompleted) completer.complete(false);
+    }
+    return completer.future.timeout(const Duration(seconds: 45), onTimeout: () => false);
+  }
 
   @override
   void dispose() {
@@ -2032,7 +2112,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           ExpansionTile(tilePadding: EdgeInsets.zero, leading: const Icon(Icons.build_outlined), title: Text(t('Für Profis & Entwickler', 'For pros & developers'), style: const TextStyle(fontWeight: FontWeight.w900)), subtitle: Text(t('Im Alltag nicht nötig', 'Not needed day to day'), style: const TextStyle(fontSize: 11.5)), children: [
             TextFormField(initialValue: widget.backend, decoration: InputDecoration(labelText: t('Eigener FlipRadar-Server', 'Custom FlipRadar server'), hintText: SourceRegistry.defaultBackend), onFieldSubmitted: widget.onBackend),
             const SizedBox(height: 9),
-            Text(t('SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.', 'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
+            Text(t('SAFE RECOVERY 2: Test-AdMob wird nur nach einer Werbe-/Datenschutz-Aktion geladen. Banner bleiben in dieser Version deaktiviert.', 'SAFE RECOVERY 2: Test AdMob loads only after an ad/privacy action. Banner ads remain disabled in this build.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
             const SizedBox(height: 9),
             SegmentedButton<UserPlan>(segments: const [ButtonSegment(value: UserPlan.free, label: Text('FREE')), ButtonSegment(value: UserPlan.pro, label: Text('PRO TEST'))], selected: {widget.plan == UserPlan.free ? UserPlan.free : UserPlan.pro}, onSelectionChanged: (v) => widget.onPlanPreview(v.first)),
           ]),
