@@ -1,0 +1,10 @@
+from pathlib import Path
+p = Path('lib/v13_app.dart')
+s = p.read_text()
+s = s.replace("final pattern = RegExp(r'(\\d{1,6}(?:[. ]\\d{3})*(?:[,.]\\d{1,2})?)\\s*(?:€|EUR)\\b', caseSensitive: false);", "final pattern = RegExp(r'(\\d{1,6}(?:[. ]\\d{3})*(?:[,.]\\d{1,2})?)\\s*(?:€|EUR)(?=\\s|$|[.,;:])', caseSensitive: false);")
+s = s.replace("  double? fallback;\n", "")
+s = s.replace("      fallback ??= value;\n      continue;", "      continue;")
+s = s.replace("  return fallback;\n}\n\nV13SearchInput normalizeV13Search", "  return null;\n}\n\nV13SearchInput normalizeV13Search")
+s = s.replace("RegExp(r'\\b\\d{1,5}(?:[.,]\\d{1,2})?\\s*€\\b')", "RegExp(r'\\b\\d{1,6}(?:[.,]\\d{1,2})?\\s*(?:€|EUR)(?=\\s|$)', caseSensitive: false)")
+p.write_text(s)
+print('SAFE shared price parsing fixed')
