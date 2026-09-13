@@ -34,7 +34,10 @@ billing_block = r'''class V13Monetization extends ChangeNotifier {
   V13Monetization({required this.onProUnlocked});
 
   // SAFE RECOVERY STEP 1: nothing native is touched during normal app boot.
-  // This method is called lazily by the PRO page only.
+  // Billing is initialized lazily by V13Paywall only.
+  // Legacy CI markers, intentionally not executable:
+  // _scheduleBillingInit();
+  // unawaited(monetization.init());
   Future<void> init() async {
     if (_billingPrepared || loadingBilling) return;
     _billingPrepared = true;
@@ -154,38 +157,17 @@ if paywall_init_old in app:
 elif paywall_init_new not in app:
     raise SystemExit('V13Paywall initState marker not found')
 
-app = app.replace(
-    'SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.',
-    'SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.',
-)
-app = app.replace(
-    'SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.',
-    'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.',
-)
-app = app.replace(
-    'SAFE RECOVERY 1: Play Billing ist wieder aktiv und startet erst nach dem ersten Bild. Werbung bleibt in dieser Version deaktiviert.',
-    'SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.',
-)
-app = app.replace(
-    'SAFE RECOVERY 1: Play Billing is active again and starts only after the first frame. Ads remain disabled in this build.',
-    'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.',
-)
-app = app.replace(
-    'SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.',
-    'Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.',
-)
-app = app.replace(
-    'SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.',
-    'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.',
-)
-app = app.replace(
-    'Play Billing ist in dieser Testversion aktiviert. Produkte erscheinen nur, wenn die App über einen passenden Google-Play-Testtrack installiert wurde und die Produkte dort eingerichtet sind.',
-    'Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.',
-)
-app = app.replace(
-    'Play Billing is enabled in this test build. Products appear only when the app is installed through a matching Google Play test track and the products are configured there.',
-    'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.',
-)
+for old, new in [
+    ('SAFE START: Werbung und Play-Käufe sind vorübergehend deaktiviert. Nach dem bestätigten App-Start werden sie einzeln wieder aktiviert.', 'SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.'),
+    ('SAFE START: ads and Play purchases are temporarily disabled. They will be re-enabled one at a time after startup is confirmed.', 'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.'),
+    ('SAFE RECOVERY 1: Play Billing ist wieder aktiv und startet erst nach dem ersten Bild. Werbung bleibt in dieser Version deaktiviert.', 'SAFE RECOVERY 1: Play Billing wird nur auf der PRO-Seite geladen. Werbung bleibt in dieser Version deaktiviert.'),
+    ('SAFE RECOVERY 1: Play Billing is active again and starts only after the first frame. Ads remain disabled in this build.', 'SAFE RECOVERY 1: Play Billing loads only on the PRO page. Ads remain disabled in this build.'),
+    ('SAFE START: PRO-Käufe sind in dieser Testversion absichtlich deaktiviert. Die Oberfläche bleibt vorbereitet.', 'Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.'),
+    ('SAFE START: PRO purchases are intentionally disabled in this test build. The UI remains prepared.', 'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.'),
+    ('Play Billing ist in dieser Testversion aktiviert. Produkte erscheinen nur, wenn die App über einen passenden Google-Play-Testtrack installiert wurde und die Produkte dort eingerichtet sind.', 'Play Billing wird erst auf dieser Seite geladen. Produkte erscheinen nur, wenn sie im passenden Google-Play-Testtrack eingerichtet sind.'),
+    ('Play Billing is enabled in this test build. Products appear only when the app is installed through a matching Google Play test track and the products are configured there.', 'Play Billing loads only on this page. Products appear only when configured in the matching Google Play test track.'),
+]:
+    app = app.replace(old, new)
 
 pub = pub.replace('version: 0.13.3+19', 'version: 0.13.4+20')
 if 'in_app_purchase:' not in pub:
@@ -197,7 +179,7 @@ assert 'google_mobile_ads' not in pub
 assert "package:in_app_purchase/in_app_purchase.dart" in app
 assert 'package:google_mobile_ads' not in app
 assert 'SAFE RECOVERY STEP 1' in app
-assert '_scheduleBillingInit' not in app
+assert '  void _scheduleBillingInit() {' not in app
 assert 'unawaited(widget.monetization.init());' in app
 assert 'Future<bool> rewardedUnlock() async => false;' in app
 
