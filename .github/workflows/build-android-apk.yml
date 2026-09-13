@@ -23,12 +23,16 @@ jobs:
       - name: Apply V0.13.5 lazy test-AdMob recovery patch
         run: python3 tools/patch_v135_admob_safe.py
 
-      - name: Verify startup-safe ads boundary
+      - name: Apply V0.13.6 compact-screen UI fix
+        run: python3 tools/patch_v136_ui_spacing.py
+
+      - name: Verify startup-safe ads and UI boundary
         shell: bash
         run: |
-          grep -q 'version: 0.13.5+21' pubspec.yaml
+          grep -q 'version: 0.13.6+22' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
+          grep -q 'workmanager_android: ^0.10.9' pubspec.yaml
           grep -q "package:google_mobile_ads/google_mobile_ads.dart" lib/v13_app.dart
           grep -q 'Future<bool> prepareAds() async' lib/v13_app.dart
           grep -q 'MobileAds.instance.initialize()' lib/v13_app.dart
@@ -36,6 +40,7 @@ jobs:
           grep -q 'ca-app-pub-3940256099942544/5224354917' lib/v13_app.dart
           grep -q 'class V13BannerAd extends StatelessWidget' lib/v13_app.dart
           grep -q 'Widget build(BuildContext context) => const SizedBox.shrink();' lib/v13_app.dart
+          grep -q 'const SizedBox(height: 14)' lib/v13_app.dart
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
       - name: Check backend syntax
@@ -144,8 +149,6 @@ jobs:
               if 'android.intent.action.SEND' not in text:
                   text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
 
-              # Google sample App ID only. No publisher/revenue ID is used in
-              # this recovery build.
               admob_meta = '''
                 <meta-data
                     android:name="com.google.android.gms.ads.APPLICATION_ID"
@@ -183,6 +186,9 @@ jobs:
       - name: Run ads isolation regression explicitly
         run: flutter test test/v135_admob_safe_test.dart
 
+      - name: Run compact-screen UI regression explicitly
+        run: flutter test test/v136_ui_spacing_test.dart
+
       - name: Build release APK
         run: flutter build apk --release
 
@@ -195,18 +201,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13.5-ADMOB-SAFE-APK
+          name: FlipRadar-V0.13.6-UI-FIX-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.13.5 source
+      - name: Persist validated V0.13.6 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.13.5 AdMob-safe [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.13.6 UI spacing [skip ci]'
             git push origin main
           fi
