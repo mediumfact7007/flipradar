@@ -23,31 +23,25 @@ jobs:
       - name: Apply V0.14 live source status
         run: python3 tools/patch_v140_live_source_status.py
 
-      - name: Apply V0.15 verified eBay auth status
-        run: python3 tools/patch_v150_ebay_auth_probe.py
-
-      - name: Verify stable startup and verified live-source boundary
+      - name: Verify stable startup and live-source boundary
         shell: bash
         run: |
-          grep -q 'version: 0.15.0+25' pubspec.yaml
+          grep -q 'version: 0.14.0+23' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
           grep -q 'workmanager_android: ^0.10.9' pubspec.yaml
           grep -q "import 'source_status.dart';" lib/v13_app.dart
-          grep -q 'final String auth;' lib/source_status.dart
-          grep -q "s.auth == 'ok'" lib/source_status.dart
-          grep -q "queryParameters: const {'probe': '1'}" lib/source_status.dart
-          grep -q 'async function sourceStatus(probe = false)' server/index.js
-          grep -q "auth: 'missing'" server/index.js
-          grep -q "auth: 'ok'" server/index.js
-          grep -q "auth: 'invalid'" server/index.js
-          grep -q "ValueKey('v141-extra-cost-top-space')" lib/v13_app.dart
+          grep -q 'MarketBackendStatus? runtimeStatus' lib/v13_app.dart
+          grep -q 'MarketStatusClient.fetch(items)' lib/v13_app.dart
+          grep -q 'class MarketBackendStatus' lib/source_status.dart
+          grep -q 'class MarketStatusClient' lib/source_status.dart
+          grep -q 'const SizedBox(height: 14)' lib/v13_app.dart
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
       - name: Check backend syntax
         run: node --check server/index.js
 
-      - name: Smoke test backend and missing eBay credentials
+      - name: Smoke test backend
         shell: bash
         run: |
           PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
@@ -61,12 +55,8 @@ jobs:
           done
           cat /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
-          curl -fsS 'http://127.0.0.1:8099/v1/status?probe=1' >/tmp/status.json
-          cat /tmp/status.json
+          curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
           grep -q '"sources"' /tmp/status.json
-          grep -q '"ebay_de"' /tmp/status.json
-          grep -q '"auth":"missing"' /tmp/status.json
-          grep -q '"ready":false' /tmp/status.json
           code=$(curl -sS -o /tmp/bad-source.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/market/search?source=bad&q=test')
           test "$code" = "400"
           grep -q 'unsupported_source' /tmp/bad-source.json
@@ -194,14 +184,11 @@ jobs:
       - name: Run compact-screen regression explicitly
         run: flutter test test/v136_ui_spacing_test.dart
 
-      - name: Run live-source model regression explicitly
+      - name: Run source status model regression explicitly
         run: flutter test test/v140_source_status_test.dart
 
-      - name: Run live-source UI regression explicitly
+      - name: Run source status UI regression explicitly
         run: flutter test test/v140_source_status_ui_test.dart
-
-      - name: Run eBay auth readiness regression explicitly
-        run: flutter test test/v150_ebay_auth_status_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -215,18 +202,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.15.0-EBAY-READY-APK
+          name: FlipRadar-V0.14.0-LIVE-STATUS-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.15 source
+      - name: Persist validated V0.14 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/source_status.dart server/index.js pubspec.yaml
+          git add lib/v13_app.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.15 verified eBay auth status [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14 live source status [skip ci]'
             git push origin main
           fi
