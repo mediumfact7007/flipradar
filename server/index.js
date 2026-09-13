@@ -6,6 +6,11 @@ const { URL, URLSearchParams } = require('url');
 const PORT = Number(process.env.PORT || 8080);
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || '';
+const rawEbayEnv = String(process.env.EBAY_ENV || 'sandbox').trim().toLowerCase();
+const EBAY_ENV = rawEbayEnv === 'production' ? 'production' : 'sandbox';
+const EBAY_API_BASE = EBAY_ENV === 'production'
+  ? 'https://api.ebay.com'
+  : 'https://api.sandbox.ebay.com';
 const KEEPA_API_KEY = process.env.KEEPA_API_KEY || '';
 
 const RATE_WINDOW_MS = 60_000;
@@ -108,7 +113,7 @@ async function getEbayToken() {
     scope: 'https://api.ebay.com/oauth/api_scope',
   });
 
-  const response = await fetchWithTimeout('https://api.ebay.com/identity/v1/oauth2/token', {
+  const response = await fetchWithTimeout(`${EBAY_API_BASE}/identity/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       authorization: `Basic ${auth}`,
@@ -127,15 +132,13 @@ async function getEbayToken() {
 
 async function searchEbay(q) {
   const token = await getEbayToken();
-  const url = new URL('https://api.ebay.com/buy/browse/v1/item_summary/search');
+  const url = new URL(`${EBAY_API_BASE}/buy/browse/v1/item_summary/search`);
   if (/^\d{8,14}$/.test(q)) {
     url.searchParams.set('gtin', q);
   } else {
     url.searchParams.set('q', q);
   }
   url.searchParams.set('limit', '40');
-  // eBay documents that buyingOptions filtering is category-sensitive. Filter
-  // broad USED here, then enforce FIXED_PRICE on the returned item summaries.
   url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');
 
   const response = await fetchWithTimeout(url, {
@@ -169,7 +172,8 @@ async function searchEbay(q) {
         currency,
         condition: item.condition || 'USED',
         url: item.itemWebUrl || '',
-        live: true,
+        live: EBAY_ENV === 'production',
+        environment: EBAY_ENV,
       };
     })
     .filter((item) => item && item.price > 0);
@@ -238,8 +242,6 @@ async function searchAmazon(q) {
     const offer = offers[index];
     if (liveOrder.size > 0 && !liveOrder.has(index)) continue;
     if (offer.isShippable === false || offer.isPreorder === true) continue;
-    // Amazon is a NEW-price reference in FlipRadar. Used/refurbished
-    // marketplace offers must not lower the retail benchmark.
     if (Number(offer.condition) !== 1) continue;
 
     const csv = offer.offerCSV;
@@ -247,8 +249,6 @@ async function searchAmazon(q) {
     const rawPrice = Number(csv[csv.length - 2]);
     const rawShipping = Number(csv[csv.length - 1]);
     if (!Number.isFinite(rawPrice) || rawPrice <= 0) continue;
-    // Keepa uses -1/-2 for unknown/unavailable shipping. Do not turn that into
-    // free shipping, because that would understate the comparison total.
     if (!Number.isFinite(rawShipping) || rawShipping < 0) continue;
 
     items.push({
@@ -294,6 +294,8 @@ function sourceStatus() {
     ebay_de: {
       configured: Boolean(EBAY_CLIENT_ID && EBAY_CLIENT_SECRET),
       mode: 'official_api',
+      environment: EBAY_ENV,
+      data_kind: EBAY_ENV === 'production' ? 'active_marketplace_listings' : 'sandbox_mock_data',
       estimate: 'used_fixed_price_active_listings',
     },
     amazon_de: {
@@ -322,7 +324,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      return json(res, 200, { ok: true, service: 'flipradar-api', version: '0.9.1' });
+      return json(res, 200, {
+        ok: true,
+        service: 'flipradar-api',
+        version: '0.10.0',
+        ebay_environment: EBAY_ENV,
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/status') {
@@ -350,14 +357,17 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, {
           source,
           query: q,
-          live: result.items.length > 0,
+          live: result.items.length > 0 && (source !== 'ebay_de' || EBAY_ENV === 'production'),
+          environment: source === 'ebay_de' || source === 'all' ? EBAY_ENV : undefined,
           items: result.items,
           meta: {
             count: result.items.length,
             elapsed_ms: Date.now() - started,
             cached: result.cached,
             note: source === 'ebay_de'
-              ? 'eBay Browse: used fixed-price active listings, not verified sold prices.'
+              ? (EBAY_ENV === 'production'
+                  ? 'eBay Browse: used fixed-price active listings, not verified sold prices.'
+                  : 'eBay Sandbox: test/mock data only; do not use for market valuation.')
               : source === 'amazon_de'
                 ? 'Amazon reference data is provided through Keepa when configured.'
                 : '',
@@ -369,7 +379,13 @@ const server = http.createServer(async (req, res) => {
           : error instanceof Error
             ? error.message
             : String(error);
-        return json(res, 503, { source, query: q, items: [], error: message });
+        return json(res, 503, {
+          source,
+          query: q,
+          environment: source === 'ebay_de' || source === 'all' ? EBAY_ENV : undefined,
+          items: [],
+          error: message,
+        });
       }
     }
 
@@ -380,5 +396,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`FlipRadar API listening on :${PORT}`);
+  console.log(`FlipRadar API listening on :${PORT} · eBay ${EBAY_ENV}`);
 });
