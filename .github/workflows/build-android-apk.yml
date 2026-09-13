@@ -28,21 +28,24 @@ jobs:
           if ! grep -q 'List<double> v13CleanMarketValues' lib/v13_app.dart; then python3 tools/patch_v143_market_quality.py; fi
           python3 tools/patch_v144_confidence_model.py
           python3 tools/patch_v144_confidence_ui.py
+          python3 tools/patch_v145_streamline.py
 
-      - name: Verify V0.14.4 boundaries
+      - name: Verify V0.14.5 boundaries
         shell: bash
         run: |
-          grep -q '^version: 0.14.4+27$' pubspec.yaml
+          grep -q '^version: 0.14.5+28$' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
           grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
-          grep -q 'workmanager_android: ^0.10.9' pubspec.yaml
           grep -q 'e.live && roles.contains(e.role)' lib/v13_app.dart
           grep -q 'status.isSandbox(source.id)' lib/v13_app.dart
-          grep -q 'List<double> v13CleanMarketValues' lib/v13_app.dart
           grep -q 'class V13MarketConfidence' lib/v13_app.dart
-          grep -q 'V13MarketConfidence get marketConfidence' lib/v13_app.dart
-          grep -q "ValueKey('v0144-confidence-card')" lib/v13_app.dart
-          grep -q "ValueKey('v0144-confidence-progress')" lib/v13_app.dart
+          grep -q 'Platform.isAndroid || Platform.isIOS' lib/v13_app.dart
+          grep -q 'if (shareSub != null) return;' lib/v13_app.dart
+          grep -q "ValueKey('v145-open-flips')" lib/v13_app.dart
+          grep -q "ValueKey('v145-clear-search')" lib/v13_app.dart
+          grep -q "ValueKey('v145-retry-sources')" lib/v13_app.dart
+          grep -q 'void _retryFailed()' lib/v13_app.dart
+          grep -q 'widget.onSearch(raw)' lib/v13_app.dart
           grep -q "require('./market_quality')" server/index.js
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
@@ -102,11 +105,12 @@ jobs:
           flutter test test/v142_nonlive_market_guard_test.dart
           flutter test test/v143_market_quality_test.dart
           flutter test test/v144_market_confidence_test.dart
+          flutter test test/v145_streamline_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Verify and upload APK
+      - name: Verify APK
         run: |
           test -s build/app/outputs/flutter-apk/app-release.apk
           ls -lh build/app/outputs/flutter-apk/app-release.apk
@@ -115,18 +119,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.14.4-CONFIDENCE-APK
+          name: FlipRadar-V0.14.5-STREAMLINE-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.14.4 source
+      - name: Persist validated V0.14.5 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.14.4 confidence score [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.14.5 streamline [skip ci]'
             git push origin main
           fi
