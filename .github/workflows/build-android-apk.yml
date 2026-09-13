@@ -20,28 +20,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply any pending SAFE UX patch
+      - name: Apply V0.13.5 lazy test-AdMob recovery patch
+        run: python3 tools/patch_v135_admob_safe.py
+
+      - name: Verify startup-safe ads boundary
         shell: bash
         run: |
-          if [ -f tools/patch_v133_safe_native.py ]; then
-            python3 tools/patch_v133_safe_native.py
-          fi
-
-      - name: Apply V0.13.4 billing-only recovery patch
-        run: python3 tools/patch_v134_billing_only.py
-
-      - name: Verify billing-only startup boundary
-        shell: bash
-        run: |
+          grep -q 'version: 0.13.5+21' pubspec.yaml
           grep -q 'in_app_purchase: ^3.3.0' pubspec.yaml
-          ! grep -q 'google_mobile_ads' pubspec.yaml
-          grep -q "package:in_app_purchase/in_app_purchase.dart" lib/v13_app.dart
-          ! grep -q "package:google_mobile_ads" lib/v13_app.dart
-          grep -q 'SAFE RECOVERY STEP 1' lib/v13_app.dart
-          grep -q '_scheduleBillingInit();' lib/v13_app.dart
-          grep -q 'unawaited(monetization.init());' lib/v13_app.dart
-          grep -q 'Future<bool> rewardedUnlock() async => false;' lib/v13_app.dart
-          grep -q 'version: 0.13.4+20' pubspec.yaml
+          grep -q 'google_mobile_ads: ^9.1.0' pubspec.yaml
+          grep -q "package:google_mobile_ads/google_mobile_ads.dart" lib/v13_app.dart
+          grep -q 'Future<bool> prepareAds() async' lib/v13_app.dart
+          grep -q 'MobileAds.instance.initialize()' lib/v13_app.dart
+          grep -q 'if (!await prepareAds()) return false;' lib/v13_app.dart
+          grep -q 'ca-app-pub-3940256099942544/5224354917' lib/v13_app.dart
+          grep -q 'class V13BannerAd extends StatelessWidget' lib/v13_app.dart
+          grep -q 'Widget build(BuildContext context) => const SizedBox.shrink();' lib/v13_app.dart
+          ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
       - name: Check backend syntax
         run: node --check server/index.js
@@ -148,16 +143,27 @@ jobs:
                 </intent-filter>'''
               if 'android.intent.action.SEND' not in text:
                   text = text.replace('        </activity>', share_filter + '\n        </activity>', 1)
+
+              # Google sample App ID only. No publisher/revenue ID is used in
+              # this recovery build.
+              admob_meta = '''
+                <meta-data
+                    android:name="com.google.android.gms.ads.APPLICATION_ID"
+                    android:value="ca-app-pub-3940256099942544~3347511713" />'''
+              if 'com.google.android.gms.ads.APPLICATION_ID' not in text:
+                  text = text.replace('    </application>', admob_meta + '\n    </application>')
               manifest.write_text(text)
           PY2
 
-      - name: Verify Android package consistency
+      - name: Verify Android package and test AdMob ID
         shell: bash
         run: |
           grep -q 'namespace = "com.flipradar.app"' android/app/build.gradle.kts
           grep -q 'applicationId = "com.flipradar.app"' android/app/build.gradle.kts
           grep -q '^package com.flipradar.app$' android/app/src/main/kotlin/com/flipradar/app/MainActivity.kt
           test ! -f android/app/src/main/kotlin/com/flipradar/flipradar/MainActivity.kt
+          grep -q 'com.google.android.gms.ads.APPLICATION_ID' android/app/src/main/AndroidManifest.xml
+          grep -q 'ca-app-pub-3940256099942544~3347511713' android/app/src/main/AndroidManifest.xml
 
       - name: Get packages
         run: flutter pub get
@@ -171,8 +177,11 @@ jobs:
       - name: Run startup regression explicitly
         run: flutter test test/v131_startup_test.dart
 
-      - name: Run billing-safe regression explicitly
+      - name: Run billing isolation regression explicitly
         run: flutter test test/v134_billing_safe_test.dart
+
+      - name: Run ads isolation regression explicitly
+        run: flutter test test/v135_admob_safe_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
@@ -186,19 +195,18 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.13.4-BILLING-SAFE-APK
+          name: FlipRadar-V0.13.5-ADMOB-SAFE-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.13.4 source
+      - name: Persist validated V0.13.5 source
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib/v13_app.dart pubspec.yaml
-          git rm -f tools/patch_v133_safe_native.py 2>/dev/null || true
           if ! git diff --cached --quiet; then
-            git commit -m 'Finalize FlipRadar V0.13.4 billing-safe [skip ci]'
+            git commit -m 'Finalize FlipRadar V0.13.5 AdMob-safe [skip ci]'
             git push origin main
           fi
