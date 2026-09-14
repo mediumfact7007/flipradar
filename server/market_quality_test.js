@@ -44,6 +44,26 @@ assert.strictEqual(
   false,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB spares or repair'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB repair only'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB zum Ausschlachten'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB reparaturbedürftig'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB reparaturbedürftig', 'Apple iPhone 15 Pro 256GB reparaturbedürftig'),
+  true,
+);
+assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB funktioniert nicht', 'Apple iPhone 15 Pro 256GB funktioniert nicht'),
   true,
 );
@@ -150,6 +170,8 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Case für Apple iPhone 15 Pro 256GB' },
   { title: 'Apple iPhone 15 Pro Max 256GB' },
   { title: 'Apple iPhone 15 Pro 256GB funktioniert nicht' },
+  { title: 'Apple iPhone 15 Pro 256GB spares or repair' },
+  { title: 'Apple iPhone 15 Pro 256GB zum Ausschlachten' },
   { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
   { title: 'Apple iPhone 15 Pro 256GB Karton ohne Gerät' },
   { title: 'Apple iPhone 15 Pro 256GB box without device' },
