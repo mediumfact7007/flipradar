@@ -28,6 +28,26 @@ assert.strictEqual(
   true,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB funktioniert nicht'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB ohne Funktion'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nicht funktionsfähig'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB does not work'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB funktioniert nicht', 'Apple iPhone 15 Pro 256GB funktioniert nicht'),
+  true,
+);
+assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur Karton'),
   false,
 );
@@ -129,6 +149,7 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Apple iPhone 15 Pro 128GB' },
   { title: 'Case für Apple iPhone 15 Pro 256GB' },
   { title: 'Apple iPhone 15 Pro Max 256GB' },
+  { title: 'Apple iPhone 15 Pro 256GB funktioniert nicht' },
   { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
   { title: 'Apple iPhone 15 Pro 256GB Karton ohne Gerät' },
   { title: 'Apple iPhone 15 Pro 256GB box without device' },
