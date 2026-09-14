@@ -70,19 +70,19 @@ class RecheckDeltaCard extends StatelessWidget {
             children: [
               _DeltaChip(
                 label: '${t('Preis', 'Price')} ${money(delta.askingDelta)}',
-                positive: delta.askingDelta <= 0,
+                direction: _direction(-delta.askingDelta),
               ),
               _DeltaChip(
                 label: 'MAX ${money(delta.maxBuyDelta)}',
-                positive: delta.maxBuyDelta >= 0,
+                direction: _direction(delta.maxBuyDelta),
               ),
               _DeltaChip(
                 label: '${t('Gewinn', 'Profit')} ${money(delta.profitDelta)}',
-                positive: delta.profitDelta >= 0,
+                direction: _direction(delta.profitDelta),
               ),
               _DeltaChip(
                 label: 'ROI ${points(delta.roiDelta)}',
-                positive: delta.roiDelta >= 0,
+                direction: _direction(delta.roiDelta),
               ),
             ],
           ),
@@ -98,17 +98,27 @@ class RecheckDeltaCard extends StatelessWidget {
       ),
     );
   }
+
+  int _direction(double value) {
+    if (value >= 3) return 1;
+    if (value <= -3) return -1;
+    return 0;
+  }
 }
 
 class _DeltaChip extends StatelessWidget {
   final String label;
-  final bool positive;
+  final int direction;
 
-  const _DeltaChip({required this.label, required this.positive});
+  const _DeltaChip({required this.label, required this.direction});
 
   @override
   Widget build(BuildContext context) {
-    final foreground = positive ? const Color(0xFF087F5B) : const Color(0xFFC33A46);
+    final foreground = direction > 0
+        ? const Color(0xFF087F5B)
+        : direction < 0
+            ? const Color(0xFFC33A46)
+            : const Color(0xFF6D7180);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
