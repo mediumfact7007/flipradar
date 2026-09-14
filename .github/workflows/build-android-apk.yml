@@ -64,6 +64,7 @@ jobs:
           grep -q "ValueKey('v148-menu-" lib/v13_app.dart
           grep -q "require('./listing_resolver')" server/index.js
           grep -q "url.pathname === '/v1/listing/resolve'" server/index.js
+          grep -q '^EBAY_ENV=sandbox$' server/.env.example
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
       - name: Check backend and listing resolver
@@ -79,7 +80,7 @@ jobs:
         run: |
           PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
           SERVER_PID=$!
-          trap 'kill $SERVER_PID || true' EXIT
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
           for i in {1..20}; do
             curl -fsS http://127.0.0.1:8099/health >/tmp/health.json && break
             sleep 0.25
@@ -91,6 +92,31 @@ jobs:
           code=$(curl -sS -o /tmp/resolve.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/listing/resolve?url=https%3A%2F%2Fexample.com%2Fs-anzeige%2Ffake%2F123')
           test "$code" = '400'
           grep -q 'unsupported_listing_url' /tmp/resolve.json
+          kill $SERVER_PID
+          wait $SERVER_PID 2>/dev/null || true
+
+          EBAY_ENV=typo PORT=8100 node server/index.js >/tmp/flipradar-invalid-env.log 2>&1 &
+          INVALID_PID=$!
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:8100/health >/tmp/invalid-health.json && break
+            sleep 0.25
+          done
+          grep -q '"ebay_environment":"sandbox"' /tmp/invalid-health.json
+          kill $INVALID_PID
+          wait $INVALID_PID 2>/dev/null || true
+
+          EBAY_ENV=production PORT=8101 node server/index.js >/tmp/flipradar-production-env.log 2>&1 &
+          PROD_PID=$!
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:8101/health >/tmp/production-health.json && break
+            sleep 0.25
+          done
+          grep -q '"ebay_environment":"production"' /tmp/production-health.json
+          curl -fsS http://127.0.0.1:8101/v1/status >/tmp/production-status.json
+          grep -q '"data_kind":"active_marketplace_listings"' /tmp/production-status.json
+          grep -q '"configured":false' /tmp/production-status.json
+          kill $PROD_PID
+          wait $PROD_PID 2>/dev/null || true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
