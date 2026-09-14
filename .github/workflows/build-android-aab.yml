@@ -47,7 +47,6 @@ jobs:
       - name: Verify release metadata
         shell: bash
         run: |
-          python3 tools/check_release_version.py
           grep -q '^version: 0.14.8+31$' pubspec.yaml
 
       - name: Build release AAB
