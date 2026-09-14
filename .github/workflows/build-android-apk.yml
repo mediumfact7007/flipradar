@@ -124,6 +124,29 @@ jobs:
           kill $PROD_PID
           wait $PROD_PID 2>/dev/null || true
 
+      - name: Verify eBay sandbox secret wiring
+        shell: bash
+        env:
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_SANDBOX_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_SANDBOX_CLIENT_SECRET }}
+        run: |
+          if [ -z "$EBAY_CLIENT_ID" ] || [ -z "$EBAY_CLIENT_SECRET" ]; then
+            echo 'eBay sandbox repository secrets are not both configured; skipping wiring check.'
+            exit 0
+          fi
+          EBAY_ENV=sandbox PORT=8102 node server/index.js >/tmp/flipradar-secret-wiring.log 2>&1 &
+          SECRET_PID=$!
+          trap 'kill $SECRET_PID 2>/dev/null || true' EXIT
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:8102/v1/status >/tmp/secret-status.json && break
+            sleep 0.25
+          done
+          grep -q '"configured":true' /tmp/secret-status.json
+          grep -q '"environment":"sandbox"' /tmp/secret-status.json
+          grep -q '"data_kind":"sandbox_mock_data"' /tmp/secret-status.json
+          kill $SECRET_PID
+          wait $SECRET_PID 2>/dev/null || true
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
