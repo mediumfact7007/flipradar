@@ -40,6 +40,14 @@ assert.strictEqual(
   false,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB original box only'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB empty original box'),
+  false,
+);
+assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB leere Originalverpackung'),
   false,
 );
@@ -106,6 +114,7 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Case für Apple iPhone 15 Pro 256GB' },
   { title: 'Apple iPhone 15 Pro Max 256GB' },
   { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
+  { title: 'Apple iPhone 15 Pro 256GB original box only' },
   { title: 'Apple iPhone 15 Pro 256GB Originalverpackung leer' },
   { title: 'Apple iPhone 15 Pro 256GB OVP leer' },
   { title: 'Apple iPhone 15 Pro 256GB nur OVP' },
