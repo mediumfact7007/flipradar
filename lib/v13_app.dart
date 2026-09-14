@@ -11,6 +11,8 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'recheck_delta.dart';
+import 'recheck_delta_card.dart';
 import 'source_registry.dart';
 import 'source_status.dart';
 import 'v07.dart' show ScannerPage, UserPlan;
@@ -1780,6 +1782,22 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onBought: d == V13Decision.waiting || savedBought ? null : _bought,
             onNegotiate: d == V13Decision.negotiate ? _copyOffer : null,
           ),
+          if (widget.existingSnapshot?.isSaved == true && expectedSale != null && (widget.existingSnapshot!.maxBuyAtCheck > 0 || widget.existingSnapshot!.profitAtCheck != 0 || widget.existingSnapshot!.roiAtCheck != 0)) ...[
+            const SizedBox(height: 8),
+            RecheckDeltaCard(
+              english: widget.english,
+              delta: RecheckDelta.compare(
+                previousAsking: widget.existingSnapshot!.buy,
+                currentAsking: buyPrice,
+                previousMaxBuy: widget.existingSnapshot!.maxBuyAtCheck,
+                currentMaxBuy: maxBuy ?? 0,
+                previousProfit: widget.existingSnapshot!.profitAtCheck,
+                currentProfit: profit,
+                previousRoi: widget.existingSnapshot!.roiAtCheck,
+                currentRoi: roi,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           _V14ConfidenceCard(english: widget.english, confidence: marketConfidence),
           if (expectedSale != null) ...[
