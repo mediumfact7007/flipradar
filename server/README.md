@@ -16,13 +16,26 @@ Recommended simple route: deploy the `server` folder as a Node.js service (for e
 node index.js
 ```
 
-Set environment variables in the hosting dashboard, never in the Flutter app or Git:
+Set environment variables in the hosting dashboard, never in the Flutter app or Git. Start with Sandbox explicitly:
 
 ```text
+EBAY_ENV=sandbox
 EBAY_CLIENT_ID=...
 EBAY_CLIENT_SECRET=...
 KEEPA_API_KEY=...
 ```
+
+`EBAY_CLIENT_ID` is the eBay **App ID / Client ID** and `EBAY_CLIENT_SECRET` is the **Cert ID / Client Secret**. The eBay **Dev ID is not used** by this OAuth client-credentials flow.
+
+FlipRadar treats every value other than the exact string `production` as Sandbox. Only switch to:
+
+```text
+EBAY_ENV=production
+```
+
+after a separate Production keyset exists and the live deployment has been intentionally approved. Do not reuse Sandbox credentials for Production. The `/health` and `/v1/status` endpoints expose the active eBay environment so a deployment can be verified without revealing credentials.
+
+The current Android build workflow does not need eBay credentials because the mobile app never receives the Client Secret; marketplace credentials belong on the server deployment only.
 
 `PORT` is normally provided automatically by the host.
 
