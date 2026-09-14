@@ -29,4 +29,29 @@ void main() {
     expect(find.text('Preis -20 €'), findsOneWidget);
     expect(find.text('Gewinn +20 €'), findsOneWidget);
   });
+
+  testWidgets('keeps tiny changes in the stable state', (tester) async {
+    final delta = RecheckDelta.compare(
+      previousAsking: 200,
+      currentAsking: 201,
+      previousMaxBuy: 190,
+      currentMaxBuy: 191,
+      previousProfit: 35,
+      currentProfit: 34,
+      previousRoi: 18,
+      currentRoi: 19,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RecheckDeltaCard(english: false, delta: delta),
+        ),
+      ),
+    );
+
+    expect(find.text('DEAL FAST UNVERÄNDERT'), findsOneWidget);
+    expect(find.text('Preis +1 €'), findsOneWidget);
+    expect(find.text('Gewinn -1 €'), findsOneWidget);
+  });
 }
