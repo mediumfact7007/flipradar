@@ -50,6 +50,8 @@ const ACCESSORY_PHRASES = [
   'originalverpackung leer',
   'leere ovp',
   'ovp leer',
+  'nur ovp',
+  'ovp only',
   'empty packaging',
   'dummy',
   'attrappe',

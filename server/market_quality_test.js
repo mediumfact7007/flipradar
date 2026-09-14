@@ -56,6 +56,14 @@ assert.strictEqual(
   false,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur OVP'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP only'),
+  false,
+);
+assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP vollständig'),
   true,
 );
@@ -100,6 +108,7 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
   { title: 'Apple iPhone 15 Pro 256GB Originalverpackung leer' },
   { title: 'Apple iPhone 15 Pro 256GB OVP leer' },
+  { title: 'Apple iPhone 15 Pro 256GB nur OVP' },
 ]);
 assert.deepStrictEqual(filtered.map((item) => item.title), ['Apple iPhone 15 Pro 256GB Titan']);
 
