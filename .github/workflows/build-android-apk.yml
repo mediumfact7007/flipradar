@@ -67,6 +67,12 @@ jobs:
           grep -q '^EBAY_ENV=sandbox$' server/.env.example
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
+      - name: Verify eBay credential isolation
+        shell: bash
+        run: |
+          ! grep -R -E 'EBAY_(SANDBOX_)?CLIENT_(ID|SECRET)' lib pubspec.yaml
+          ! grep -R -E 'api(\.sandbox)?\.ebay\.com' lib
+
       - name: Check backend and listing resolver
         run: |
           node --check server/index.js
