@@ -27,4 +27,8 @@ if "import 'recheck_delta.dart';" not in path.read_text():
     source = Path('tools/patch_v149_recheck_card.py').read_text()
     exec(compile(source, 'tools/patch_v149_recheck_card.py', 'exec'), {})
 
+if "ValueKey('v149-watchlist-attention')" not in path.read_text():
+    source = Path('tools/patch_v149_watchlist_attention.py').read_text()
+    exec(compile(source, 'tools/patch_v149_watchlist_attention.py', 'exec'), {})
+
 print('V0.14.9 app refinements staged for the compatibility build')
