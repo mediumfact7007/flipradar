@@ -40,6 +40,18 @@ assert.strictEqual(
   false,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB leere Originalverpackung'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB Originalverpackung leer'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB empty packaging'),
+  false,
+);
+assert.strictEqual(
   listingMatchesQuery('PlayStation 5 Slim', 'Sony PS5 Slim Konsole 1TB'),
   true,
 );
@@ -74,6 +86,7 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Case für Apple iPhone 15 Pro 256GB' },
   { title: 'Apple iPhone 15 Pro Max 256GB' },
   { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
+  { title: 'Apple iPhone 15 Pro 256GB Originalverpackung leer' },
 ]);
 assert.deepStrictEqual(filtered.map((item) => item.title), ['Apple iPhone 15 Pro 256GB Titan']);
 

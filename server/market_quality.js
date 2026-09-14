@@ -46,6 +46,9 @@ const ACCESSORY_PHRASES = [
   'nur karton',
   'nur verpackung',
   'packaging only',
+  'leere originalverpackung',
+  'originalverpackung leer',
+  'empty packaging',
   'dummy',
   'attrappe',
 ];
