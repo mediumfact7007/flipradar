@@ -71,6 +71,10 @@ const RISK_PHRASES = [
   'parts only',
   'for parts',
   'not working',
+  'does not work',
+  'funktioniert nicht',
+  'ohne funktion',
+  'nicht funktionsfahig',
   'ungetestet',
 ];
 
