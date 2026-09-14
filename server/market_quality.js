@@ -60,6 +60,8 @@ const RISK_PHRASES = [
 
 const VARIANT_PHRASES = [
   'pro max',
+  'series x',
+  'series s',
   'pro',
   'ultra',
   'plus',
