@@ -2430,6 +2430,14 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
         const SizedBox(height: 13),
         SingleChildScrollView(scrollDirection: Axis.horizontal, child: SegmentedButton<String>(segments: [ButtonSegment(value: 'saved', icon: const Icon(Icons.bookmark_outline_rounded, size: 16), label: Text(t('Merkliste', 'Saved'))), ButtonSegment(value: 'open', label: Text(t('Offen', 'Open'))), ButtonSegment(value: 'sold', label: Text(t('Verkauft', 'Sold'))), ButtonSegment(value: 'archived', icon: const Icon(Icons.archive_outlined, size: 16), label: Text(t('Archiv', 'Archive'))), ButtonSegment(value: 'all', label: Text(t('Alle', 'All')))], selected: {filter}, onSelectionChanged: (v) => setState(() => filter = v.first))),
         const SizedBox(height: 12),
+        if (filter == 'saved' && saved.isNotEmpty) ...[
+          _V149WatchlistAttention(
+            english: widget.english,
+            saved: saved,
+            onRecheck: widget.onRecheck,
+          ),
+          const SizedBox(height: 10),
+        ],
         if (shown.isEmpty)
           Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)), child: Column(children: [const Icon(Icons.inventory_2_outlined, size: 38, color: _v13Primary), const SizedBox(height: 9), Text(t('Noch nichts hier', 'Nothing here yet'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)), const SizedBox(height: 3), Text(t('Beim Deal einmal auf „Gekauft“ tippen – der Rest wird übernommen.', 'Tap “Bought” once on a deal – the rest is filled automatically.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, color: Color(0xFF777B88))) ]))
         else
@@ -2439,6 +2447,52 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
             const SizedBox(height: 9),
           ],
       ],
+    );
+  }
+}
+
+class _V149WatchlistAttention extends StatelessWidget {
+  final bool english;
+  final List<V13Flip> saved;
+  final ValueChanged<V13Flip> onRecheck;
+  const _V149WatchlistAttention({required this.english, required this.saved, required this.onRecheck});
+
+  String t(String de, String en) => english ? en : de;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final stale = saved.where((e) => now.difference(e.checkedAt).inHours >= 24).toList();
+    final oldest = saved.first;
+    final title = stale.isEmpty
+        ? t('Merkliste aktuell', 'Watchlist up to date')
+        : t('${stale.length} Deal${stale.length == 1 ? '' : 's'} neu prüfen', '${stale.length} deal${stale.length == 1 ? '' : 's'} to recheck');
+    final subtitle = stale.isEmpty
+        ? t('Alle gespeicherten Deals wurden in den letzten 24 Std. geprüft.', 'All saved deals were checked within the last 24h.')
+        : t('Ältester Check ${v147AgeLabel(oldest.checkedAt, false)}.', 'Oldest check ${v147AgeLabel(oldest.checkedAt, true)}.');
+    return Container(
+      key: const ValueKey('v149-watchlist-attention'),
+      padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
+      decoration: BoxDecoration(
+        color: stale.isEmpty ? const Color(0xFFF2F7F4) : const Color(0xFFFFF7E8),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: stale.isEmpty ? const Color(0x22087F5B) : const Color(0x33C47B00)),
+      ),
+      child: Row(children: [
+        Icon(stale.isEmpty ? Icons.check_circle_outline_rounded : Icons.notifications_active_outlined, color: stale.isEmpty ? const Color(0xFF087F5B) : const Color(0xFFC47B00), size: 21),
+        const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: const TextStyle(fontSize: 10.5, color: Color(0xFF707481))),
+        ])),
+        if (stale.isNotEmpty)
+          TextButton(
+            key: const ValueKey('v149-recheck-oldest'),
+            onPressed: () => onRecheck(oldest),
+            child: Text(t('PRÜFEN', 'CHECK')),
+          ),
+      ]),
     );
   }
 }
