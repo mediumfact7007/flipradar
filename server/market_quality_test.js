@@ -43,6 +43,18 @@ assert.strictEqual(
   listingMatchesQuery('Nintendo Switch OLED', 'Nintendo Switch OLED Konsole'),
   true,
 );
+assert.strictEqual(
+  listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series X 1TB Konsole'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series S 512GB Konsole'),
+  false,
+);
+assert.strictEqual(
+  listingMatchesQuery('Xbox Series S', 'Microsoft Xbox Series X 1TB Konsole'),
+  false,
+);
 
 const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Apple iPhone 15 Pro 256GB Titan' },
