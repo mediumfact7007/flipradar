@@ -51,6 +51,26 @@ void main() {
     expect(negative.worsened, isFalse);
   });
 
+  test('every single signal direction has the expected polarity', () {
+    final cases = <RecheckDelta, int>{
+      delta(asking: -3): 1,
+      delta(asking: 3): -1,
+      delta(maxBuy: 3): 1,
+      delta(maxBuy: -3): -1,
+      delta(profit: 3): 1,
+      delta(profit: -3): -1,
+      delta(roi: 3): 1,
+      delta(roi: -3): -1,
+    };
+
+    for (final entry in cases.entries) {
+      expect(entry.key.directionScore, entry.value);
+      expect(entry.key.stable, isTrue);
+      expect(entry.key.improved, isFalse);
+      expect(entry.key.worsened, isFalse);
+    }
+  });
+
   test('opposing meaningful signals cancel to stable', () {
     final result = delta(asking: -3, maxBuy: -3, profit: 3, roi: -3);
 
