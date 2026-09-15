@@ -39,6 +39,18 @@ void main() {
     expect(result.stable, isFalse);
   });
 
+  test('one meaningful signal alone stays stable', () {
+    final positive = delta(profit: 3);
+    final negative = delta(asking: 3);
+
+    expect(positive.directionScore, 1);
+    expect(positive.stable, isTrue);
+    expect(positive.improved, isFalse);
+    expect(negative.directionScore, -1);
+    expect(negative.stable, isTrue);
+    expect(negative.worsened, isFalse);
+  });
+
   test('opposing meaningful signals cancel to stable', () {
     final result = delta(asking: -3, maxBuy: -3, profit: 3, roi: -3);
 
