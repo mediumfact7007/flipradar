@@ -1,4 +1,4 @@
-# FlipRadar V0.2
+# FlipRadar V0.14.8
 
 Installierbare Android-Testversion von FlipRadar.
 
