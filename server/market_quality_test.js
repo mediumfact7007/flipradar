@@ -68,6 +68,18 @@ assert.strictEqual(
   true,
 );
 assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB spares or repair', 'Apple iPhone 15 Pro 256GB spares or repair'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB repair only', 'Apple iPhone 15 Pro 256GB repair only'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB zum Ausschlachten', 'Apple iPhone 15 Pro 256GB zum Ausschlachten'),
+  true,
+);
+assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur Karton'),
   false,
 );
@@ -129,6 +141,18 @@ assert.strictEqual(
 );
 assert.strictEqual(
   listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP vollständig'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB mit Originalverpackung'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB voll funktionsfähig'),
+  true,
+);
+assert.strictEqual(
+  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB frisch repariert voll funktionsfähig'),
   true,
 );
 assert.strictEqual(
