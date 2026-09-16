@@ -1,0 +1,43 @@
+'use strict';
+
+const assert = require('assert');
+const { normalizeBuybackPayload, bestBuybackOffer } = require('./buyback');
+
+const now = Date.parse('2026-09-16T10:00:00Z');
+function offer(overrides = {}) {
+  return {
+    provider_id: 'provider-a',
+    provider_name: 'Provider A',
+    product_id: 'iphone-15-pro-256',
+    matched_title: 'Apple iPhone 15 Pro 256 GB',
+    condition: 'like_new',
+    price: 620,
+    currency: 'EUR',
+    offer_url: 'https://example.com/offer',
+    checked_at: '2026-09-16T09:30:00Z',
+    price_kind: 'indicative_buyback',
+    requires_inspection: true,
+    match_confidence: 0.98,
+    ...overrides,
+  };
+}
+
+const normalized = normalizeBuybackPayload({ items: [offer()] }, { now });
+assert.strictEqual(normalized.length, 1);
+assert.strictEqual(normalized[0].price, 620);
+
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ checked_at: '2026-09-14T09:30:00Z' })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ price_kind: 'asking_price' })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ match_confidence: 0.72 })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ condition_uncertain: true })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ offer_url: 'http://example.com/offer' })] }, { now }).length, 0);
+
+const comparable = normalizeBuybackPayload({ items: [
+  offer({ provider_id: 'a', price: 610 }),
+  offer({ provider_id: 'b', price: 645 }),
+  offer({ provider_id: 'c', price: 700, condition: 'used_good' }),
+] }, { now });
+assert.strictEqual(bestBuybackOffer(comparable, 'like_new').provider_id, 'b');
+assert.strictEqual(bestBuybackOffer(comparable, 'like_new').price, 645);
+
+console.log('buyback tests passed');
