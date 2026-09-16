@@ -6,6 +6,7 @@ BuybackOffer offer({
   BuybackCondition condition = BuybackCondition.likeNew,
   double confidence = 0.98,
   bool uncertain = false,
+  DateTime? checkedAt,
 }) {
   return BuybackOffer(
     providerId: 'provider-$price',
@@ -16,12 +17,27 @@ BuybackOffer offer({
     price: price,
     currency: 'EUR',
     offerUrl: Uri.parse('https://example.com/offer'),
-    checkedAt: DateTime.parse('2026-09-16T08:30:00+02:00'),
+    checkedAt: checkedAt ?? DateTime.parse('2026-09-16T08:30:00+02:00'),
     requiresInspection: true,
     matchConfidence: confidence,
     conditionUncertain: uncertain,
   );
 }
+
+Map<String, dynamic> payload() => {
+      'provider_id': 'example',
+      'provider_name': 'Example',
+      'product_id': 'iphone-15-pro-256',
+      'matched_title': 'Apple iPhone 15 Pro 256 GB',
+      'condition': 'like_new',
+      'price': 620,
+      'currency': 'EUR',
+      'offer_url': 'https://example.com/offer',
+      'checked_at': '2026-09-16T08:30:00+02:00',
+      'price_kind': 'indicative_buyback',
+      'requires_inspection': true,
+      'match_confidence': 0.98,
+    };
 
 void main() {
   test('condition wire values round-trip', () {
@@ -64,23 +80,31 @@ void main() {
     expect(best?.price, 620);
   });
 
+  test('excludes stale offers when a comparison time is supplied', () {
+    final now = DateTime.parse('2026-09-16T10:00:00Z');
+    final best = bestComparableBuybackOffer(
+      [
+        offer(price: 700, checkedAt: now.subtract(const Duration(hours: 25))),
+        offer(price: 620, checkedAt: now.subtract(const Duration(hours: 2))),
+      ],
+      condition: BuybackCondition.likeNew,
+      now: now,
+    );
+
+    expect(best?.price, 620);
+  });
+
   test('parses normalized adapter payload', () {
-    final parsed = BuybackOffer.fromJson({
-      'provider_id': 'example',
-      'provider_name': 'Example',
-      'product_id': 'iphone-15-pro-256',
-      'matched_title': 'Apple iPhone 15 Pro 256 GB',
-      'condition': 'like_new',
-      'price': 620,
-      'currency': 'EUR',
-      'offer_url': 'https://example.com/offer',
-      'checked_at': '2026-09-16T08:30:00+02:00',
-      'requires_inspection': true,
-      'match_confidence': 0.98,
-    });
+    final parsed = BuybackOffer.fromJson(payload());
 
     expect(parsed.condition, BuybackCondition.likeNew);
     expect(parsed.price, 620);
     expect(parsed.isEligibleForComparison, isTrue);
+  });
+
+  test('rejects non-buyback price kinds', () {
+    final json = payload()..['price_kind'] = 'asking_price';
+
+    expect(() => BuybackOffer.fromJson(json), throwsFormatException);
   });
 }
