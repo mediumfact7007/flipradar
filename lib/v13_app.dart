@@ -1106,6 +1106,7 @@ class _V13HomeState extends State<V13Home> {
     query.text = text.length > 500 ? text.substring(0, 500) : text;
     query.selection = TextSelection.collapsed(offset: query.text.length);
     _changed(query.text);
+    _submit();
   }
 
   @override
@@ -1137,7 +1138,7 @@ class _V13HomeState extends State<V13Home> {
         TextField(
           key: const ValueKey('v13-universal-search'),
           controller: query,
-          autofocus: true,
+          autofocus: false,
           minLines: 1,
           maxLines: 3,
           onChanged: _changed,
@@ -1149,7 +1150,7 @@ class _V13HomeState extends State<V13Home> {
             hintText: t('z. B. Samsung Fold 8 512 GB', 'e.g. Samsung Fold 8 512 GB'),
             prefixIcon: const Icon(Icons.search_rounded, size: 25),
             suffixIcon: query.text.trim().isEmpty
-                ? IconButton(onPressed: _paste, tooltip: t('Einfügen', 'Paste'), icon: const Icon(Icons.content_paste_rounded))
+                ? IconButton(key: const ValueKey('v150-paste-and-check'), onPressed: _paste, tooltip: t('Einfügen & prüfen', 'Paste & check'), icon: const Icon(Icons.content_paste_rounded))
                 : IconButton(key: const ValueKey('v145-clear-search'), onPressed: _clearSearch, tooltip: t('Leeren', 'Clear'), icon: const Icon(Icons.close_rounded)),
           ),
         ),
