@@ -58,18 +58,33 @@ class BuybackOffer {
       !conditionUncertain &&
       providerId.trim().isNotEmpty &&
       providerName.trim().isNotEmpty &&
+      productId.trim().isNotEmpty &&
       matchedTitle.trim().isNotEmpty &&
+      price.isFinite &&
       price >= 0 &&
       currency == 'EUR' &&
       offerUrl.hasScheme &&
       offerUrl.scheme == 'https' &&
+      matchConfidence.isFinite &&
       matchConfidence >= 0.9 &&
       matchConfidence <= 1;
+
+  bool isFreshAt(
+    DateTime now, {
+    Duration maxAge = const Duration(hours: 24),
+  }) {
+    final age = now.toUtc().difference(checkedAt.toUtc());
+    return !age.isNegative && age <= maxAge;
+  }
 
   factory BuybackOffer.fromJson(Map<String, dynamic> json) {
     final condition = BuybackConditionWire.tryParse(json['condition'] as String? ?? '');
     if (condition == null) {
       throw const FormatException('Unsupported buyback condition');
+    }
+
+    if (json['price_kind'] != 'indicative_buyback') {
+      throw const FormatException('Unsupported buyback price kind');
     }
 
     final price = (json['price'] as num?)?.toDouble();
@@ -101,10 +116,13 @@ class BuybackOffer {
 BuybackOffer? bestComparableBuybackOffer(
   Iterable<BuybackOffer> offers, {
   required BuybackCondition condition,
+  DateTime? now,
+  Duration maxAge = const Duration(hours: 24),
 }) {
   BuybackOffer? best;
   for (final offer in offers) {
     if (offer.condition != condition || !offer.isEligibleForComparison) continue;
+    if (now != null && !offer.isFreshAt(now, maxAge: maxAge)) continue;
     if (best == null || offer.price > best.price) best = offer;
   }
   return best;
