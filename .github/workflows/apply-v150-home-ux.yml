@@ -1,0 +1,39 @@
+name: Apply V0.15.0 Home UX
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v150-home-ux.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply guarded UX patch
+        run: python3 tools/patch_v150_home_fast_start.py
+      - name: Verify intended diff only
+        run: |
+          git diff --check
+          git diff --exit-code -- tools/patch_v150_home_fast_start.py
+          git diff -- lib/v13_app.dart
+          grep -q "autofocus: false" lib/v13_app.dart
+          grep -q "v150-paste-and-check" lib/v13_app.dart
+      - name: Commit product change
+        run: |
+          if git diff --quiet -- lib/v13_app.dart; then
+            echo "UX patch already applied; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/v13_app.dart
+          git commit -m "Improve home search fast start"
+          git push origin HEAD:main
