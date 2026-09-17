@@ -1,4 +1,4 @@
-name: Apply V0.15.0 Home UX
+name: Apply guarded product patches
 
 on:
   push:
@@ -17,23 +17,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Apply guarded UX patch
-        run: python3 tools/patch_v150_home_fast_start.py
+      - name: Apply guarded buyback endpoint patch
+        run: python3 tools/patch_buyback_endpoint.py
       - name: Verify intended diff only
         run: |
           git diff --check
-          git diff --exit-code -- tools/patch_v150_home_fast_start.py
-          git diff -- lib/v13_app.dart
-          grep -q "autofocus: false" lib/v13_app.dart
-          grep -q "v150-paste-and-check" lib/v13_app.dart
+          git diff --exit-code -- tools/patch_buyback_endpoint.py
+          git diff -- server/index.js
+          grep -q "buybackSourceStatus" server/index.js
+          grep -q "'/v1/buyback/search'" server/index.js
+          grep -q "no price is estimated or fabricated" server/index.js
       - name: Commit product change
         run: |
-          if git diff --quiet -- lib/v13_app.dart; then
-            echo "UX patch already applied; nothing to commit."
+          if git diff --quiet -- server/index.js; then
+            echo "Buyback endpoint patch already applied; nothing to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/v13_app.dart
-          git commit -m "Improve home search fast start"
+          git add server/index.js
+          git commit -m "Expose safe buyback search endpoint"
           git push origin HEAD:main
