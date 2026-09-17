@@ -10,44 +10,21 @@ class DealAlertPreference {
   final double minRoiIncrease;
   final DateTime updatedAt;
 
-  const DealAlertPreference({
-    required this.flipId,
-    required this.enabled,
-    required this.minProfitIncrease,
-    required this.minRoiIncrease,
-    required this.updatedAt,
-  });
+  const DealAlertPreference({required this.flipId, required this.enabled, required this.minProfitIncrease, required this.minRoiIncrease, required this.updatedAt});
 
-  factory DealAlertPreference.defaults(String flipId, {DateTime? now}) =>
-      DealAlertPreference(
-        flipId: flipId,
-        enabled: true,
-        minProfitIncrease: 5,
-        minRoiIncrease: 5,
-        updatedAt: now ?? DateTime.now(),
-      );
+  factory DealAlertPreference.defaults(String flipId, {DateTime? now}) => DealAlertPreference(
+    flipId: flipId, enabled: true, minProfitIncrease: 5, minRoiIncrease: 5, updatedAt: now ?? DateTime.now());
 
-  DealAlertPreference copyWith({
-    bool? enabled,
-    double? minProfitIncrease,
-    double? minRoiIncrease,
-    DateTime? updatedAt,
-  }) =>
-      DealAlertPreference(
-        flipId: flipId,
-        enabled: enabled ?? this.enabled,
-        minProfitIncrease: minProfitIncrease ?? this.minProfitIncrease,
-        minRoiIncrease: minRoiIncrease ?? this.minRoiIncrease,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  DealAlertPreference copyWith({bool? enabled, double? minProfitIncrease, double? minRoiIncrease, DateTime? updatedAt}) => DealAlertPreference(
+    flipId: flipId, enabled: enabled ?? this.enabled,
+    minProfitIncrease: minProfitIncrease ?? this.minProfitIncrease,
+    minRoiIncrease: minRoiIncrease ?? this.minRoiIncrease,
+    updatedAt: updatedAt ?? this.updatedAt);
 
   Map<String, Object> toJson() => {
-        'flip_id': flipId,
-        'enabled': enabled,
-        'min_profit_increase': minProfitIncrease,
-        'min_roi_increase': minRoiIncrease,
-        'updated_at': updatedAt.toUtc().toIso8601String(),
-      };
+    'flip_id': flipId, 'enabled': enabled, 'min_profit_increase': minProfitIncrease,
+    'min_roi_increase': minRoiIncrease, 'updated_at': updatedAt.toUtc().toIso8601String(),
+  };
 
   static DealAlertPreference? fromJson(Map<String, dynamic> json) {
     final flipId = json['flip_id'];
@@ -55,20 +32,11 @@ class DealAlertPreference {
     final profit = json['min_profit_increase'];
     final roi = json['min_roi_increase'];
     final updated = DateTime.tryParse(json['updated_at']?.toString() ?? '');
-    if (flipId is! String || flipId.trim().isEmpty || enabled is! bool ||
-        profit is! num || roi is! num || updated == null) return null;
+    if (flipId is! String || flipId.trim().isEmpty || enabled is! bool || profit is! num || roi is! num || updated == null) return null;
     final p = profit.toDouble();
     final r = roi.toDouble();
-    if (!p.isFinite || !r.isFinite || p < 0 || r < 0 || p > 10000 || r > 1000) {
-      return null;
-    }
-    return DealAlertPreference(
-      flipId: flipId,
-      enabled: enabled,
-      minProfitIncrease: p,
-      minRoiIncrease: r,
-      updatedAt: updated.toLocal(),
-    );
+    if (!p.isFinite || !r.isFinite || p < 0 || r < 0 || p > 10000 || r > 1000) return null;
+    return DealAlertPreference(flipId: flipId, enabled: enabled, minProfitIncrease: p, minRoiIncrease: r, updatedAt: updated.toLocal());
   }
 }
 
@@ -76,19 +44,20 @@ class DealAlertEvaluation {
   final bool triggered;
   final double profitIncrease;
   final double roiIncrease;
+  final bool profitThresholdReached;
+  final bool roiThresholdReached;
 
   const DealAlertEvaluation({
     required this.triggered,
     required this.profitIncrease,
     required this.roiIncrease,
+    required this.profitThresholdReached,
+    required this.roiThresholdReached,
   });
-
-  bool get profitThresholdReached => triggered && profitIncrease > 0;
-  bool get roiThresholdReached => triggered && roiIncrease > 0;
 }
 
-/// Evaluates a recheck and keeps the exact improvement available for a clear,
-/// trustworthy UI message instead of only returning an opaque boolean.
+/// Evaluates a recheck and retains both the measured improvement and the exact
+/// threshold reason so the UI can explain why an alert fired.
 DealAlertEvaluation evaluateDealAlert({
   required DealAlertPreference preference,
   required double previousProfit,
@@ -96,24 +65,23 @@ DealAlertEvaluation evaluateDealAlert({
   required double previousRoi,
   required double currentRoi,
 }) {
-  if (!preference.enabled ||
-      !previousProfit.isFinite || !currentProfit.isFinite ||
-      !previousRoi.isFinite || !currentRoi.isFinite) {
-    return const DealAlertEvaluation(triggered: false, profitIncrease: 0, roiIncrease: 0);
+  if (!preference.enabled || !previousProfit.isFinite || !currentProfit.isFinite || !previousRoi.isFinite || !currentRoi.isFinite) {
+    return const DealAlertEvaluation(triggered: false, profitIncrease: 0, roiIncrease: 0, profitThresholdReached: false, roiThresholdReached: false);
   }
   final profitIncrease = currentProfit - previousProfit;
   final roiIncrease = currentRoi - previousRoi;
+  final profitReached = profitIncrease >= preference.minProfitIncrease;
+  final roiReached = roiIncrease >= preference.minRoiIncrease;
   return DealAlertEvaluation(
-    triggered: profitIncrease >= preference.minProfitIncrease ||
-        roiIncrease >= preference.minRoiIncrease,
+    triggered: profitReached || roiReached,
     profitIncrease: profitIncrease,
     roiIncrease: roiIncrease,
+    profitThresholdReached: profitReached,
+    roiThresholdReached: roiReached,
   );
 }
 
-/// Returns true only for a material improvement over the saved check.
-/// A single sufficiently strong profit OR ROI improvement is useful enough to
-/// surface; tiny market noise remains silent.
+/// Compatibility helper for callers that only need yes/no.
 bool shouldTriggerDealAlert({
   required DealAlertPreference preference,
   required double previousProfit,
