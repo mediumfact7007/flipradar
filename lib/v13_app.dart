@@ -11,6 +11,10 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'buyback.dart';
+import 'buyback_client.dart';
+import 'buyback_summary.dart';
+import 'buyback_summary_card.dart';
 import 'recheck_delta.dart';
 import 'recheck_delta_card.dart';
 import 'source_registry.dart';
@@ -1425,6 +1429,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
   bool listingResolving = false;
   bool listingResolved = false;
   bool listingResolveFailed = false;
+  BuybackCondition? buybackCondition;
+  List<BuybackOffer> buybackOffers = const [];
+  bool buybackLoading = false;
+  int buybackToken = 0;
   int token = 0;
   V13Decision? lastHaptic;
 
@@ -1507,6 +1515,8 @@ class _V13CheckPageState extends State<V13CheckPage> {
       manualMode = false;
       savedBought = false;
       savedWatch = false;
+      buybackOffers = const [];
+      buybackLoading = false;
     });
     final direct = widget.sources.where((s) => s.enabled && s.canFetchInApp).toList();
     pending.addAll(direct.map((e) => e.id));
@@ -1547,6 +1557,52 @@ class _V13CheckPageState extends State<V13CheckPage> {
     setState(() => listings = dedupe.values.toList()..sort((a, b) => a.total.compareTo(b.total)));
     if (pending.isEmpty && expectedSale == null) setState(() => manualMode = true);
     if (buy.text.isEmpty && !listingResolving) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
+  }
+
+  Future<void> _loadBuyback(BuybackCondition condition) async {
+    final q = normalizeV13Search(query.text).query;
+    if (q.isEmpty) return;
+    final myToken = ++buybackToken;
+    setState(() {
+      buybackCondition = condition;
+      buybackOffers = const [];
+      buybackLoading = true;
+    });
+    final base = widget.backendBase.trim().isEmpty
+        ? SourceRegistry.defaultBackend
+        : widget.backendBase;
+    final offers = await BuybackClient(backendBase: base).search(
+      q,
+      condition: condition,
+    );
+    if (!mounted || myToken != buybackToken) return;
+    setState(() {
+      buybackOffers = offers;
+      buybackLoading = false;
+    });
+  }
+
+  String _buybackConditionLabel(BuybackCondition condition) => switch (condition) {
+        BuybackCondition.newSealed => t('Neu & OVP', 'New & sealed'),
+        BuybackCondition.likeNew => t('Wie neu', 'Like new'),
+        BuybackCondition.veryGood => t('Sehr gut', 'Very good'),
+        BuybackCondition.usedGood => t('Gebraucht', 'Used'),
+        BuybackCondition.acceptable => t('Akzeptabel', 'Acceptable'),
+        BuybackCondition.defective => t('Defekt', 'Defective'),
+      };
+
+  BuybackComparisonSummary? get buybackSummary {
+    final condition = buybackCondition;
+    final privateValue = expectedSale;
+    if (condition == null || privateValue == null || privateValue <= 0 || buyPrice <= 0) {
+      return null;
+    }
+    return buildBuybackComparisonSummary(
+      buybackOffers,
+      condition: condition,
+      purchasePrice: buyPrice + extraCosts,
+      privateMarketValue: privateValue,
+    );
   }
 
   void _retryFailed() {
@@ -1783,6 +1839,42 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onBought: d == V13Decision.waiting || savedBought ? null : _bought,
             onNegotiate: d == V13Decision.negotiate ? _copyOffer : null,
           ),
+          if (expectedSale != null) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<BuybackCondition>(
+              key: const ValueKey('v151-buyback-condition'),
+              initialValue: buybackCondition,
+              decoration: InputDecoration(
+                labelText: t('Zustand für Sofortankauf', 'Condition for instant buyback'),
+                prefixIcon: const Icon(Icons.recycling_rounded),
+                helperText: t('Nur wählen, wenn du echte Ankaufangebote vergleichen willst.', 'Choose only when you want to compare real buyback offers.'),
+              ),
+              items: BuybackCondition.values
+                  .map((condition) => DropdownMenuItem(
+                        value: condition,
+                        child: Text(_buybackConditionLabel(condition)),
+                      ))
+                  .toList(),
+              onChanged: (condition) {
+                if (condition != null) unawaited(_loadBuyback(condition));
+              },
+            ),
+            if (buybackLoading) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 8),
+                Text(t('Ankaufangebote werden geprüft …', 'Checking buyback offers …'), style: const TextStyle(fontSize: 11, color: Color(0xFF707483))),
+              ]),
+            ] else if (buybackCondition != null && buybackOffers.isEmpty) ...[
+              const SizedBox(height: 7),
+              Text(t('Für diesen Zustand ist aktuell kein verifiziertes Ankaufangebot verfügbar.', 'No verified buyback offer is currently available for this condition.'), style: const TextStyle(fontSize: 10.8, color: Color(0xFF707483))),
+            ],
+            if (buybackSummary != null) ...[
+              const SizedBox(height: 8),
+              BuybackComparisonCard(summary: buybackSummary!, locale: widget.english ? 'en' : 'de'),
+            ],
+          ],
           if (widget.existingSnapshot?.isSaved == true && expectedSale != null && (widget.existingSnapshot!.maxBuyAtCheck > 0 || widget.existingSnapshot!.profitAtCheck != 0 || widget.existingSnapshot!.roiAtCheck != 0)) ...[
             const SizedBox(height: 8),
             RecheckDeltaCard(

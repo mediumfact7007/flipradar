@@ -5,6 +5,7 @@ const { URL, URLSearchParams } = require('url');
 const { filterMarketListings } = require('./market_quality');
 const { resolvePublicListing } = require('./listing_resolver');
 const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');
+const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');
 
 const PORT = Number(process.env.PORT || 8080);
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
@@ -312,6 +313,7 @@ function sourceStatus() {
     saturn: { configured: false, mode: 'official_search_link' },
     idealo: { configured: false, mode: 'official_search_link' },
     buyback: buybackSourceStatus(),
+    buyback: buybackSourceStatus(),
   };
 }
 
@@ -359,6 +361,54 @@ const server = http.createServer(async (req, res) => {
             : String(error);
         const status = message === 'unsupported_listing_url' ? 400 : 502;
         return json(res, status, { error: message });
+      }
+    }
+
+    if (req.method === 'GET' && url.pathname === '/v1/buyback/search') {
+      pruneRateBuckets();
+      if (!allowRequest(req)) {
+        return json(res, 429, { error: 'rate_limit', items: [], best: null });
+      }
+
+      const q = normalizeQuery(url.searchParams.get('q'));
+      const condition = String(url.searchParams.get('condition') || '').trim().slice(0, 32);
+      if (!q) return json(res, 400, { error: 'q is required', items: [], best: null });
+      if (!condition) return json(res, 400, { error: 'condition is required', items: [], best: null });
+
+      const started = Date.now();
+      try {
+        const result = await fetchBuybackOffers(q, condition);
+        return json(res, 200, {
+          source: 'buyback',
+          query: q,
+          condition,
+          configured: result.configured,
+          live: result.configured && result.items.length > 0,
+          items: result.items,
+          best: result.best,
+          meta: {
+            count: result.items.length,
+            elapsed_ms: Date.now() - started,
+            data_kind: 'indicative_buyback',
+            note: result.configured
+              ? 'Indicative provider offers; final payout may depend on provider inspection.'
+              : 'Buyback provider is not configured; no price is estimated or fabricated.',
+          },
+        });
+      } catch (error) {
+        const message = error?.name === 'AbortError'
+          ? 'upstream_timeout'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        return json(res, 503, {
+          source: 'buyback',
+          query: q,
+          condition,
+          items: [],
+          best: null,
+          error: message,
+        });
       }
     }
 
