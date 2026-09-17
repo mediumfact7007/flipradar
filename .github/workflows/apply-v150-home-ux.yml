@@ -7,6 +7,7 @@ on:
       - '.github/workflows/apply-v150-home-ux.yml'
       - 'tools/patch_buyback_endpoint.py'
       - 'tools/patch_buyback_deal_ui.py'
+      - 'tools/patch_watchlist_home_attention.py'
   workflow_dispatch:
 
 permissions:
@@ -23,10 +24,12 @@ jobs:
         run: python3 tools/patch_buyback_endpoint.py
       - name: Apply guarded buyback deal UI patch
         run: python3 tools/patch_buyback_deal_ui.py
+      - name: Apply guarded watchlist retention patch
+        run: python3 tools/patch_watchlist_home_attention.py
       - name: Verify intended diff only
         run: |
           git diff --check
-          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py
+          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py
           git diff -- server/index.js lib/v13_app.dart
           test "$(grep -Fc "const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');" server/index.js)" -eq 1
           test "$(grep -Fc "buyback: buybackSourceStatus()," server/index.js)" -eq 1
@@ -34,6 +37,8 @@ jobs:
           grep -q "no price is estimated or fabricated" server/index.js
           grep -q "v151-buyback-condition" lib/v13_app.dart
           grep -q "BuybackComparisonCard" lib/v13_app.dart
+          grep -q "v152-watchlist-home-attention" lib/v13_app.dart
+          grep -q "initialFilter: flipsInitialFilter" lib/v13_app.dart
           node --check server/index.js
       - name: Commit product change
         run: |
@@ -44,5 +49,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/index.js lib/v13_app.dart
-          git commit -m "Normalize verified buyback integration"
+          git commit -m "Surface stale saved deals on home"
           git push origin HEAD:main
