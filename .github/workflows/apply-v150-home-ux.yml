@@ -8,6 +8,7 @@ on:
       - 'tools/patch_buyback_endpoint.py'
       - 'tools/patch_buyback_deal_ui.py'
       - 'tools/patch_watchlist_home_attention.py'
+      - 'tools/patch_watchlist_filter_sync.py'
   workflow_dispatch:
 
 permissions:
@@ -26,10 +27,12 @@ jobs:
         run: python3 tools/patch_buyback_deal_ui.py
       - name: Apply guarded watchlist retention patch
         run: python3 tools/patch_watchlist_home_attention.py
+      - name: Apply watchlist navigation sync fix
+        run: python3 tools/patch_watchlist_filter_sync.py
       - name: Verify intended diff only
         run: |
           git diff --check
-          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py
+          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py tools/patch_watchlist_filter_sync.py
           git diff -- server/index.js lib/v13_app.dart
           test "$(grep -Fc "const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');" server/index.js)" -eq 1
           test "$(grep -Fc "buyback: buybackSourceStatus()," server/index.js)" -eq 1
@@ -39,6 +42,7 @@ jobs:
           grep -q "BuybackComparisonCard" lib/v13_app.dart
           grep -q "v152-watchlist-home-attention" lib/v13_app.dart
           grep -q "initialFilter: flipsInitialFilter" lib/v13_app.dart
+          grep -q "oldWidget.initialFilter != widget.initialFilter" lib/v13_app.dart
           node --check server/index.js
       - name: Commit product change
         run: |
@@ -49,5 +53,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/index.js lib/v13_app.dart
-          git commit -m "Surface stale saved deals on home"
+          git commit -m "Keep watchlist home navigation in sync"
           git push origin HEAD:main
