@@ -3,6 +3,17 @@ from pathlib import Path
 path = Path('lib/v13_app.dart')
 text = path.read_text()
 
+# This patch has already shipped on main. Keep the guard idempotent so later
+# product patches can reuse the workflow without failing on the evolved
+# watchlist block.
+required = [
+    "final freshCount = saved.length - stale.length;",
+    "NÄCHSTEN PRÜFEN",
+]
+if all(marker in text for marker in required):
+    print('watchlist recheck queue already applied')
+    raise SystemExit(0)
+
 old = """    final oldest = saved.first;\n    final title = stale.isEmpty\n        ? t('Merkliste aktuell', 'Watchlist up to date')\n        : t('${stale.length} Deal${stale.length == 1 ? '' : 's'} neu prüfen', '${stale.length} deal${stale.length == 1 ? '' : 's'} to recheck');\n    final subtitle = stale.isEmpty\n        ? t('Alle gespeicherten Deals wurden in den letzten 24 Std. geprüft.', 'All saved deals were checked within the last 24h.')\n        : t('Ältester Check ${v147AgeLabel(oldest.checkedAt, false)}.', 'Oldest check ${v147AgeLabel(oldest.checkedAt, true)}.');\n"""
 new = """    final oldest = saved.first;\n    final freshCount = saved.length - stale.length;\n    final title = stale.isEmpty\n        ? t('Merkliste aktuell', 'Watchlist up to date')\n        : t('${stale.length} Deal${stale.length == 1 ? '' : 's'} neu prüfen', '${stale.length} deal${stale.length == 1 ? '' : 's'} to recheck');\n    final subtitle = stale.isEmpty\n        ? t('Alle gespeicherten Deals wurden in den letzten 24 Std. geprüft.', 'All saved deals were checked within the last 24h.')\n        : t('$freshCount von ${saved.length} aktuell · ältester Check ${v147AgeLabel(oldest.checkedAt, false)}.', '$freshCount of ${saved.length} current · oldest check ${v147AgeLabel(oldest.checkedAt, true)}.');\n"""
 if new not in text:
