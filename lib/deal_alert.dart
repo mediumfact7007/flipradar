@@ -72,6 +72,45 @@ class DealAlertPreference {
   }
 }
 
+class DealAlertEvaluation {
+  final bool triggered;
+  final double profitIncrease;
+  final double roiIncrease;
+
+  const DealAlertEvaluation({
+    required this.triggered,
+    required this.profitIncrease,
+    required this.roiIncrease,
+  });
+
+  bool get profitThresholdReached => triggered && profitIncrease > 0;
+  bool get roiThresholdReached => triggered && roiIncrease > 0;
+}
+
+/// Evaluates a recheck and keeps the exact improvement available for a clear,
+/// trustworthy UI message instead of only returning an opaque boolean.
+DealAlertEvaluation evaluateDealAlert({
+  required DealAlertPreference preference,
+  required double previousProfit,
+  required double currentProfit,
+  required double previousRoi,
+  required double currentRoi,
+}) {
+  if (!preference.enabled ||
+      !previousProfit.isFinite || !currentProfit.isFinite ||
+      !previousRoi.isFinite || !currentRoi.isFinite) {
+    return const DealAlertEvaluation(triggered: false, profitIncrease: 0, roiIncrease: 0);
+  }
+  final profitIncrease = currentProfit - previousProfit;
+  final roiIncrease = currentRoi - previousRoi;
+  return DealAlertEvaluation(
+    triggered: profitIncrease >= preference.minProfitIncrease ||
+        roiIncrease >= preference.minRoiIncrease,
+    profitIncrease: profitIncrease,
+    roiIncrease: roiIncrease,
+  );
+}
+
 /// Returns true only for a material improvement over the saved check.
 /// A single sufficiently strong profit OR ROI improvement is useful enough to
 /// surface; tiny market noise remains silent.
@@ -81,10 +120,10 @@ bool shouldTriggerDealAlert({
   required double currentProfit,
   required double previousRoi,
   required double currentRoi,
-}) {
-  if (!preference.enabled ||
-      !previousProfit.isFinite || !currentProfit.isFinite ||
-      !previousRoi.isFinite || !currentRoi.isFinite) return false;
-  return currentProfit - previousProfit >= preference.minProfitIncrease ||
-      currentRoi - previousRoi >= preference.minRoiIncrease;
-}
+}) => evaluateDealAlert(
+  preference: preference,
+  previousProfit: previousProfit,
+  currentProfit: currentProfit,
+  previousRoi: previousRoi,
+  currentRoi: currentRoi,
+).triggered;
