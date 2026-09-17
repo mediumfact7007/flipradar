@@ -888,6 +888,7 @@ class V13Shell extends StatefulWidget {
 
 class _V13ShellState extends State<V13Shell> {
   int tab = 0;
+  String flipsInitialFilter = 'open';
   bool opening = false;
   StreamSubscription<List<SharedMediaFile>>? shareSub;
   String lastShare = '';
@@ -1008,17 +1009,22 @@ class _V13ShellState extends State<V13Shell> {
 
   @override
   Widget build(BuildContext context) {
+    final savedFlips = v148PrioritizeSaved(widget.flips);
+    final staleSaved = savedFlips.where((e) => DateTime.now().difference(e.checkedAt).inHours >= 24).length;
     final pages = [
       V13Home(
         english: widget.english,
         plan: widget.plan,
         history: widget.history,
         openFlips: widget.flips.where((e) => e.isOpen).length,
+        savedFlips: savedFlips.length,
+        staleSaved: staleSaved,
         monetization: widget.monetization,
         onSearch: _openCheck,
         onScan: _scan,
         onSettings: _settings,
-        onOpenFlips: () => setState(() => tab = 1),
+        onOpenFlips: () => setState(() { flipsInitialFilter = 'open'; tab = 1; }),
+        onOpenSaved: () => setState(() { flipsInitialFilter = 'saved'; tab = 1; }),
       ),
       V13FlipsPage(
         english: widget.english,
@@ -1029,6 +1035,7 @@ class _V13ShellState extends State<V13Shell> {
         onDelete: widget.onDeleteFlip,
         onRecheck: _recheckFlip,
         onPro: () => _openPaywall(context),
+        initialFilter: flipsInitialFilter,
       ),
     ];
     return Scaffold(
@@ -1061,11 +1068,14 @@ class V13Home extends StatefulWidget {
   final UserPlan plan;
   final List<String> history;
   final int openFlips;
+  final int savedFlips;
+  final int staleSaved;
   final V13Monetization monetization;
   final ValueChanged<String> onSearch;
   final VoidCallback onScan;
   final VoidCallback onSettings;
   final VoidCallback onOpenFlips;
+  final VoidCallback onOpenSaved;
 
   const V13Home({
     super.key,
@@ -1073,11 +1083,14 @@ class V13Home extends StatefulWidget {
     required this.plan,
     required this.history,
     required this.openFlips,
+    required this.savedFlips,
+    required this.staleSaved,
     required this.monetization,
     required this.onSearch,
     required this.onScan,
     required this.onSettings,
     required this.onOpenFlips,
+    required this.onOpenSaved,
   });
 
   @override
@@ -1207,6 +1220,21 @@ class _V13HomeState extends State<V13Home> {
             ],
           ),
         ),
+        if (widget.savedFlips > 0) ...[
+          const SizedBox(height: 13),
+          Material(
+            key: const ValueKey('v152-watchlist-home-attention'),
+            color: widget.staleSaved > 0 ? const Color(0xFFFFF7E8) : const Color(0xFFF4F5FA),
+            borderRadius: BorderRadius.circular(18),
+            child: ListTile(
+              onTap: widget.onOpenSaved,
+              leading: Icon(widget.staleSaved > 0 ? Icons.notifications_active_outlined : Icons.bookmark_rounded, color: widget.staleSaved > 0 ? const Color(0xFFC47B00) : _v13Primary),
+              title: Text(widget.staleSaved > 0 ? t('${widget.staleSaved} gespeicherte Deals neu prüfen', '${widget.staleSaved} saved deals need a recheck') : t('${widget.savedFlips} Deals gemerkt', '${widget.savedFlips} deals saved'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+              subtitle: Text(widget.staleSaved > 0 ? t('Marktpreise sind älter als 24 Std.', 'Market prices are older than 24h.') : t('Merkliste öffnen und Preise erneut prüfen.', 'Open saved deals and recheck prices.'), style: const TextStyle(fontSize: 10.8)),
+              trailing: const Icon(Icons.chevron_right_rounded),
+            ),
+          ),
+        ],
         if (widget.openFlips > 0) ...[
           const SizedBox(height: 13),
           OutlinedButton.icon(
@@ -2470,15 +2498,22 @@ class V13FlipsPage extends StatefulWidget {
   final ValueChanged<String> onDelete;
   final ValueChanged<V13Flip> onRecheck;
   final VoidCallback onPro;
+  final String initialFilter;
 
-  const V13FlipsPage({super.key, required this.english, required this.plan, required this.flips, required this.monetization, required this.onUpdate, required this.onDelete, required this.onRecheck, required this.onPro});
+  const V13FlipsPage({super.key, required this.english, required this.plan, required this.flips, required this.monetization, required this.onUpdate, required this.onDelete, required this.onRecheck, required this.onPro, this.initialFilter = 'open'});
   @override
   State<V13FlipsPage> createState() => _V13FlipsPageState();
 }
 
 class _V13FlipsPageState extends State<V13FlipsPage> {
-  String filter = 'open';
+  late String filter;
   String t(String de, String en) => widget.english ? en : de;
+
+  @override
+  void initState() {
+    super.initState();
+    filter = widget.initialFilter;
+  }
 
   @override
   Widget build(BuildContext context) {
