@@ -16,6 +16,11 @@ import 'buyback_client.dart';
 import 'buyback_summary.dart';
 import 'buyback_summary_card.dart';
 import 'deal_alert_toggle.dart';
+import 'deal_alert_result_card.dart';
+import 'buyback.dart';
+import 'buyback_client.dart';
+import 'buyback_summary.dart';
+import 'buyback_summary_card.dart';
 import 'recheck_delta.dart';
 import 'recheck_delta_card.dart';
 import 'source_registry.dart';
@@ -1918,6 +1923,15 @@ class _V13CheckPageState extends State<V13CheckPage> {
                 previousRoi: widget.existingSnapshot!.roiAtCheck,
                 currentRoi: roi,
               ),
+            ),
+            const SizedBox(height: 8),
+            DealAlertResultCard(
+              flipId: widget.existingSnapshot!.id,
+              english: widget.english,
+              previousProfit: widget.existingSnapshot!.profitAtCheck,
+              currentProfit: profit,
+              previousRoi: widget.existingSnapshot!.roiAtCheck,
+              currentRoi: roi,
             ),
           ],
           const SizedBox(height: 8),
