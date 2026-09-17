@@ -76,6 +76,7 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
   @override
   Widget build(BuildContext context) {
     final enabled = _preference?.enabled ?? false;
+    final busy = _loading || _saving;
     return Container(
       key: ValueKey('deal-alert-${widget.flipId}'),
       padding: const EdgeInsets.fromLTRB(11, 7, 7, 7),
@@ -105,17 +106,11 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
               style: const TextStyle(fontSize: 9.2, color: Color(0xFF8B8E9A)),
             ),
         ])),
-        if (_loading || _saving)
-          const Padding(
-            padding: EdgeInsets.all(10),
-            child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-          )
-        else
-          Switch.adaptive(
-            key: ValueKey('deal-alert-switch-${widget.flipId}'),
-            value: enabled,
-            onChanged: _setEnabled,
-          ),
+        Switch.adaptive(
+          key: ValueKey('deal-alert-switch-${widget.flipId}'),
+          value: enabled,
+          onChanged: busy ? null : _setEnabled,
+        ),
       ]),
     );
   }
