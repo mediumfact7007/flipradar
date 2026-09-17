@@ -2516,6 +2516,14 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
   }
 
   @override
+  void didUpdateWidget(covariant V13FlipsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialFilter != widget.initialFilter) {
+      filter = widget.initialFilter;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sold = widget.flips.where((e) => e.status == 'Sold').toList();
     final saved = v148PrioritizeSaved(widget.flips);
