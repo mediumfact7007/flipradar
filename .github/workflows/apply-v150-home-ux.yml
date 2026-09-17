@@ -25,10 +25,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Apply guarded buyback endpoint patch
-        run: python3 tools/patch_buyback_endpoint.py
-      - name: Apply guarded buyback deal UI patch
-        run: python3 tools/patch_buyback_deal_ui.py
       - name: Normalize guarded imports
         run: |
           python3 - <<'PY'
@@ -49,6 +45,10 @@ jobs:
               s = head + tail
           p.write_text(s)
           PY
+      - name: Apply guarded buyback endpoint patch
+        run: python3 tools/patch_buyback_endpoint.py
+      - name: Apply guarded buyback deal UI patch
+        run: python3 tools/patch_buyback_deal_ui.py
       - name: Apply guarded watchlist retention patch
         run: python3 tools/patch_watchlist_home_attention.py
       - name: Apply watchlist navigation sync fix
