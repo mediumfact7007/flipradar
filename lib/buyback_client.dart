@@ -1,0 +1,72 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'buyback.dart';
+import 'source_registry.dart';
+
+/// Isolated client for FlipRadar's buyback endpoint.
+///
+/// It deliberately does not feed buyback prices into the normal resale-market
+/// decision pipeline. Callers only receive offers that pass the strict
+/// [BuybackOffer] validation and freshness checks.
+class BuybackClient {
+  const BuybackClient({this.backendBase = SourceRegistry.defaultBackend});
+
+  final String backendBase;
+
+  Future<List<BuybackOffer>> search(
+    String query, {
+    required BuybackCondition condition,
+    DateTime? now,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty || q.length > 180) return const [];
+
+    final base = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
+    final baseUri = Uri.tryParse(base);
+    if (baseUri == null || baseUri.scheme != 'https' || baseUri.host.isEmpty) {
+      return const [];
+    }
+
+    final endpoint = Uri.parse('$base/v1/buyback/search').replace(
+      queryParameters: {
+        'q': q,
+        'condition': condition.wireValue,
+      },
+    );
+
+    try {
+      final response = await http.get(endpoint).timeout(const Duration(seconds: 8));
+      if (response.statusCode < 200 || response.statusCode >= 300) return const [];
+      if (response.bodyBytes.length > 512 * 1024) return const [];
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is! Map<String, dynamic>) return const [];
+      final rawItems = decoded['items'];
+      if (rawItems is! List) return const [];
+
+      final checkedNow = (now ?? DateTime.now()).toUtc();
+      final offers = <BuybackOffer>[];
+      for (final item in rawItems.take(50)) {
+        if (item is! Map<String, dynamic>) continue;
+        try {
+          final offer = BuybackOffer.fromJson(item);
+          if (offer.condition != condition || !offer.isEligibleForComparison) continue;
+          if (!offer.isFreshAt(checkedNow)) continue;
+          offers.add(offer);
+        } on FormatException {
+          // Invalid provider payloads are ignored rather than shown as trusted.
+        } on TypeError {
+          // Wrongly typed provider payloads are treated as unavailable data.
+        }
+      }
+      offers.sort((a, b) => b.price.compareTo(a.price));
+      return List.unmodifiable(offers);
+    } catch (_) {
+      // Buyback is optional: network/provider failure must never break the
+      // primary deal check or the Kleinanzeigen share flow.
+      return const [];
+    }
+  }
+}
