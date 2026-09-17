@@ -3,38 +3,39 @@
 from pathlib import Path
 
 PATH = Path("server/index.js")
+BUYBACK_IMPORT = "const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');\n"
+BUYBACK_STATUS = "    buyback: buybackSourceStatus(),\n"
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    count = text.count(old)
-    if count == 0 and new in text:
-        print(f"{label}: already applied")
-        return text
-    if count != 1:
-        raise SystemExit(f"{label}: expected one anchor, found {count}; refusing to write")
-    print(f"{label}: applied")
-    return text.replace(old, new, 1)
+def ensure_single_after(text: str, anchor: str, line: str, label: str) -> str:
+    """Keep exactly one generated line immediately after a stable anchor."""
+    if text.count(anchor) != 1:
+        raise SystemExit(f"{label}: expected one anchor; refusing to write")
+    cleaned = text.replace(line, "")
+    print(f"{label}: normalized")
+    return cleaned.replace(anchor, anchor + line, 1)
 
 
 def main() -> None:
     original = PATH.read_text(encoding="utf-8")
     updated = original
 
-    updated = replace_once(
+    updated = ensure_single_after(
         updated,
         "const { resolvePublicListing } = require('./listing_resolver');\n",
-        "const { resolvePublicListing } = require('./listing_resolver');\nconst { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');\n",
+        BUYBACK_IMPORT,
         "buyback-import",
     )
 
-    updated = replace_once(
+    updated = ensure_single_after(
         updated,
         "    idealo: { configured: false, mode: 'official_search_link' },\n",
-        "    idealo: { configured: false, mode: 'official_search_link' },\n    buyback: buybackSourceStatus(),\n",
+        BUYBACK_STATUS,
         "buyback-status",
     )
 
     anchor = "    if (req.method === 'GET' && url.pathname === '/v1/market/search') {\n"
+    route_marker = "    if (req.method === 'GET' && url.pathname === '/v1/buyback/search') {\n"
     route = """    if (req.method === 'GET' && url.pathname === '/v1/buyback/search') {
       pruneRateBuckets();
       if (!allowRequest(req)) {
@@ -84,7 +85,15 @@ def main() -> None:
     }
 
 """
-    updated = replace_once(updated, anchor, route + anchor, "buyback-route")
+    if route_marker not in updated:
+        if updated.count(anchor) != 1:
+            raise SystemExit("buyback-route: expected one market-search anchor; refusing to write")
+        updated = updated.replace(anchor, route + anchor, 1)
+        print("buyback-route: applied")
+    elif updated.count(route_marker) == 1:
+        print("buyback-route: already applied")
+    else:
+        raise SystemExit("buyback-route: duplicate routes found; refusing to write")
 
     if updated == original:
         print("No changes needed.")
