@@ -5,7 +5,6 @@ const { URL, URLSearchParams } = require('url');
 const { filterMarketListings } = require('./market_quality');
 const { resolvePublicListing } = require('./listing_resolver');
 const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');
-const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');
 
 const PORT = Number(process.env.PORT || 8080);
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID || '';
@@ -43,53 +42,46 @@ function json(res, status, body) {
 
 function money(value) {
   const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 }
 
 function normalizeQuery(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 180);
 }
 
-async function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function clientIp(req) {
+function clientKey(req) {
   const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   return forwarded || req.socket.remoteAddress || 'unknown';
 }
 
 function allowRequest(req) {
+  const key = clientKey(req);
   const now = Date.now();
-  const key = clientIp(req);
-  const current = rateBuckets.get(key);
-  if (!current || now - current.startedAt >= RATE_WINDOW_MS) {
+  const bucket = rateBuckets.get(key);
+  if (!bucket || now - bucket.startedAt >= RATE_WINDOW_MS) {
     rateBuckets.set(key, { startedAt: now, count: 1 });
     return true;
   }
-  current.count += 1;
-  return current.count <= RATE_MAX;
+  bucket.count += 1;
+  return bucket.count <= RATE_MAX;
 }
 
 function pruneRateBuckets() {
-  if (rateBuckets.size < 1000) return;
   const cutoff = Date.now() - RATE_WINDOW_MS * 2;
-  for (const [key, value] of rateBuckets) {
-    if (value.startedAt < cutoff) rateBuckets.delete(key);
+  for (const [key, bucket] of rateBuckets.entries()) {
+    if (bucket.startedAt < cutoff) rateBuckets.delete(key);
   }
 }
 
+function cacheKey(source, q) {
+  return `${source}:${q.toLowerCase()}`;
+}
+
 function cacheGet(source, q) {
-  const key = `${source}:${q.toLowerCase()}`;
+  const key = cacheKey(source, q);
   const entry = searchCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.createdAt > CACHE_TTL_MS) {
+  if (Date.now() - entry.at > CACHE_TTL_MS) {
     searchCache.delete(key);
     return null;
   }
@@ -97,146 +89,126 @@ function cacheGet(source, q) {
 }
 
 function cacheSet(source, q, items) {
-  const key = `${source}:${q.toLowerCase()}`;
   if (searchCache.size >= CACHE_MAX) {
     const oldest = searchCache.keys().next().value;
     if (oldest) searchCache.delete(oldest);
   }
-  searchCache.set(key, { createdAt: Date.now(), items });
+  searchCache.set(cacheKey(source, q), { at: Date.now(), items });
 }
 
-async function getEbayToken() {
-  if (!EBAY_CLIENT_ID || !EBAY_CLIENT_SECRET) {
-    throw new Error('eBay credentials are not configured');
+async function fetchJson(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const text = await response.text();
+    let body = {};
+    try { body = text ? JSON.parse(text) : {}; } catch (_) { body = {}; }
+    if (!response.ok) {
+      const error = new Error(`upstream_${response.status}`);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+    return body;
+  } finally {
+    clearTimeout(timeout);
   }
-  if (ebayToken && Date.now() < ebayTokenExpiresAt - 60_000) return ebayToken;
+}
 
-  const auth = Buffer.from(`${EBAY_CLIENT_ID}:${EBAY_CLIENT_SECRET}`).toString('base64');
+async function ebayAccessToken() {
+  if (!EBAY_CLIENT_ID || !EBAY_CLIENT_SECRET) return '';
+  if (ebayToken && Date.now() < ebayTokenExpiresAt - 60_000) return ebayToken;
+  const credentials = Buffer.from(`${EBAY_CLIENT_ID}:${EBAY_CLIENT_SECRET}`).toString('base64');
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     scope: 'https://api.ebay.com/oauth/api_scope',
   });
-
-  const response = await fetchWithTimeout(`${EBAY_API_BASE}/identity/v1/oauth2/token`, {
+  const token = await fetchJson(`${EBAY_API_BASE}/identity/v1/oauth2/token`, {
     method: 'POST',
     headers: {
-      authorization: `Basic ${auth}`,
+      authorization: `Basic ${credentials}`,
       'content-type': 'application/x-www-form-urlencoded',
     },
     body,
   });
-
-  if (!response.ok) throw new Error(`eBay OAuth failed (${response.status})`);
-
-  const data = await response.json();
-  ebayToken = data.access_token;
-  ebayTokenExpiresAt = Date.now() + Number(data.expires_in || 7200) * 1000;
+  ebayToken = String(token.access_token || '');
+  ebayTokenExpiresAt = Date.now() + Number(token.expires_in || 0) * 1000;
   return ebayToken;
 }
 
-async function searchEbay(q) {
-  const token = await getEbayToken();
-  const url = new URL(`${EBAY_API_BASE}/buy/browse/v1/item_summary/search`);
-  if (/^\d{8,14}$/.test(q)) {
-    url.searchParams.set('gtin', q);
-  } else {
-    url.searchParams.set('q', q);
-  }
-  url.searchParams.set('limit', '40');
-  url.searchParams.set('filter', 'conditions:{USED},buyingOptions:{FIXED_PRICE}');
+function ebayConditionLabel(condition) {
+  const value = String(condition || '').toUpperCase();
+  if (value === 'NEW') return 'Neu';
+  if (value === 'LIKE_NEW') return 'Wie neu';
+  if (value === 'VERY_GOOD') return 'Sehr gut';
+  if (value === 'GOOD') return 'Gut';
+  if (value === 'ACCEPTABLE') return 'Akzeptabel';
+  return value ? value.replaceAll('_', ' ') : 'Unbekannt';
+}
 
-  const response = await fetchWithTimeout(url, {
+async function searchEbay(q) {
+  const token = await ebayAccessToken();
+  if (!token) return [];
+  const url = new URL(`${EBAY_API_BASE}/buy/browse/v1/item_summary/search`);
+  url.searchParams.set('q', q);
+  url.searchParams.set('limit', '50');
+  url.searchParams.set('filter', 'buyingOptions:{FIXED_PRICE},itemLocationCountry:DE');
+  const data = await fetchJson(url, {
     headers: {
       authorization: `Bearer ${token}`,
       'x-ebay-c-marketplace-id': 'EBAY_DE',
-      'accept-language': 'de-DE',
     },
   });
-
-  if (!response.ok) throw new Error(`eBay Browse failed (${response.status})`);
-
-  const data = await response.json();
-  const items = (data.itemSummaries || [])
-    .map((item) => {
-      const buyingOptions = Array.isArray(item.buyingOptions) ? item.buyingOptions : [];
-      if (!buyingOptions.includes('FIXED_PRICE')) return null;
-      const currency = item.price?.currency || 'EUR';
-      if (currency !== 'EUR') return null;
-
-      const shippingValues = (item.shippingOptions || [])
-        .map((option) => Number(option?.shippingCost?.value))
-        .filter((value) => Number.isFinite(value) && value >= 0);
-      const shipping = shippingValues.length > 0 ? Math.min(...shippingValues) : 0;
-
-      return {
-        source: 'ebay_de',
-        title: item.title || 'eBay listing',
-        price: money(item.price?.value),
-        shipping,
-        currency,
-        condition: item.condition || 'USED',
-        url: item.itemWebUrl || '',
-        live: EBAY_ENV === 'production',
-        environment: EBAY_ENV,
-      };
-    })
-    .filter((item) => item && item.price > 0);
-  return filterMarketListings(q, items);
-}
-
-function keepaRequestUrl(q) {
-  if (!KEEPA_API_KEY) throw new Error('Keepa API key is not configured');
-
-  const value = q.trim();
-  const url = new URL('https://api.keepa.com/product');
-  url.searchParams.set('key', KEEPA_API_KEY);
-  url.searchParams.set('domain', '3');
-  url.searchParams.set('offers', '20');
-  url.searchParams.set('only-live-offers', '1');
-  url.searchParams.set('history', '0');
-
-  if (/^[A-Z0-9]{10}$/i.test(value) && /[A-Z]/i.test(value)) {
-    url.searchParams.set('asin', value.toUpperCase());
-  } else if (/^\d{8,14}$/.test(value)) {
-    url.searchParams.set('code', value);
-  } else {
-    return null;
-  }
-  return url;
+  const summaries = Array.isArray(data.itemSummaries) ? data.itemSummaries : [];
+  return summaries.map((item) => {
+    const price = money(item.price?.value);
+    const shipping = money(item.shippingOptions?.[0]?.shippingCost?.value);
+    return {
+      source: 'ebay_de',
+      title: String(item.title || '').trim(),
+      price,
+      shipping,
+      currency: String(item.price?.currency || 'EUR'),
+      condition: ebayConditionLabel(item.condition),
+      url: String(item.itemWebUrl || ''),
+      live: true,
+    };
+  }).filter((item) => item.title && item.price > 0 && item.currency === 'EUR' && item.url.startsWith('https://'));
 }
 
 function keepaCondition(value) {
-  const labels = {
-    0: 'Unknown',
-    1: 'New',
-    2: 'Used - Like New',
-    3: 'Used - Very Good',
-    4: 'Used - Good',
-    5: 'Used - Acceptable',
-    6: 'Refurbished',
-    7: 'Collectible - Like New',
-    8: 'Collectible - Very Good',
-    9: 'Collectible - Good',
-    10: 'Collectible - Acceptable',
-    11: 'Rental',
-  };
-  return labels[Number(value)] || 'Unknown';
+  const n = Number(value);
+  if (n === 1) return 'Neu';
+  if (n === 2) return 'Gebraucht - wie neu';
+  if (n === 3) return 'Gebraucht - sehr gut';
+  if (n === 4) return 'Gebraucht - gut';
+  if (n === 5) return 'Gebraucht - akzeptabel';
+  return 'Unbekannt';
 }
 
 async function searchAmazon(q) {
-  const url = keepaRequestUrl(q);
-  if (!url) return [];
+  if (!KEEPA_API_KEY) return [];
+  const searchUrl = new URL('https://api.keepa.com/search');
+  searchUrl.searchParams.set('key', KEEPA_API_KEY);
+  searchUrl.searchParams.set('domain', '3');
+  searchUrl.searchParams.set('type', 'product');
+  searchUrl.searchParams.set('term', q);
+  const search = await fetchJson(searchUrl);
+  const asinList = Array.isArray(search.asinList) ? search.asinList.slice(0, 10) : [];
+  if (!asinList.length) return [];
 
-  const response = await fetchWithTimeout(url, {
-    headers: { 'accept-encoding': 'gzip' },
-  });
+  const productUrl = new URL('https://api.keepa.com/product');
+  productUrl.searchParams.set('key', KEEPA_API_KEY);
+  productUrl.searchParams.set('domain', '3');
+  productUrl.searchParams.set('asin', asinList.join(','));
+  productUrl.searchParams.set('offers', '20');
+  const payload = await fetchJson(productUrl);
+  const products = Array.isArray(payload.products) ? payload.products : [];
+  return products.flatMap((product) => keepaProductItems(product));
+}
 
-  if (!response.ok) throw new Error(`Keepa request failed (${response.status})`);
-
-  const data = await response.json();
-  const product = data.products?.[0];
-  if (!product) return [];
-
+function keepaProductItems(product) {
   const asin = product.asin || '';
   const title = product.title || `Amazon ${asin}`;
   const offers = Array.isArray(product.offers) ? product.offers : [];
@@ -312,7 +284,6 @@ function sourceStatus() {
     mediamarkt: { configured: false, mode: 'official_search_link' },
     saturn: { configured: false, mode: 'official_search_link' },
     idealo: { configured: false, mode: 'official_search_link' },
-    buyback: buybackSourceStatus(),
     buyback: buybackSourceStatus(),
   };
 }
@@ -412,89 +383,34 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    if (req.method === 'GET' && url.pathname === '/v1/buyback/search') {
-      pruneRateBuckets();
-      if (!allowRequest(req)) {
-        return json(res, 429, { error: 'rate_limit', items: [], best: null });
-      }
-
-      const q = normalizeQuery(url.searchParams.get('q'));
-      const condition = String(url.searchParams.get('condition') || '').trim().slice(0, 32);
-      if (!q) return json(res, 400, { error: 'q is required', items: [], best: null });
-      if (!condition) return json(res, 400, { error: 'condition is required', items: [], best: null });
-
-      const started = Date.now();
-      try {
-        const result = await fetchBuybackOffers(q, condition);
-        return json(res, 200, {
-          source: 'buyback',
-          query: q,
-          condition,
-          configured: result.configured,
-          live: result.configured && result.items.length > 0,
-          items: result.items,
-          best: result.best,
-          meta: {
-            count: result.items.length,
-            elapsed_ms: Date.now() - started,
-            data_kind: 'indicative_buyback',
-            note: result.configured
-              ? 'Indicative provider offers; final payout may depend on provider inspection.'
-              : 'Buyback provider is not configured; no price is estimated or fabricated.',
-          },
-        });
-      } catch (error) {
-        const message = error?.name === 'AbortError'
-          ? 'upstream_timeout'
-          : error instanceof Error
-            ? error.message
-            : String(error);
-        return json(res, 503, {
-          source: 'buyback',
-          query: q,
-          condition,
-          items: [],
-          best: null,
-          error: message,
-        });
-      }
-    }
-
     if (req.method === 'GET' && url.pathname === '/v1/market/search') {
       pruneRateBuckets();
       if (!allowRequest(req)) {
         return json(res, 429, { error: 'rate_limit', items: [] });
       }
-
-      const source = String(url.searchParams.get('source') || '').trim();
+      const source = String(url.searchParams.get('source') || 'all').trim().toLowerCase();
       const q = normalizeQuery(url.searchParams.get('q'));
-      if (!ALLOWED_SOURCES.has(source)) {
-        return json(res, 400, { error: 'unsupported_source', items: [] });
-      }
-      if (!q) {
-        return json(res, 400, { error: 'q is required', items: [] });
-      }
+      if (!ALLOWED_SOURCES.has(source)) return json(res, 400, { error: 'unsupported_source', items: [] });
+      if (!q) return json(res, 400, { error: 'q is required', items: [] });
 
-      const started = Date.now();
       try {
         const result = await marketSearchCached(source, q);
+        const quality = filterMarketListings(result.items, {
+          query: q,
+          source,
+          now: Date.now(),
+        });
         return json(res, 200, {
           source,
           query: q,
-          live: result.items.length > 0 && (source !== 'ebay_de' || EBAY_ENV === 'production'),
-          environment: source === 'ebay_de' || source === 'all' ? EBAY_ENV : undefined,
-          items: result.items,
+          cached: result.cached,
+          items: quality.items,
           meta: {
-            count: result.items.length,
-            elapsed_ms: Date.now() - started,
-            cached: result.cached,
-            note: source === 'ebay_de'
-              ? (EBAY_ENV === 'production'
-                  ? 'eBay Browse: used fixed-price active listings, not verified sold prices.'
-                  : 'eBay Sandbox: test/mock data only; do not use for market valuation.')
-              : source === 'amazon_de'
-                ? 'Amazon reference data is provided through Keepa when configured.'
-                : '',
+            count: quality.items.length,
+            raw_count: result.items.length,
+            rejected_count: quality.rejectedCount,
+            market_quality: quality.marketQuality,
+            price_summary: quality.priceSummary,
           },
         });
       } catch (error) {
@@ -503,13 +419,7 @@ const server = http.createServer(async (req, res) => {
           : error instanceof Error
             ? error.message
             : String(error);
-        return json(res, 503, {
-          source,
-          query: q,
-          environment: source === 'ebay_de' || source === 'all' ? EBAY_ENV : undefined,
-          items: [],
-          error: message,
-        });
+        return json(res, 502, { error: message, items: [] });
       }
     }
 
@@ -520,5 +430,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`FlipRadar API listening on :${PORT} · eBay ${EBAY_ENV}`);
+  console.log(`FlipRadar API listening on :${PORT}`);
 });
