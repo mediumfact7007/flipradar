@@ -3,57 +3,43 @@ import 'package:flipradar/deal_alert.dart';
 
 void main() {
   test('defaults are useful but avoid tiny market noise', () {
-    final alert = DealAlertPreference.defaults(
-      'flip-1',
-      now: DateTime(2026, 9, 17, 12),
-    );
+    final alert = DealAlertPreference.defaults('flip-1', now: DateTime(2026, 9, 17, 12));
     expect(alert.enabled, isTrue);
     expect(alert.minProfitIncrease, 5);
     expect(alert.minRoiIncrease, 5);
-    expect(shouldTriggerDealAlert(
-      preference: alert,
-      previousProfit: 30,
-      currentProfit: 33,
-      previousRoi: 25,
-      currentRoi: 28,
-    ), isFalse);
+    expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 33, previousRoi: 25, currentRoi: 28), isFalse);
   });
 
   test('material profit or roi improvement triggers enabled alert', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    expect(shouldTriggerDealAlert(
+    expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 35, previousRoi: 25, currentRoi: 26), isTrue);
+    expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 31, previousRoi: 25, currentRoi: 30), isTrue);
+  });
+
+  test('evaluation explains exactly which threshold fired', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(
       preference: alert,
       previousProfit: 30,
-      currentProfit: 35,
-      previousRoi: 25,
-      currentRoi: 26,
-    ), isTrue);
-    expect(shouldTriggerDealAlert(
-      preference: alert,
-      previousProfit: 30,
-      currentProfit: 31,
-      previousRoi: 25,
-      currentRoi: 30,
-    ), isTrue);
+      currentProfit: 32,
+      previousRoi: 20,
+      currentRoi: 27,
+    );
+    expect(evaluation.triggered, isTrue);
+    expect(evaluation.profitIncrease, 2);
+    expect(evaluation.roiIncrease, 7);
+    expect(evaluation.profitThresholdReached, isFalse);
+    expect(evaluation.roiThresholdReached, isTrue);
   });
 
   test('disabled alert never triggers', () {
     final alert = DealAlertPreference.defaults('flip-1').copyWith(enabled: false);
-    expect(shouldTriggerDealAlert(
-      preference: alert,
-      previousProfit: 10,
-      currentProfit: 100,
-      previousRoi: 10,
-      currentRoi: 100,
-    ), isFalse);
+    expect(shouldTriggerDealAlert(preference: alert, previousProfit: 10, currentProfit: 100, previousRoi: 10, currentRoi: 100), isFalse);
   });
 
   test('preference survives json roundtrip', () {
     final original = DealAlertPreference(
-      flipId: 'flip-7',
-      enabled: true,
-      minProfitIncrease: 8,
-      minRoiIncrease: 12,
+      flipId: 'flip-7', enabled: true, minProfitIncrease: 8, minRoiIncrease: 12,
       updatedAt: DateTime.parse('2026-09-17T10:00:00Z').toLocal(),
     );
     final restored = DealAlertPreference.fromJson(original.toJson());
@@ -67,11 +53,8 @@ void main() {
 
   test('invalid persisted thresholds are rejected', () {
     expect(DealAlertPreference.fromJson({
-      'flip_id': 'flip-1',
-      'enabled': true,
-      'min_profit_increase': -1,
-      'min_roi_increase': 5,
-      'updated_at': '2026-09-17T10:00:00Z',
+      'flip_id': 'flip-1', 'enabled': true, 'min_profit_increase': -1,
+      'min_roi_increase': 5, 'updated_at': '2026-09-17T10:00:00Z',
     }), isNull);
   });
 }
