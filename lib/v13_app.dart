@@ -15,6 +15,7 @@ import 'buyback.dart';
 import 'buyback_client.dart';
 import 'buyback_summary.dart';
 import 'buyback_summary_card.dart';
+import 'deal_alert_toggle.dart';
 import 'recheck_delta.dart';
 import 'recheck_delta_card.dart';
 import 'source_registry.dart';
@@ -2746,6 +2747,10 @@ class _V13FlipCard extends StatelessWidget {
               style: TextStyle(fontSize: 10.2, color: stale ? const Color(0xFFC47B00) : const Color(0xFF7A7E8B), fontWeight: stale ? FontWeight.w800 : FontWeight.w500),
             )),
           ]),
+        ],
+        if (saved) ...[
+          const SizedBox(height: 8),
+          DealAlertToggle(flipId: flip.id, english: english),
         ],
         if (!sold && !archived) ...[
           const SizedBox(height: 10),
