@@ -29,6 +29,26 @@ jobs:
         run: python3 tools/patch_buyback_endpoint.py
       - name: Apply guarded buyback deal UI patch
         run: python3 tools/patch_buyback_deal_ui.py
+      - name: Normalize guarded imports
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/v13_app.dart')
+          s = p.read_text()
+          for line in [
+              "import 'buyback.dart';",
+              "import 'buyback_client.dart';",
+              "import 'buyback_summary.dart';",
+              "import 'buyback_summary_card.dart';",
+          ]:
+              first = s.find(line)
+              if first < 0:
+                  raise SystemExit(f'missing required import: {line}')
+              head = s[:first + len(line)]
+              tail = s[first + len(line):].replace(line, '')
+              s = head + tail
+          p.write_text(s)
+          PY
       - name: Apply guarded watchlist retention patch
         run: python3 tools/patch_watchlist_home_attention.py
       - name: Apply watchlist navigation sync fix
@@ -58,6 +78,10 @@ jobs:
           grep -q "freshCount = saved.length - stale.length" lib/v13_app.dart
           grep -q "NÄCHSTEN PRÜFEN" lib/v13_app.dart
           grep -q "stale.isEmpty ? saved.first : stale.first" lib/v13_app.dart
+          test "$(grep -Fc "import 'buyback.dart';" lib/v13_app.dart)" -eq 1
+          test "$(grep -Fc "import 'buyback_client.dart';" lib/v13_app.dart)" -eq 1
+          test "$(grep -Fc "import 'buyback_summary.dart';" lib/v13_app.dart)" -eq 1
+          test "$(grep -Fc "import 'buyback_summary_card.dart';" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "import 'deal_alert_toggle.dart';" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "DealAlertToggle(flipId: flip.id, english: english)" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "import 'deal_alert_result_card.dart';" lib/v13_app.dart)" -eq 1
@@ -72,5 +96,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/index.js lib/v13_app.dart
-          git commit -m "Show explainable deal alert during recheck"
+          git commit -m "Normalize guarded product imports"
           git push origin HEAD:main
