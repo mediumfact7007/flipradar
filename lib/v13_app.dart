@@ -2598,8 +2598,9 @@ class _V149WatchlistAttention extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final stale = saved.where((e) => now.difference(e.checkedAt).inHours >= 24).toList();
-    final oldest = saved.first;
+    final stale = saved.where((e) => now.difference(e.checkedAt).inHours >= 24).toList()
+      ..sort((a, b) => a.checkedAt.compareTo(b.checkedAt));
+    final oldest = stale.isEmpty ? saved.first : stale.first;
     final freshCount = saved.length - stale.length;
     final title = stale.isEmpty
         ? t('Merkliste aktuell', 'Watchlist up to date')
