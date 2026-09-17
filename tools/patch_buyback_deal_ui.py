@@ -11,7 +11,18 @@ def once(old, new):
         raise SystemExit(f'guard failed: expected exactly one match, got {s.count(old)} for {old[:80]!r}')
     s = s.replace(old, new, 1)
 
-once("import 'recheck_delta.dart';\n", "import 'buyback.dart';\nimport 'buyback_client.dart';\nimport 'buyback_summary.dart';\nimport 'buyback_summary_card.dart';\nimport 'recheck_delta.dart';\n")
+buyback_imports = [
+    "import 'buyback.dart';",
+    "import 'buyback_client.dart';",
+    "import 'buyback_summary.dart';",
+    "import 'buyback_summary_card.dart';",
+]
+missing_buyback_imports = [line for line in buyback_imports if line not in s]
+if missing_buyback_imports:
+    anchor = "import 'recheck_delta.dart';\n"
+    if s.count(anchor) != 1:
+        raise SystemExit(f'guard failed: expected exactly one recheck import anchor, got {s.count(anchor)}')
+    s = s.replace(anchor, ''.join(f'{line}\n' for line in missing_buyback_imports) + anchor, 1)
 
 once("  bool listingResolveFailed = false;\n  int token = 0;", "  bool listingResolveFailed = false;\n  BuybackCondition? buybackCondition;\n  List<BuybackOffer> buybackOffers = const [];\n  bool buybackLoading = false;\n  int buybackToken = 0;\n  int token = 0;")
 
@@ -107,5 +118,9 @@ ui = """          if (expectedSale != null) ...[
           ],
 """
 once(ui_anchor, ui + ui_anchor)
+
+for line in buyback_imports:
+    if s.count(line) != 1:
+        raise SystemExit(f'buyback import must occur exactly once: {line}')
 
 p.write_text(s)
