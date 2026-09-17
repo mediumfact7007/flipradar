@@ -95,10 +95,15 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
           Text(t('Deal-Alarm', 'Deal alert'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5)),
           Text(
             enabled
-                ? t('Meldet relevante Verbesserung ab +5 € Gewinn oder +5 %-Pkt. ROI.', 'Flags a meaningful improvement from +€5 profit or +5pp ROI.')
-                : t('Bei deutlich besserem Deal aufmerksam machen.', 'Flag when the deal becomes meaningfully better.'),
+                ? t('Markiert beim Recheck Verbesserungen ab +5 € Gewinn oder +5 %-Pkt. ROI.', 'Flags recheck improvements from +€5 profit or +5pp ROI.')
+                : t('Beim Recheck deutlich bessere Deals markieren.', 'Flag meaningfully better deals on recheck.'),
             style: const TextStyle(fontSize: 9.8, color: Color(0xFF707481)),
           ),
+          if (enabled)
+            Text(
+              t('Aktuell lokal in FlipRadar – keine Push-Nachricht.', 'Currently local in FlipRadar — no push notification.'),
+              style: const TextStyle(fontSize: 9.2, color: Color(0xFF8B8E9A)),
+            ),
         ])),
         if (_loading || _saving)
           const Padding(
