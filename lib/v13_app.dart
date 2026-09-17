@@ -2600,12 +2600,13 @@ class _V149WatchlistAttention extends StatelessWidget {
     final now = DateTime.now();
     final stale = saved.where((e) => now.difference(e.checkedAt).inHours >= 24).toList();
     final oldest = saved.first;
+    final freshCount = saved.length - stale.length;
     final title = stale.isEmpty
         ? t('Merkliste aktuell', 'Watchlist up to date')
         : t('${stale.length} Deal${stale.length == 1 ? '' : 's'} neu prüfen', '${stale.length} deal${stale.length == 1 ? '' : 's'} to recheck');
     final subtitle = stale.isEmpty
         ? t('Alle gespeicherten Deals wurden in den letzten 24 Std. geprüft.', 'All saved deals were checked within the last 24h.')
-        : t('Ältester Check ${v147AgeLabel(oldest.checkedAt, false)}.', 'Oldest check ${v147AgeLabel(oldest.checkedAt, true)}.');
+        : t('$freshCount von ${saved.length} aktuell · ältester Check ${v147AgeLabel(oldest.checkedAt, false)}.', '$freshCount of ${saved.length} current · oldest check ${v147AgeLabel(oldest.checkedAt, true)}.');
     return Container(
       key: const ValueKey('v149-watchlist-attention'),
       padding: const EdgeInsets.fromLTRB(13, 11, 11, 11),
@@ -2626,7 +2627,7 @@ class _V149WatchlistAttention extends StatelessWidget {
           TextButton(
             key: const ValueKey('v149-recheck-oldest'),
             onPressed: () => onRecheck(oldest),
-            child: Text(t('PRÜFEN', 'CHECK')),
+            child: Text(t(stale.length > 1 ? 'NÄCHSTEN PRÜFEN' : 'PRÜFEN', stale.length > 1 ? 'CHECK NEXT' : 'CHECK')),
           ),
       ]),
     );
