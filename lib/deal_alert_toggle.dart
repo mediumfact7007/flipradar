@@ -42,7 +42,15 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
   @override
   void didUpdateWidget(covariant DealAlertToggle oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.flipId != widget.flipId) _load();
+    if (oldWidget.flipId != widget.flipId) {
+      // Never show the previous deal's alert state while the new preference is
+      // loading. Saved-deal cards can be reused by Flutter during reordering.
+      setState(() {
+        _preference = null;
+        _loading = true;
+      });
+      _load();
+    }
   }
 
   Future<void> _load() async {
