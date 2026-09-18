@@ -55,8 +55,11 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
-    final preference = await _store.forFlip(widget.flipId);
-    if (!mounted) return;
+    final requestedFlipId = widget.flipId;
+    final preference = await _store.forFlip(requestedFlipId);
+    // A slower read for the previous card must never overwrite the currently
+    // visible saved deal after Flutter reuses this State during reordering.
+    if (!mounted || requestedFlipId != widget.flipId) return;
     setState(() {
       _preference = preference;
       _loading = false;
