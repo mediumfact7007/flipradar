@@ -58,9 +58,10 @@ void main() {
 
     await tester.pumpAndSettle();
     final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
-    final saleField = tester.widget<TextField>(saleFinder);
     await tester.enterText(saleFinder, '700');
-    saleField.onSubmitted!('700');
+    final commit = find.descendant(of: saleFinder, matching: find.byIcon(Icons.check_rounded));
+    expect(commit, findsOneWidget);
+    await tester.tap(commit);
     await tester.pump();
 
     final condition = find.byKey(const ValueKey('v151-buyback-condition'));
