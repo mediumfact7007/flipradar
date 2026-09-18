@@ -15,6 +15,7 @@ on:
       - 'tools/patch_deal_alert_recheck_result.py'
       - 'tools/patch_live_market_listings.py'
       - 'tools/patch_live_market_empty_state.py'
+      - 'tools/patch_buyback_empty_state.py'
   workflow_dispatch:
 
 permissions:
@@ -67,10 +68,12 @@ jobs:
         run: python3 tools/patch_live_market_listings.py
       - name: Explain when no verified live listings exist
         run: python3 tools/patch_live_market_empty_state.py
+      - name: Explain unavailable live buyback prices
+        run: python3 tools/patch_buyback_empty_state.py
       - name: Verify intended diff only
         run: |
           git diff --check
-          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py tools/patch_watchlist_filter_sync.py tools/patch_watchlist_recheck_queue.py tools/patch_watchlist_recheck_oldest.py tools/patch_deal_alert_toggle.py tools/patch_deal_alert_recheck_result.py tools/patch_live_market_listings.py tools/patch_live_market_empty_state.py
+          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py tools/patch_watchlist_filter_sync.py tools/patch_watchlist_recheck_queue.py tools/patch_watchlist_recheck_oldest.py tools/patch_deal_alert_toggle.py tools/patch_deal_alert_recheck_result.py tools/patch_live_market_listings.py tools/patch_live_market_empty_state.py tools/patch_buyback_empty_state.py
           git diff -- server/index.js lib/v13_app.dart
           test "$(grep -Fc "const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');" server/index.js)" -eq 1
           test "$(grep -Fc "buyback: buybackSourceStatus()," server/index.js)" -eq 1
@@ -78,6 +81,8 @@ jobs:
           grep -q "no price is estimated or fabricated" server/index.js
           grep -q "v151-buyback-condition" lib/v13_app.dart
           grep -q "BuybackComparisonCard" lib/v13_app.dart
+          grep -q "v156-buyback-empty" lib/v13_app.dart
+          grep -q "Noch kein verifiziertes LIVE-Ankaufangebot" lib/v13_app.dart
           grep -q "v152-watchlist-home-attention" lib/v13_app.dart
           grep -q "initialFilter: flipsInitialFilter" lib/v13_app.dart
           grep -q "oldWidget.initialFilter != widget.initialFilter" lib/v13_app.dart
@@ -107,5 +112,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/index.js lib/v13_app.dart
-          git commit -m "Explain unavailable live market data"
+          git commit -m "Explain unavailable live buyback data"
           git push origin HEAD:main
