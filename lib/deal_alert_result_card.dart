@@ -44,12 +44,17 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
   @override
   void didUpdateWidget(covariant DealAlertResultCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.flipId != widget.flipId) _load();
+    if (oldWidget.flipId != widget.flipId) {
+      // Do not render the previous deal's alert while the new preference loads.
+      setState(() => _preference = null);
+      _load();
+    }
   }
 
   Future<void> _load() async {
-    final preference = await _store.forFlip(widget.flipId);
-    if (!mounted) return;
+    final requestedFlipId = widget.flipId;
+    final preference = await _store.forFlip(requestedFlipId);
+    if (!mounted || requestedFlipId != widget.flipId) return;
     setState(() => _preference = preference);
   }
 
