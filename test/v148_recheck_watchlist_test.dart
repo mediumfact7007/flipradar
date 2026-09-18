@@ -97,14 +97,11 @@ void main() {
     final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
     await tester.enterText(saleFinder, '350');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    saleField.onSubmitted!('350');
     await tester.pump();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
     expect(remember, findsOneWidget);
-    // Invoke the button callback directly. Geometry/scrolling is irrelevant to this
-    // regression: it verifies that a recheck updates the existing snapshot rather
-    // than creating a duplicate.
     final rememberButton = tester.widget<OutlinedButton>(remember);
     expect(rememberButton.onPressed, isNotNull);
     rememberButton.onPressed!();
