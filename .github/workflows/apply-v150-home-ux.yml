@@ -13,6 +13,7 @@ on:
       - 'tools/patch_watchlist_recheck_oldest.py'
       - 'tools/patch_deal_alert_toggle.py'
       - 'tools/patch_deal_alert_recheck_result.py'
+      - 'tools/patch_live_market_listings.py'
   workflow_dispatch:
 
 permissions:
@@ -61,10 +62,12 @@ jobs:
         run: python3 tools/patch_deal_alert_toggle.py
       - name: Show explainable alert result during recheck
         run: python3 tools/patch_deal_alert_recheck_result.py
+      - name: Show real marketplace listings in deal check
+        run: python3 tools/patch_live_market_listings.py
       - name: Verify intended diff only
         run: |
           git diff --check
-          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py tools/patch_watchlist_filter_sync.py tools/patch_watchlist_recheck_queue.py tools/patch_watchlist_recheck_oldest.py tools/patch_deal_alert_toggle.py tools/patch_deal_alert_recheck_result.py
+          git diff --exit-code -- tools/patch_buyback_endpoint.py tools/patch_buyback_deal_ui.py tools/patch_watchlist_home_attention.py tools/patch_watchlist_filter_sync.py tools/patch_watchlist_recheck_queue.py tools/patch_watchlist_recheck_oldest.py tools/patch_deal_alert_toggle.py tools/patch_deal_alert_recheck_result.py tools/patch_live_market_listings.py
           git diff -- server/index.js lib/v13_app.dart
           test "$(grep -Fc "const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');" server/index.js)" -eq 1
           test "$(grep -Fc "buyback: buybackSourceStatus()," server/index.js)" -eq 1
@@ -78,6 +81,9 @@ jobs:
           grep -q "freshCount = saved.length - stale.length" lib/v13_app.dart
           grep -q "NÄCHSTEN PRÜFEN" lib/v13_app.dart
           grep -q "stale.isEmpty ? saved.first : stale.first" lib/v13_app.dart
+          grep -q "v154-live-market-listings" lib/v13_app.dart
+          grep -q "Sandbox/Referenzwerte erscheinen hier nicht" lib/v13_app.dart
+          test "$(grep -Fc "class _V154LiveListingPreview extends StatelessWidget" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "import 'buyback.dart';" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "import 'buyback_client.dart';" lib/v13_app.dart)" -eq 1
           test "$(grep -Fc "import 'buyback_summary.dart';" lib/v13_app.dart)" -eq 1
@@ -96,5 +102,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/index.js lib/v13_app.dart
-          git commit -m "Normalize guarded product imports"
+          git commit -m "Show verified live marketplace listings"
           git push origin HEAD:main
