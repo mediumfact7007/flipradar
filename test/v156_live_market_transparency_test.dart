@@ -42,6 +42,9 @@ void main() {
         home: V13CheckPage(
           english: false,
           input: normalizeV13Search('iPhone 15 Pro'),
+          // A closed loopback port makes the negative-provider path deterministic
+          // and prevents this UI regression test from depending on external I/O.
+          backendBase: 'http://127.0.0.1:1',
           targetRoi: 35,
           minProfit: 20,
           plan: UserPlan.free,
@@ -64,7 +67,7 @@ void main() {
     final condition = find.byKey(const ValueKey('v151-buyback-condition'));
     expect(condition, findsOneWidget);
     await tester.ensureVisible(condition);
-    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.tap(condition);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sehr gut').last);
