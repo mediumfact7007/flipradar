@@ -47,8 +47,6 @@ void main() {
     expect(find.text('4,99 € / Monat'), findsOneWidget);
     expect(find.text('33 % SPAREN'), findsOneWidget);
 
-    // Billing is intentionally lazy and guarded by an 8-second timeout.
-    // Advance fake time so the widget test leaves no pending timer behind.
     await tester.pump(const Duration(seconds: 9));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
@@ -100,14 +98,14 @@ void main() {
     expect(saleField.controller?.text, '350');
     await tester.enterText(saleFinder, '350');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
     expect(remember, findsOneWidget);
     await tester.ensureVisible(remember);
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(remember);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(adds, 0);
     expect(updated, isNotNull);
