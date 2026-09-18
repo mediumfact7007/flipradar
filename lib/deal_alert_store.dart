@@ -12,6 +12,11 @@ import 'deal_alert.dart';
 class DealAlertStore {
   static const _storageKey = 'deal_alert_preferences_v1';
 
+  // Saved-deal cards each own a store instance. Serialize read-modify-write
+  // mutations across all instances so quickly switching cards cannot let two
+  // overlapping saves overwrite each other's preferences.
+  static Future<void> _mutationQueue = Future<void>.value();
+
   Future<List<DealAlertPreference>> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
@@ -50,30 +55,47 @@ class DealAlertStore {
     return null;
   }
 
-  Future<bool> save(DealAlertPreference preference) async {
-    final all = await load();
-    final next = <DealAlertPreference>[
-      preference,
-      ...all.where((item) => item.flipId != preference.flipId),
-    ];
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.setString(
-      _storageKey,
-      jsonEncode(next.map((item) => item.toJson()).toList()),
-    );
+  Future<bool> _mutate(Future<bool> Function() operation) async {
+    var result = false;
+    _mutationQueue = _mutationQueue.then((_) async {
+      try {
+        result = await operation();
+      } catch (_) {
+        result = false;
+      }
+    });
+    await _mutationQueue;
+    return result;
   }
 
-  Future<bool> remove(String flipId) async {
+  Future<bool> save(DealAlertPreference preference) {
+    return _mutate(() async {
+      final all = await load();
+      final next = <DealAlertPreference>[
+        preference,
+        ...all.where((item) => item.flipId != preference.flipId),
+      ];
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.setString(
+        _storageKey,
+        jsonEncode(next.map((item) => item.toJson()).toList()),
+      );
+    });
+  }
+
+  Future<bool> remove(String flipId) {
     final id = flipId.trim();
-    if (id.isEmpty) return true;
-    final all = await load();
-    final next = all.where((item) => item.flipId != id).toList();
-    if (next.length == all.length) return true;
-    final prefs = await SharedPreferences.getInstance();
-    if (next.isEmpty) return prefs.remove(_storageKey);
-    return prefs.setString(
-      _storageKey,
-      jsonEncode(next.map((item) => item.toJson()).toList()),
-    );
+    if (id.isEmpty) return Future<bool>.value(true);
+    return _mutate(() async {
+      final all = await load();
+      final next = all.where((item) => item.flipId != id).toList();
+      if (next.length == all.length) return true;
+      final prefs = await SharedPreferences.getInstance();
+      if (next.isEmpty) return prefs.remove(_storageKey);
+      return prefs.setString(
+        _storageKey,
+        jsonEncode(next.map((item) => item.toJson()).toList()),
+      );
+    });
   }
 }
