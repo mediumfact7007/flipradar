@@ -1806,6 +1806,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
           ),
           _V154LiveListingPreview(
             english: widget.english,
+            showEmpty: query.text.trim().isNotEmpty && pending.isEmpty,
             listings: listings
                 .where((e) => e.live && (e.role == 'resale' || e.role == 'local') && e.url.trim().isNotEmpty)
                 .take(6)
@@ -2338,9 +2339,10 @@ class _V13SourceChip extends StatelessWidget {
 
 class _V154LiveListingPreview extends StatelessWidget {
   final bool english;
+  final bool showEmpty;
   final List<SourceListing> listings;
 
-  const _V154LiveListingPreview({required this.english, required this.listings});
+  const _V154LiveListingPreview({required this.english, required this.showEmpty, required this.listings});
 
   String t(String de, String en) => english ? en : de;
 
@@ -2353,7 +2355,31 @@ class _V154LiveListingPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (listings.isEmpty) return const SizedBox.shrink();
+    if (listings.isEmpty) {
+      if (!showEmpty) return const SizedBox.shrink();
+      return Container(
+        key: const ValueKey('v155-live-market-empty'),
+        margin: const EdgeInsets.only(top: 9),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E8),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFF0D79A)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF9A6700)),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t('Noch keine verifizierten LIVE-Angebote', 'No verified LIVE listings yet'), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 3),
+            Text(
+              t('Für diese Suche liefert aktuell keine angebundene LIVE-Quelle echte Angebote. Sandbox- oder Referenzwerte werden bewusst nicht als LIVE angezeigt.', 'No connected LIVE source currently returns real listings for this search. Sandbox or reference values are deliberately not shown as LIVE.'),
+              style: const TextStyle(fontSize: 9.8, color: Color(0xFF6F6250)),
+            ),
+          ])),
+        ]),
+      );
+    }
     return Container(
       key: const ValueKey('v154-live-market-listings'),
       margin: const EdgeInsets.only(top: 9),
