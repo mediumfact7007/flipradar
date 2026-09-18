@@ -97,9 +97,8 @@ void main() {
     final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
     await tester.enterText(saleFinder, '350');
-    final commit = find.descendant(of: saleFinder, matching: find.byIcon(Icons.check_rounded));
-    expect(commit, findsOneWidget);
-    await tester.tap(commit);
+    // Exercise the real keyboard commit path instead of reaching into TextField internals.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
