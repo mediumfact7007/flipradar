@@ -70,8 +70,10 @@ DealAlertEvaluation evaluateDealAlert({
   }
   final profitIncrease = currentProfit - previousProfit;
   final roiIncrease = currentRoi - previousRoi;
-  final profitReached = profitIncrease >= preference.minProfitIncrease;
-  final roiReached = roiIncrease >= preference.minRoiIncrease;
+  // Even a zero threshold means "alert on any improvement", not "alert on no
+  // change". This keeps rechecks trustworthy for custom low thresholds.
+  final profitReached = profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
+  final roiReached = roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
   return DealAlertEvaluation(
     triggered: profitReached || roiReached,
     profitIncrease: profitIncrease,
