@@ -102,9 +102,12 @@ void main() {
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
     expect(remember, findsOneWidget);
-    await tester.ensureVisible(remember);
-    await tester.pump();
-    await tester.tap(remember);
+    // Invoke the button callback directly. Geometry/scrolling is irrelevant to this
+    // regression: it verifies that a recheck updates the existing snapshot rather
+    // than creating a duplicate.
+    final rememberButton = tester.widget<OutlinedButton>(remember);
+    expect(rememberButton.onPressed, isNotNull);
+    rememberButton.onPressed!();
     await tester.pump();
 
     expect(adds, 0);
