@@ -33,6 +33,8 @@ jobs:
           if ! grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart; then python3 tools/patch_v146_kleinanzeigen_share_price.py; fi
           if ! grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart; then python3 tools/patch_v147_deal_memory.py; fi
           python3 tools/patch_v147_deal_memory_fix.py
+          if ! grep -q "ValueKey('v151-buyback-condition')" lib/v13_app.dart; then python3 tools/patch_buyback_deal_ui.py; fi
+          if ! grep -q "ValueKey('v156-buyback-empty')" lib/v13_app.dart; then python3 tools/patch_buyback_empty_state.py; fi
 
       - name: Verify V0.14.8 boundaries
         shell: bash
@@ -62,6 +64,8 @@ jobs:
           grep -q 'String v147AgeLabel' lib/v13_app.dart
           grep -q 'v148PrioritizeSaved' lib/v13_app.dart
           grep -q "ValueKey('v148-menu-" lib/v13_app.dart
+          grep -q "ValueKey('v151-buyback-condition')" lib/v13_app.dart
+          grep -q "ValueKey('v156-buyback-empty')" lib/v13_app.dart
           grep -q "require('./listing_resolver')" server/index.js
           grep -q "url.pathname === '/v1/listing/resolve'" server/index.js
           grep -q '^EBAY_ENV=sandbox$' server/.env.example
@@ -186,6 +190,7 @@ jobs:
           flutter test test/v146_kleinanzeigen_share_price_test.dart
           flutter test test/v147_deal_memory_test.dart
           flutter test test/v148_recheck_watchlist_test.dart
+          flutter test test/v156_live_market_transparency_test.dart
 
       - name: Build release APK
         run: flutter build apk --release
