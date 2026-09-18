@@ -63,12 +63,17 @@ void main() {
 
     final condition = find.byKey(const ValueKey('v151-buyback-condition'));
     expect(condition, findsOneWidget);
+    await tester.ensureVisible(condition);
+    await tester.pumpAndSettle();
     await tester.tap(condition);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sehr gut').last);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('v156-buyback-empty')), findsOneWidget);
+    final empty = find.byKey(const ValueKey('v156-buyback-empty'));
+    expect(empty, findsOneWidget);
+    await tester.ensureVisible(empty);
+    await tester.pump();
     expect(find.text('Noch kein verifiziertes LIVE-Ankaufangebot'), findsOneWidget);
     expect(find.textContaining('schätzt hier bewusst keinen Ankaufpreis'), findsOneWidget);
     monetization.dispose();
