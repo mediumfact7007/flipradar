@@ -98,14 +98,14 @@ void main() {
     expect(saleField.controller?.text, '350');
     await tester.enterText(saleFinder, '350');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
     expect(remember, findsOneWidget);
     await tester.ensureVisible(remember);
-    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.tap(remember);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(adds, 0);
     expect(updated, isNotNull);
@@ -145,10 +145,9 @@ void main() {
     await tester.tap(menu);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Archivieren'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(updated, isNotNull);
-    expect(updated!.isArchived, isTrue);
+    expect(updated?.status, 'Archived');
     monetization.dispose();
   });
 }
