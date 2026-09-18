@@ -32,6 +32,21 @@ void main() {
     expect(evaluation.roiThresholdReached, isTrue);
   });
 
+  test('zero thresholds still require a real improvement', () {
+    final alert = DealAlertPreference.defaults('flip-1').copyWith(minProfitIncrease: 0, minRoiIncrease: 0);
+    final unchanged = evaluateDealAlert(
+      preference: alert,
+      previousProfit: 30,
+      currentProfit: 30,
+      previousRoi: 25,
+      currentRoi: 25,
+    );
+    expect(unchanged.triggered, isFalse);
+    expect(unchanged.profitThresholdReached, isFalse);
+    expect(unchanged.roiThresholdReached, isFalse);
+    expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 30.01, previousRoi: 25, currentRoi: 25), isTrue);
+  });
+
   test('disabled alert never triggers', () {
     final alert = DealAlertPreference.defaults('flip-1').copyWith(enabled: false);
     expect(shouldTriggerDealAlert(preference: alert, previousProfit: 10, currentProfit: 100, previousRoi: 10, currentRoi: 100), isFalse);
