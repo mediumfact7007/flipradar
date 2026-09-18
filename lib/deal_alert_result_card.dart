@@ -74,8 +74,8 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
       reasons.add('ROI +${evaluation.roiIncrease.toStringAsFixed(0)} %-Pkt');
     }
     final comparison =
-        '${t('Vorher', 'Before')}: ${widget.previousProfit.toStringAsFixed(0)} € · ${widget.previousRoi.toStringAsFixed(0)} %  →  '
-        '${t('Jetzt', 'Now')}: ${widget.currentProfit.toStringAsFixed(0)} € · ${widget.currentRoi.toStringAsFixed(0)} %';
+        '${t('Vorher', 'Before')}: ${t('Gewinn', 'Profit')} ${widget.previousProfit.toStringAsFixed(0)} € · ROI ${widget.previousRoi.toStringAsFixed(0)} %\n'
+        '${t('Jetzt', 'Now')}: ${t('Gewinn', 'Profit')} ${widget.currentProfit.toStringAsFixed(0)} € · ROI ${widget.currentRoi.toStringAsFixed(0)} %';
 
     return Container(
       key: const ValueKey('v153-deal-alert-result'),
@@ -93,7 +93,7 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
           const SizedBox(height: 4),
           Text(reasons.join(' · '), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
           const SizedBox(height: 3),
-          Text(comparison, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF34413C))),
+          Text(comparison, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.35, color: Color(0xFF34413C))),
           const SizedBox(height: 3),
           Text(t('Seit deinem letzten gespeicherten Check deutlich besser.', 'Meaningfully better than your last saved check.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF626B67))),
         ])),
