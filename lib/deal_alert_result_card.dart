@@ -100,6 +100,8 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
           Text(threshold, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF52605A))),
           const SizedBox(height: 3),
           Text(t('Seit deinem letzten gespeicherten Check deutlich besser.', 'Meaningfully better than your last saved check.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF626B67))),
+          const SizedBox(height: 2),
+          Text(t('Lokaler Recheck-Hinweis – aktuell keine Push-Nachricht.', 'Local recheck notice — currently no push notification.'), style: const TextStyle(fontSize: 9.8, color: Color(0xFF7B837F))),
         ])),
       ]),
     );
