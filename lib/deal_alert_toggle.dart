@@ -67,12 +67,10 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
     });
   }
 
-  Future<void> _setEnabled(bool enabled) async {
+  Future<void> _persist(DealAlertPreference next) async {
     if (_saving) return;
     final requestedFlipId = widget.flipId;
     setState(() => _saving = true);
-    final next = (_preference ?? DealAlertPreference.defaults(requestedFlipId))
-        .copyWith(enabled: enabled, updatedAt: DateTime.now());
     final saved = await _store.save(next);
     // Saving can finish after Flutter has reused this State for another saved
     // deal. Never apply the old deal's result or error to the new card.
@@ -88,9 +86,41 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
     }
   }
 
+  Future<void> _setEnabled(bool enabled) async {
+    final requestedFlipId = widget.flipId;
+    final next = (_preference ?? DealAlertPreference.defaults(requestedFlipId))
+        .copyWith(enabled: enabled, updatedAt: DateTime.now());
+    await _persist(next);
+  }
+
+  Future<void> _setSensitivity(double threshold) async {
+    final current = _preference;
+    if (current == null || !current.enabled) return;
+    await _persist(current.copyWith(
+      minProfitIncrease: threshold,
+      minRoiIncrease: threshold,
+      updatedAt: DateTime.now(),
+    ));
+  }
+
+  String _sensitivityLabel(DealAlertPreference preference) {
+    final threshold = preference.minProfitIncrease;
+    if ((threshold - 2).abs() < 0.01 && (preference.minRoiIncrease - 2).abs() < 0.01) {
+      return t('Sensibel', 'Sensitive');
+    }
+    if ((threshold - 10).abs() < 0.01 && (preference.minRoiIncrease - 10).abs() < 0.01) {
+      return t('Stark', 'Strong');
+    }
+    if ((threshold - 5).abs() < 0.01 && (preference.minRoiIncrease - 5).abs() < 0.01) {
+      return t('Standard', 'Standard');
+    }
+    return t('Eigene Schwelle', 'Custom threshold');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final enabled = _preference?.enabled ?? false;
+    final preference = _preference;
+    final enabled = preference?.enabled ?? false;
     final busy = _loading || _saving;
     return Container(
       key: ValueKey('deal-alert-${widget.flipId}'),
@@ -110,8 +140,11 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(t('Deal-Alarm', 'Deal alert'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5)),
           Text(
-            enabled
-                ? t('Markiert beim Recheck Verbesserungen ab +5 € Gewinn oder +5 %-Pkt. ROI.', 'Flags recheck improvements from +€5 profit or +5pp ROI.')
+            enabled && preference != null
+                ? t(
+                    '${_sensitivityLabel(preference)}: ab +${preference.minProfitIncrease.toStringAsFixed(0)} € Gewinn oder +${preference.minRoiIncrease.toStringAsFixed(0)} %-Pkt. ROI.',
+                    '${_sensitivityLabel(preference)}: from +€${preference.minProfitIncrease.toStringAsFixed(0)} profit or +${preference.minRoiIncrease.toStringAsFixed(0)}pp ROI.',
+                  )
                 : t('Beim Recheck deutlich bessere Deals markieren.', 'Flag meaningfully better deals on recheck.'),
             style: const TextStyle(fontSize: 9.8, color: Color(0xFF707481)),
           ),
@@ -121,6 +154,18 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
               style: const TextStyle(fontSize: 9.2, color: Color(0xFF8B8E9A)),
             ),
         ])),
+        if (enabled)
+          PopupMenuButton<double>(
+            tooltip: t('Empfindlichkeit', 'Sensitivity'),
+            enabled: !busy,
+            icon: const Icon(Icons.tune_rounded, size: 19),
+            onSelected: _setSensitivity,
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 2, child: Text(t('Sensibel · +2 € / +2 %-Pkt.', 'Sensitive · +€2 / +2pp'))),
+              PopupMenuItem(value: 5, child: Text(t('Standard · +5 € / +5 %-Pkt.', 'Standard · +€5 / +5pp'))),
+              PopupMenuItem(value: 10, child: Text(t('Stark · +10 € / +10 %-Pkt.', 'Strong · +€10 / +10pp'))),
+            ],
+          ),
         Switch.adaptive(
           key: ValueKey('deal-alert-switch-${widget.flipId}'),
           value: enabled,
