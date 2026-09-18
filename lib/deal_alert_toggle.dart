@@ -48,6 +48,7 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
       setState(() {
         _preference = null;
         _loading = true;
+        _saving = false;
       });
       _load();
     }
@@ -68,11 +69,14 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
 
   Future<void> _setEnabled(bool enabled) async {
     if (_saving) return;
+    final requestedFlipId = widget.flipId;
     setState(() => _saving = true);
-    final next = (_preference ?? DealAlertPreference.defaults(widget.flipId))
+    final next = (_preference ?? DealAlertPreference.defaults(requestedFlipId))
         .copyWith(enabled: enabled, updatedAt: DateTime.now());
     final saved = await _store.save(next);
-    if (!mounted) return;
+    // Saving can finish after Flutter has reused this State for another saved
+    // deal. Never apply the old deal's result or error to the new card.
+    if (!mounted || requestedFlipId != widget.flipId) return;
     setState(() {
       if (saved) _preference = next;
       _saving = false;
