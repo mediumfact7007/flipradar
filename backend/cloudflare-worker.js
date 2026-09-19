@@ -89,6 +89,14 @@ function isUsefulFixedPriceListing(item) {
   return true;
 }
 
+function cheapestShipping(item) {
+  if (!Array.isArray(item?.shippingOptions) || !item.shippingOptions.length) return 0;
+  const costs = item.shippingOptions
+    .map((option) => Number(option?.shippingCost?.value))
+    .filter((value) => Number.isFinite(value) && value >= 0);
+  return costs.length ? Math.min(...costs) : 0;
+}
+
 async function ebaySearch(url, env) {
   const q = (url.searchParams.get('q') || '').trim();
   if (!q) return json({ error: 'Missing q' }, 400);
@@ -120,15 +128,13 @@ async function ebaySearch(url, env) {
     .filter(isUsefulFixedPriceListing)
     .map((x) => {
       const value = Number(x?.price?.value);
-      const shipping = Array.isArray(x.shippingOptions)
-        ? Number(x.shippingOptions[0]?.shippingCost?.value || 0)
-        : 0;
+      const shipping = cheapestShipping(x);
       return {
         id: x.itemId,
         title: x.title,
         price: Number.isFinite(value) ? value : null,
-        shipping: Number.isFinite(shipping) ? shipping : 0,
-        total: Number.isFinite(value) ? value + (Number.isFinite(shipping) ? shipping : 0) : null,
+        shipping,
+        total: Number.isFinite(value) ? value + shipping : null,
         currency: x?.price?.currency || null,
         condition: x.condition || null,
         image: x?.image?.imageUrl || null,
