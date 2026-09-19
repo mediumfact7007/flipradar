@@ -96,8 +96,13 @@ void main() {
     final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
     final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
+    // Give the field a real test-input connection before sending the Android
+    // keyboard action. This mirrors the user's focus -> edit -> Done flow and
+    // avoids relying on TextField implementation details.
+    await tester.tap(saleFinder);
+    await tester.pump();
+    await tester.showKeyboard(saleFinder);
     await tester.enterText(saleFinder, '350');
-    // Exercise the real keyboard commit path instead of reaching into TextField internals.
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
