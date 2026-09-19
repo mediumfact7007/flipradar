@@ -96,9 +96,11 @@ void main() {
     final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
     final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
-    // Give the field a real test-input connection before sending the Android
-    // keyboard action. This mirrors the user's focus -> edit -> Done flow and
-    // avoids relying on TextField implementation details.
+    // Make the same field a user would edit visible before focusing it. This
+    // keeps the test tied to the real Android focus -> edit -> Done flow even
+    // when the result page grows vertically.
+    await tester.ensureVisible(saleFinder);
+    await tester.pumpAndSettle();
     await tester.tap(saleFinder);
     await tester.pump();
     await tester.showKeyboard(saleFinder);
