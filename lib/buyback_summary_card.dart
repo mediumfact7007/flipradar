@@ -21,6 +21,17 @@ class BuybackComparisonCard extends StatelessWidget {
   String _money(double value) => '${value.toStringAsFixed(0)} €';
   String _roi(double value) => '${value.toStringAsFixed(0)} %';
 
+  String _checkedAt(DateTime value) {
+    final utc = value.toUtc();
+    final day = utc.day.toString().padLeft(2, '0');
+    final month = utc.month.toString().padLeft(2, '0');
+    final hour = utc.hour.toString().padLeft(2, '0');
+    final minute = utc.minute.toString().padLeft(2, '0');
+    return _de
+        ? 'Preis geprüft: $day.$month. · $hour:$minute UTC'
+        : 'Price checked: $day/$month · $hour:$minute UTC';
+  }
+
   @override
   Widget build(BuildContext context) {
     final instantBetter = summary.instantMargin >= summary.privateMargin;
@@ -98,6 +109,15 @@ class BuybackComparisonCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 6),
+            Text(
+              _checkedAt(summary.offer.checkedAt),
+              key: const ValueKey('buyback-checked-at'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               _de
                   ? 'Privatwert = aktueller FlipRadar-Marktwert. Ankauf = verifiziertes, frisches Anbieterangebot.'
