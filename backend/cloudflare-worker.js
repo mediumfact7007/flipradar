@@ -52,6 +52,24 @@ function median(values) {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 }
 
+function robustPriceSample(values) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  // Keep small samples intact: with fewer than five offers an outlier rule can
+  // discard legitimate market spread instead of improving the estimate.
+  if (v.length < 5) return v;
+  const midpoint = Math.floor(v.length / 2);
+  const lower = v.slice(0, midpoint);
+  const upper = v.slice(v.length % 2 ? midpoint + 1 : midpoint);
+  const q1 = median(lower);
+  const q3 = median(upper);
+  const iqr = q3 - q1;
+  if (!Number.isFinite(iqr) || iqr <= 0) return v;
+  const low = q1 - 1.5 * iqr;
+  const high = q3 + 1.5 * iqr;
+  const filtered = v.filter((price) => price >= low && price <= high);
+  return filtered.length >= 3 ? filtered : v;
+}
+
 function isUsefulFixedPriceListing(item) {
   const options = Array.isArray(item?.buyingOptions) ? item.buyingOptions : [];
   if (options.length && !options.includes('FIXED_PRICE')) return false;
@@ -121,17 +139,19 @@ async function ebaySearch(url, env) {
     .filter((x) => x.total != null && x.total > 0 && (!x.currency || x.currency === 'EUR'));
 
   const prices = normalized.map((x) => x.total);
+  const estimatePrices = robustPriceSample(prices);
   return json({
     source: 'eBay DE',
     query: q,
     marketplace,
     live: true,
     count: normalized.length,
-    min: prices.length ? Math.min(...prices) : null,
-    max: prices.length ? Math.max(...prices) : null,
-    median: median(prices),
+    estimateCount: estimatePrices.length,
+    min: estimatePrices.length ? Math.min(...estimatePrices) : null,
+    max: estimatePrices.length ? Math.max(...estimatePrices) : null,
+    median: median(estimatePrices),
     items: normalized.slice(0, 25),
-    note: 'Active fixed-price listings after basic parts/repair filtering. Sold-history is not inferred from active listings.',
+    note: 'Active fixed-price listings after parts/repair and statistical outlier filtering for the price estimate. Sold-history is not inferred from active listings.',
     fetchedAt: new Date().toISOString(),
   });
 }
