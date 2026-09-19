@@ -20,82 +20,32 @@ function hasPhrase(text, phrase) {
 }
 
 const ACCESSORY_PHRASES = [
-  'hulle',
-  'case',
-  'cover',
-  'schutzglas',
-  'panzerglas',
-  'schutzfolie',
-  'screen protector',
-  'display schutz',
-  'ladekabel',
-  'charging cable',
-  'usb kabel',
-  'halterung',
-  'wall mount',
-  'controller halter',
-  'ersatzteil',
-  'spare parts',
-  'replacement screen',
-  'ersatz display',
-  'lcd ersatz',
-  'leer karton',
-  'leerkarton',
-  'empty box',
-  'box only',
-  'original box only',
-  'empty original box',
-  'nur karton',
-  'nur verpackung',
-  'packaging only',
-  'karton ohne gerat',
-  'verpackung ohne gerat',
-  'box without device',
-  'box no device',
-  'leere originalverpackung',
-  'originalverpackung leer',
-  'leere ovp',
-  'ovp leer',
-  'nur ovp',
-  'ovp only',
-  'empty packaging',
-  'dummy',
-  'attrappe',
+  'hulle', 'case', 'cover', 'schutzglas', 'panzerglas', 'schutzfolie',
+  'screen protector', 'display schutz', 'ladekabel', 'charging cable',
+  'usb kabel', 'halterung', 'wall mount', 'controller halter', 'ersatzteil',
+  'spare parts', 'replacement screen', 'ersatz display', 'lcd ersatz',
+  'leer karton', 'leerkarton', 'empty box', 'box only', 'original box only',
+  'empty original box', 'nur karton', 'nur verpackung', 'packaging only',
+  'karton ohne gerat', 'verpackung ohne gerat', 'box without device',
+  'box no device', 'leere originalverpackung', 'originalverpackung leer',
+  'leere ovp', 'ovp leer', 'nur ovp', 'ovp only', 'empty packaging',
+  'dummy', 'attrappe',
 ];
 
 const RISK_PHRASES = [
-  'defekt',
-  'kaputt',
-  'bastler',
-  'ersatzteiltrager',
-  'parts only',
-  'for parts',
-  'spares or repair',
-  'repair only',
-  'zum ausschlachten',
-  'reparaturbedurftig',
-  'not working',
-  'does not work',
-  'funktioniert nicht',
-  'ohne funktion',
-  'nicht funktionsfahig',
-  'ungetestet',
+  'defekt', 'kaputt', 'bastler', 'ersatzteiltrager', 'parts only', 'for parts',
+  'spares or repair', 'repair only', 'zum ausschlachten', 'reparaturbedurftig',
+  'not working', 'does not work', 'funktioniert nicht', 'ohne funktion',
+  'nicht funktionsfahig', 'ungetestet',
+  // Common damage/lock wording that otherwise creates unrealistically cheap
+  // comparables and can make a normal used device look like a strong deal.
+  'displaybruch', 'display bruch', 'glasbruch', 'glas bruch', 'wasserschaden',
+  'water damage', 'icloud lock', 'icloud locked', 'activation lock',
 ];
 
 const VARIANT_PHRASES = [
-  'pro max',
-  'series x',
-  'series s',
-  'pro',
-  'ultra',
-  'plus',
-  'mini',
-  'slim',
-  'oled',
-  'lite',
-  'digital edition',
-  'digital',
-  'disc edition',
+  'pro max', 'series x', 'series s', 'pro', 'ultra', 'plus', 'mini', 'slim',
+  'oled', 'lite', 'digital edition', 'digital', 'disc edition',
 ];
 
 const STOP_WORDS = new Set([
@@ -119,17 +69,13 @@ function maxCapacityGb(text) {
 
 function identifiers(text) {
   const withoutCapacity = text.replace(/\b\d{1,4}\s*(?:gb|tb)\b/g, ' ');
-  return withoutCapacity
-    .split(/\s+/)
-    .filter(Boolean)
+  return withoutCapacity.split(/\s+/).filter(Boolean)
     .filter((token) => /\d/.test(token))
     .filter((token) => /[a-z]/.test(token) || token.length >= 2);
 }
 
 function significantWords(text) {
-  return text
-    .split(/\s+/)
-    .filter((token) => token.length >= 3)
+  return text.split(/\s+/).filter((token) => token.length >= 3)
     .filter((token) => !STOP_WORDS.has(token))
     .filter((token) => !VARIANT_PHRASES.includes(token))
     .filter((token) => !/^\d/.test(token));
@@ -143,38 +89,26 @@ function listingMatchesQuery(queryValue, titleValue) {
   const query = normalizeMarketText(queryValue);
   const title = normalizeMarketText(titleValue);
   if (!query || !title) return false;
-
-  // GTIN/EAN lookups are already exact upstream. Only reject clearly risky titles.
   if (/^\d{8,14}$/.test(query)) {
     return !containsUnrequestedPhrase(title, query, [...ACCESSORY_PHRASES, ...RISK_PHRASES]);
   }
-
   if (containsUnrequestedPhrase(title, query, ACCESSORY_PHRASES)) return false;
   if (containsUnrequestedPhrase(title, query, RISK_PHRASES)) return false;
-
   const queryCapacity = maxCapacityGb(query);
   const titleCapacity = maxCapacityGb(title);
-  if (queryCapacity != null && titleCapacity != null && queryCapacity !== titleCapacity) {
-    return false;
-  }
-
+  if (queryCapacity != null && titleCapacity != null && queryCapacity !== titleCapacity) return false;
   const queryVariants = VARIANT_PHRASES.filter((phrase) => hasPhrase(query, phrase));
   const titleVariants = VARIANT_PHRASES.filter((phrase) => hasPhrase(title, phrase));
   if (queryVariants.some((variant) => !hasPhrase(title, variant))) return false;
   if (titleVariants.some((variant) => !hasPhrase(query, variant))) return false;
-
   const queryIds = [...new Set(identifiers(query))];
-  for (const id of queryIds) {
-    if (!hasPhrase(title, id)) return false;
-  }
-
+  for (const id of queryIds) if (!hasPhrase(title, id)) return false;
   const words = [...new Set(significantWords(query))];
   if (words.length > 0) {
     const matches = words.filter((word) => hasPhrase(title, word)).length;
     const required = words.length >= 3 ? Math.ceil(words.length * 0.5) : 1;
     if (matches < required) return false;
   }
-
   return true;
 }
 
@@ -183,8 +117,4 @@ function filterMarketListings(query, items) {
   return items.filter((item) => listingMatchesQuery(query, item?.title || ''));
 }
 
-module.exports = {
-  filterMarketListings,
-  listingMatchesQuery,
-  normalizeMarketText,
-};
+module.exports = { filterMarketListings, listingMatchesQuery, normalizeMarketText };
