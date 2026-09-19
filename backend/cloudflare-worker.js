@@ -54,8 +54,6 @@ function median(values) {
 
 function robustPriceSample(values) {
   const v = values.filter(Number.isFinite).sort((a, b) => a - b);
-  // Keep small samples intact: with fewer than five offers an outlier rule can
-  // discard legitimate market spread instead of improving the estimate.
   if (v.length < 5) return v;
   const midpoint = Math.floor(v.length / 2);
   const lower = v.slice(0, midpoint);
@@ -75,12 +73,12 @@ function isUsefulFixedPriceListing(item) {
   if (options.length && !options.includes('FIXED_PRICE')) return false;
 
   const title = String(item?.title || '').toLowerCase();
-  // Obvious parts/repair listings distort a quick resale-market estimate.
+  // Exclude strong parts/repair and accessory-only signals. Generic words such
+  // as "case" or "box" alone are intentionally not filtered because they can
+  // be part of a genuine product title.
   if (/\b(ersatzteil|ersatzteile|defekt|bastler|for parts|parts only|not working)\b/.test(title)) return false;
+  if (/\b(nur\s+(ovp|verpackung|karton)|leerverpackung|leerpackung|empty\s+box|box\s+only|schutzh[uü]lle|schutzglas|displayfolie|case\s+for|cover\s+for)\b/.test(title)) return false;
 
-  // Prefer eBay's structured condition when it is available: sellers do not
-  // always mention a defective/parts-only state in the title. Condition ID
-  // 7000 is eBay's canonical "For parts or not working" state.
   const condition = String(item?.condition || '').toLowerCase();
   const conditionId = String(item?.conditionId || '').trim();
   if (conditionId === '7000') return false;
@@ -102,9 +100,6 @@ async function ebaySearch(url, env) {
   if (!q) return json({ error: 'Missing q' }, 400);
   const marketplace = url.searchParams.get('marketplace') || 'EBAY_DE';
   const token = await ebayToken(env);
-  // Ask eBay for fixed-price inventory up front. The local check below stays
-  // as a defensive boundary, but filtering at source avoids auctions consuming
-  // the 50-result window and improves the sample used for quick deal pricing.
   const p = new URLSearchParams({
     limit: '50',
     filter: 'buyingOptions:{FIXED_PRICE}',
@@ -143,9 +138,6 @@ async function ebaySearch(url, env) {
       };
     })
     .filter((x) => x.total != null && x.total > 0 && (!x.currency || x.currency === 'EUR'))
-    // The visible LIVE list is a comparison tool: cheapest delivered offer first
-    // is easier to scan than eBay's relevance order and matches the totals used
-    // by FlipRadar's deal estimate.
     .sort((a, b) => a.total - b.total);
 
   const prices = normalized.map((x) => x.total);
@@ -161,7 +153,7 @@ async function ebaySearch(url, env) {
     max: estimatePrices.length ? Math.max(...estimatePrices) : null,
     median: median(estimatePrices),
     items: normalized.slice(0, 25),
-    note: 'Active fixed-price listings after parts/repair and statistical outlier filtering for the price estimate. Sold-history is not inferred from active listings.',
+    note: 'Active fixed-price listings after parts/repair, accessory-only and statistical outlier filtering for the price estimate. Sold-history is not inferred from active listings.',
     fetchedAt: new Date().toISOString(),
   });
 }
