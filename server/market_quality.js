@@ -41,6 +41,11 @@ const RISK_PHRASES = [
   // comparables and can make a normal used device look like a strong deal.
   'displaybruch', 'display bruch', 'glasbruch', 'glas bruch', 'wasserschaden',
   'water damage', 'icloud lock', 'icloud locked', 'activation lock',
+  // Frequent phone defects that can be easy to miss in otherwise normal-looking
+  // listings but materially reduce resale value.
+  'ruckglas defekt', 'ruckseite gebrochen', 'back glass broken', 'back glass cracked',
+  'face id defekt', 'face id funktioniert nicht', 'face id not working',
+  'kamera defekt', 'camera not working', 'kamerafehler', 'camera fault',
 ];
 
 const VARIANT_PHRASES = [
