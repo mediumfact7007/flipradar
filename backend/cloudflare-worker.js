@@ -76,7 +76,13 @@ async function ebaySearch(url, env) {
   if (!q) return json({ error: 'Missing q' }, 400);
   const marketplace = url.searchParams.get('marketplace') || 'EBAY_DE';
   const token = await ebayToken(env);
-  const p = new URLSearchParams({ limit: '50' });
+  // Ask eBay for fixed-price inventory up front. The local check below stays
+  // as a defensive boundary, but filtering at source avoids auctions consuming
+  // the 50-result window and improves the sample used for quick deal pricing.
+  const p = new URLSearchParams({
+    limit: '50',
+    filter: 'buyingOptions:{FIXED_PRICE}',
+  });
   if (/^\d{8,14}$/.test(q)) p.set('gtin', q);
   else p.set('q', q);
 
