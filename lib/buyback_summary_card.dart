@@ -33,10 +33,14 @@ class BuybackComparisonCard extends StatelessWidget {
         : 'Price checked: $month/$day · $hour:$minute local time';
   }
 
-  Future<void> _openOffer() async {
+  bool get _hasSafeOfferUrl {
     final uri = summary.offer.offerUrl;
-    if (!uri.hasScheme || uri.scheme != 'https') return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return uri.hasScheme && uri.scheme == 'https' && uri.host.isNotEmpty;
+  }
+
+  Future<void> _openOffer() async {
+    if (!_hasSafeOfferUrl) return;
+    await launchUrl(summary.offer.offerUrl, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -149,9 +153,13 @@ class BuybackComparisonCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 key: const ValueKey('buyback-open-offer'),
-                onPressed: _openOffer,
+                onPressed: _hasSafeOfferUrl ? _openOffer : null,
                 icon: const Icon(Icons.open_in_new_rounded, size: 17),
-                label: Text(_de ? 'Angebot bei ${summary.offer.providerName} öffnen' : 'Open offer at ${summary.offer.providerName}'),
+                label: Text(
+                  _hasSafeOfferUrl
+                      ? (_de ? 'Angebot bei ${summary.offer.providerName} öffnen' : 'Open offer at ${summary.offer.providerName}')
+                      : (_de ? 'Angebotslink nicht verfügbar' : 'Offer link unavailable'),
+                ),
               ),
             ),
           ],
