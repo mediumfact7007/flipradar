@@ -3,207 +3,63 @@
 const assert = require('assert');
 const { filterMarketListings, listingMatchesQuery } = require('./market_quality');
 
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB Titan'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Hülle Case für Apple iPhone 15 Pro 256GB'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 128GB'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro Max 256GB'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB defekt für Bastler'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB defekt', 'Apple iPhone 15 Pro 256GB defekt'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB funktioniert nicht'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB ohne Funktion'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nicht funktionsfähig'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB does not work'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB spares or repair'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB repair only'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB zum Ausschlachten'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB reparaturbedürftig'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB reparaturbedürftig', 'Apple iPhone 15 Pro 256GB reparaturbedürftig'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB funktioniert nicht', 'Apple iPhone 15 Pro 256GB funktioniert nicht'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB spares or repair', 'Apple iPhone 15 Pro 256GB spares or repair'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB repair only', 'Apple iPhone 15 Pro 256GB repair only'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB zum Ausschlachten', 'Apple iPhone 15 Pro 256GB zum Ausschlachten'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur Karton'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur Verpackung'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB packaging only'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB Karton ohne Gerät'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB Verpackung ohne Gerät'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB box without device'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB box no device'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB original box only'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB empty original box'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB leere Originalverpackung'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB Originalverpackung leer'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB leere OVP'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP leer'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB nur OVP'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP only'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP vollständig'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB mit Originalverpackung'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB voll funktionsfähig'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB frisch repariert voll funktionsfähig'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB empty packaging'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('PlayStation 5 Slim', 'Sony PS5 Slim Konsole 1TB'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('PlayStation 5 Slim', 'PS5 Slim Halterung Wall Mount'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Nintendo Switch', 'Nintendo Switch OLED Konsole'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Nintendo Switch OLED', 'Nintendo Switch OLED Konsole'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series X 1TB Konsole'),
-  true,
-);
-assert.strictEqual(
-  listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series S 512GB Konsole'),
-  false,
-);
-assert.strictEqual(
-  listingMatchesQuery('Xbox Series S', 'Microsoft Xbox Series X 1TB Konsole'),
-  false,
-);
+const good = 'Apple iPhone 15 Pro 256GB Titan';
+assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', good), true);
+for (const bad of [
+  'Hülle Case für Apple iPhone 15 Pro 256GB',
+  'Apple iPhone 15 Pro 128GB',
+  'Apple iPhone 15 Pro Max 256GB',
+  'Apple iPhone 15 Pro 256GB defekt für Bastler',
+  'Apple iPhone 15 Pro 256GB funktioniert nicht',
+  'Apple iPhone 15 Pro 256GB spares or repair',
+  'Apple iPhone 15 Pro 256GB zum Ausschlachten',
+  'Apple iPhone 15 Pro 256GB nur Karton',
+  'Apple iPhone 15 Pro 256GB Karton ohne Gerät',
+  'Apple iPhone 15 Pro 256GB box without device',
+  'Apple iPhone 15 Pro 256GB original box only',
+  'Apple iPhone 15 Pro 256GB Originalverpackung leer',
+  'Apple iPhone 15 Pro 256GB OVP leer',
+  'Apple iPhone 15 Pro 256GB nur OVP',
+  'Apple iPhone 15 Pro 256GB Displaybruch',
+  'Apple iPhone 15 Pro 256GB Glasbruch',
+  'Apple iPhone 15 Pro 256GB Wasserschaden',
+  'Apple iPhone 15 Pro 256GB water damage',
+  'Apple iPhone 15 Pro 256GB iCloud locked',
+  'Apple iPhone 15 Pro 256GB activation lock',
+]) assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', bad), false, bad);
+
+for (const intentional of [
+  'Apple iPhone 15 Pro 256GB defekt',
+  'Apple iPhone 15 Pro 256GB reparaturbedürftig',
+  'Apple iPhone 15 Pro 256GB funktioniert nicht',
+  'Apple iPhone 15 Pro 256GB spares or repair',
+  'Apple iPhone 15 Pro 256GB repair only',
+  'Apple iPhone 15 Pro 256GB zum Ausschlachten',
+  'Apple iPhone 15 Pro 256GB Displaybruch',
+  'Apple iPhone 15 Pro 256GB Wasserschaden',
+  'Apple iPhone 15 Pro 256GB iCloud locked',
+]) assert.strictEqual(listingMatchesQuery(intentional, intentional), true, intentional);
+
+assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP vollständig'), true);
+assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB mit Originalverpackung'), true);
+assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB voll funktionsfähig'), true);
+assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB frisch repariert voll funktionsfähig'), true);
+assert.strictEqual(listingMatchesQuery('PlayStation 5 Slim', 'Sony PS5 Slim Konsole 1TB'), true);
+assert.strictEqual(listingMatchesQuery('PlayStation 5 Slim', 'PS5 Slim Halterung Wall Mount'), false);
+assert.strictEqual(listingMatchesQuery('Nintendo Switch', 'Nintendo Switch OLED Konsole'), false);
+assert.strictEqual(listingMatchesQuery('Nintendo Switch OLED', 'Nintendo Switch OLED Konsole'), true);
+assert.strictEqual(listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series X 1TB Konsole'), true);
+assert.strictEqual(listingMatchesQuery('Xbox Series X', 'Microsoft Xbox Series S 512GB Konsole'), false);
+assert.strictEqual(listingMatchesQuery('Xbox Series S', 'Microsoft Xbox Series X 1TB Konsole'), false);
 
 const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
-  { title: 'Apple iPhone 15 Pro 256GB Titan' },
+  { title: good },
   { title: 'Apple iPhone 15 Pro 128GB' },
   { title: 'Case für Apple iPhone 15 Pro 256GB' },
   { title: 'Apple iPhone 15 Pro Max 256GB' },
-  { title: 'Apple iPhone 15 Pro 256GB funktioniert nicht' },
-  { title: 'Apple iPhone 15 Pro 256GB spares or repair' },
-  { title: 'Apple iPhone 15 Pro 256GB zum Ausschlachten' },
-  { title: 'Apple iPhone 15 Pro 256GB nur Karton' },
-  { title: 'Apple iPhone 15 Pro 256GB Karton ohne Gerät' },
-  { title: 'Apple iPhone 15 Pro 256GB box without device' },
-  { title: 'Apple iPhone 15 Pro 256GB original box only' },
-  { title: 'Apple iPhone 15 Pro 256GB Originalverpackung leer' },
-  { title: 'Apple iPhone 15 Pro 256GB OVP leer' },
-  { title: 'Apple iPhone 15 Pro 256GB nur OVP' },
+  { title: 'Apple iPhone 15 Pro 256GB Displaybruch' },
+  { title: 'Apple iPhone 15 Pro 256GB iCloud locked' },
 ]);
-assert.deepStrictEqual(filtered.map((item) => item.title), ['Apple iPhone 15 Pro 256GB Titan']);
+assert.deepStrictEqual(filtered.map((item) => item.title), [good]);
 
 console.log('market_quality_test: ok');
