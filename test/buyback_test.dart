@@ -80,6 +80,16 @@ void main() {
     expect(best?.price, 620);
   });
 
+  test('excludes zero-value offers from comparison', () {
+    final best = bestComparableBuybackOffer(
+      [offer(price: 0), offer(price: 620)],
+      condition: BuybackCondition.likeNew,
+    );
+
+    expect(best?.price, 620);
+    expect(offer(price: 0).isEligibleForComparison, isFalse);
+  });
+
   test('excludes stale offers when a comparison time is supplied', () {
     final now = DateTime.parse('2026-09-16T10:00:00Z');
     final best = bestComparableBuybackOffer(
