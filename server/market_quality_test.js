@@ -26,6 +26,12 @@ for (const bad of [
   'Apple iPhone 15 Pro 256GB water damage',
   'Apple iPhone 15 Pro 256GB iCloud locked',
   'Apple iPhone 15 Pro 256GB activation lock',
+  'Apple iPhone 15 Pro 256GB Rückseite gebrochen',
+  'Apple iPhone 15 Pro 256GB back glass cracked',
+  'Apple iPhone 15 Pro 256GB Face ID defekt',
+  'Apple iPhone 15 Pro 256GB Face ID not working',
+  'Apple iPhone 15 Pro 256GB Kamera defekt',
+  'Apple iPhone 15 Pro 256GB camera not working',
 ]) assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', bad), false, bad);
 
 for (const intentional of [
@@ -38,6 +44,8 @@ for (const intentional of [
   'Apple iPhone 15 Pro 256GB Displaybruch',
   'Apple iPhone 15 Pro 256GB Wasserschaden',
   'Apple iPhone 15 Pro 256GB iCloud locked',
+  'Apple iPhone 15 Pro 256GB Face ID defekt',
+  'Apple iPhone 15 Pro 256GB Kamera defekt',
 ]) assert.strictEqual(listingMatchesQuery(intentional, intentional), true, intentional);
 
 assert.strictEqual(listingMatchesQuery('Apple iPhone 15 Pro 256GB', 'Apple iPhone 15 Pro 256GB OVP vollständig'), true);
@@ -59,6 +67,7 @@ const filtered = filterMarketListings('Apple iPhone 15 Pro 256GB', [
   { title: 'Apple iPhone 15 Pro Max 256GB' },
   { title: 'Apple iPhone 15 Pro 256GB Displaybruch' },
   { title: 'Apple iPhone 15 Pro 256GB iCloud locked' },
+  { title: 'Apple iPhone 15 Pro 256GB Face ID defekt' },
 ]);
 assert.deepStrictEqual(filtered.map((item) => item.title), [good]);
 
