@@ -96,14 +96,16 @@ void main() {
     final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
     final saleField = tester.widget<TextField>(saleFinder);
     expect(saleField.controller?.text, '350');
-    // Exercise the field's production submit callback directly. Keyboard focus
-    // behavior is owned by Flutter and made this business regression test flaky
-    // as the result page grew; the callback is the app behavior we need to guard.
     await tester.enterText(saleFinder, '350');
     saleField.onSubmitted?.call('350');
     await tester.pump();
 
     final remember = find.byKey(const ValueKey('v147-remember-deal'));
+    await tester.scrollUntilVisible(
+      remember,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(remember, findsOneWidget);
     final rememberButton = tester.widget<OutlinedButton>(remember);
     expect(rememberButton.onPressed, isNotNull);
