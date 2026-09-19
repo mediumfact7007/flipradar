@@ -68,16 +68,20 @@ function robustPriceSample(values) {
   return filtered.length >= 3 ? filtered : v;
 }
 
-function isUsefulFixedPriceListing(item) {
+const accessoryIntent = /\b(h[uü]lle|case|cover|schutzglas|displayfolie|ladeger[aä]t|charger|ladekabel|cable|kabel|adapter|halterung|mount|akku|battery|ovp|verpackung|karton|box)\b/i;
+
+function isUsefulFixedPriceListing(item, query = '') {
   const options = Array.isArray(item?.buyingOptions) ? item.buyingOptions : [];
   if (options.length && !options.includes('FIXED_PRICE')) return false;
 
   const title = String(item?.title || '').toLowerCase();
-  // Exclude strong parts/repair and accessory-only signals. Generic words such
-  // as "case" or "box" alone are intentionally not filtered because they can
-  // be part of a genuine product title.
   if (/\b(ersatzteil|ersatzteile|defekt|bastler|for parts|parts only|not working)\b/.test(title)) return false;
-  if (/\b(nur\s+(ovp|verpackung|karton)|leerverpackung|leerpackung|empty\s+box|box\s+only|schutzh[uü]lle|schutzglas|displayfolie|case\s+for|cover\s+for)\b/.test(title)) return false;
+
+  // Accessory-only hits are noise for normal product searches, but accessories
+  // are valid products too. Keep them when the user's query explicitly asks
+  // for an accessory instead of turning an intentional search into zero hits.
+  const queryWantsAccessory = accessoryIntent.test(String(query || ''));
+  if (!queryWantsAccessory && /\b(nur\s+(ovp|verpackung|karton)|leerverpackung|leerpackung|empty\s+box|box\s+only|schutzh[uü]lle|schutzglas|displayfolie|case\s+for|cover\s+for|charger\s+for|ladekabel\s+f[uü]r|adapter\s+f[uü]r|halterung\s+f[uü]r|mount\s+for|akku\s+f[uü]r|battery\s+for)\b/.test(title)) return false;
 
   const condition = String(item?.condition || '').toLowerCase();
   const conditionId = String(item?.conditionId || '').trim();
@@ -120,7 +124,7 @@ async function ebaySearch(url, env) {
   const d = await r.json();
   const items = Array.isArray(d.itemSummaries) ? d.itemSummaries : [];
   const normalized = items
-    .filter(isUsefulFixedPriceListing)
+    .filter((item) => isUsefulFixedPriceListing(item, q))
     .map((x) => {
       const value = Number(x?.price?.value);
       const shipping = cheapestShipping(x);
