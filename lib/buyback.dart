@@ -61,7 +61,7 @@ class BuybackOffer {
       productId.trim().isNotEmpty &&
       matchedTitle.trim().isNotEmpty &&
       price.isFinite &&
-      price >= 0 &&
+      price > 0 &&
       currency == 'EUR' &&
       offerUrl.hasScheme &&
       offerUrl.scheme == 'https' &&
