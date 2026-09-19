@@ -58,12 +58,15 @@ function isUsefulFixedPriceListing(item) {
 
   const title = String(item?.title || '').toLowerCase();
   // Obvious parts/repair listings distort a quick resale-market estimate.
-  if (/\b(ersatzteil|defekt|bastler|for parts|parts only)\b/.test(title)) return false;
+  if (/\b(ersatzteil|ersatzteile|defekt|bastler|for parts|parts only|not working)\b/.test(title)) return false;
 
   // Prefer eBay's structured condition when it is available: sellers do not
-  // always mention a defective/parts-only state in the title.
+  // always mention a defective/parts-only state in the title. Condition ID
+  // 7000 is eBay's canonical "For parts or not working" state.
   const condition = String(item?.condition || '').toLowerCase();
-  if (/for parts|not working|parts only|defekt|ersatzteil|bastler/.test(condition)) return false;
+  const conditionId = String(item?.conditionId || '').trim();
+  if (conditionId === '7000') return false;
+  if (/for parts|not working|parts only|defekt|ersatzteil|ersatzteile|bastler/.test(condition)) return false;
 
   return true;
 }
