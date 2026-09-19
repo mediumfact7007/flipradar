@@ -22,14 +22,14 @@ class BuybackComparisonCard extends StatelessWidget {
   String _roi(double value) => '${value.toStringAsFixed(0)} %';
 
   String _checkedAt(DateTime value) {
-    final utc = value.toUtc();
-    final day = utc.day.toString().padLeft(2, '0');
-    final month = utc.month.toString().padLeft(2, '0');
-    final hour = utc.hour.toString().padLeft(2, '0');
-    final minute = utc.minute.toString().padLeft(2, '0');
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
     return _de
-        ? 'Preis geprüft: $day.$month. · $hour:$minute UTC'
-        : 'Price checked: $day/$month · $hour:$minute UTC';
+        ? 'Preis geprüft: $day.$month. · $hour:$minute Uhr'
+        : 'Price checked: $month/$day · $hour:$minute local time';
   }
 
   @override
