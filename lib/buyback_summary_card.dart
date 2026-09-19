@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'buyback_summary.dart';
 
@@ -30,6 +31,12 @@ class BuybackComparisonCard extends StatelessWidget {
     return _de
         ? 'Preis geprüft: $day.$month. · $hour:$minute Uhr'
         : 'Price checked: $month/$day · $hour:$minute local time';
+  }
+
+  Future<void> _openOffer() async {
+    final uri = summary.offer.offerUrl;
+    if (!uri.hasScheme || (uri.scheme != 'https' && uri.scheme != 'http')) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -133,6 +140,16 @@ class BuybackComparisonCard extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('buyback-open-offer'),
+                onPressed: _openOffer,
+                icon: const Icon(Icons.open_in_new_rounded, size: 17),
+                label: Text(_de ? 'Angebot bei ${summary.offer.providerName} öffnen' : 'Open offer at ${summary.offer.providerName}'),
+              ),
+            ),
           ],
         ),
       ),
