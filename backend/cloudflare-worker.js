@@ -55,9 +55,16 @@ function median(values) {
 function isUsefulFixedPriceListing(item) {
   const options = Array.isArray(item?.buyingOptions) ? item.buyingOptions : [];
   if (options.length && !options.includes('FIXED_PRICE')) return false;
+
   const title = String(item?.title || '').toLowerCase();
   // Obvious parts/repair listings distort a quick resale-market estimate.
   if (/\b(ersatzteil|defekt|bastler|for parts|parts only)\b/.test(title)) return false;
+
+  // Prefer eBay's structured condition when it is available: sellers do not
+  // always mention a defective/parts-only state in the title.
+  const condition = String(item?.condition || '').toLowerCase();
+  if (/for parts|not working|parts only|defekt|ersatzteil|bastler/.test(condition)) return false;
+
   return true;
 }
 
