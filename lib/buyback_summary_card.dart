@@ -35,17 +35,21 @@ class BuybackComparisonCard extends StatelessWidget {
 
   Future<void> _openOffer() async {
     final uri = summary.offer.offerUrl;
-    if (!uri.hasScheme || (uri.scheme != 'https' && uri.scheme != 'http')) return;
+    if (!uri.hasScheme || uri.scheme != 'https') return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
-    final instantBetter = summary.instantMargin >= summary.privateMargin;
+    final marginDifference = summary.instantMargin - summary.privateMargin;
+    final instantBetter = marginDifference > 0;
+    final equalProfit = marginDifference.abs() < 0.01;
     final theme = Theme.of(context);
-    final recommendation = instantBetter
-        ? (_de ? 'Sofortankauf bringt hier mehr' : 'Instant buyback pays more here')
-        : (_de ? 'Privatverkauf bringt mehr' : 'Private sale pays more');
+    final recommendation = equalProfit
+        ? (_de ? 'Gleicher Gewinn – Sofortankauf spart Zeit' : 'Same profit – instant buyback saves time')
+        : instantBetter
+            ? (_de ? 'Sofortankauf bringt hier mehr' : 'Instant buyback pays more here')
+            : (_de ? 'Privatverkauf bringt mehr' : 'Private sale pays more');
 
     return Card(
       key: const ValueKey('buyback-comparison-card'),
@@ -95,7 +99,7 @@ class BuybackComparisonCard extends StatelessWidget {
               title: _de ? 'Privat verkaufen' : 'Sell privately',
               value: _money(summary.privateMarketValue),
               detail: '${_de ? 'Gewinn' : 'Profit'} ${_money(summary.privateMargin)} · ROI ${_roi(summary.privateRoi)}',
-              emphasized: !instantBetter,
+              emphasized: !instantBetter && !equalProfit,
               emphasisLabel: _de ? 'Mehr Erlös' : 'Higher payout',
             ),
             const Divider(height: 22),
