@@ -142,7 +142,11 @@ async function ebaySearch(url, env) {
         seller: x?.seller?.username || null,
       };
     })
-    .filter((x) => x.total != null && x.total > 0 && (!x.currency || x.currency === 'EUR'));
+    .filter((x) => x.total != null && x.total > 0 && (!x.currency || x.currency === 'EUR'))
+    // The visible LIVE list is a comparison tool: cheapest delivered offer first
+    // is easier to scan than eBay's relevance order and matches the totals used
+    // by FlipRadar's deal estimate.
+    .sort((a, b) => a.total - b.total);
 
   const prices = normalized.map((x) => x.total);
   const estimatePrices = robustPriceSample(prices);
