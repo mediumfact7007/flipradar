@@ -52,6 +52,15 @@ function median(values) {
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 }
 
+function isUsefulFixedPriceListing(item) {
+  const options = Array.isArray(item?.buyingOptions) ? item.buyingOptions : [];
+  if (options.length && !options.includes('FIXED_PRICE')) return false;
+  const title = String(item?.title || '').toLowerCase();
+  // Obvious parts/repair listings distort a quick resale-market estimate.
+  if (/\b(ersatzteil|defekt|bastler|for parts|parts only)\b/.test(title)) return false;
+  return true;
+}
+
 async function ebaySearch(url, env) {
   const q = (url.searchParams.get('q') || '').trim();
   if (!q) return json({ error: 'Missing q' }, 400);
@@ -74,6 +83,7 @@ async function ebaySearch(url, env) {
   const d = await r.json();
   const items = Array.isArray(d.itemSummaries) ? d.itemSummaries : [];
   const normalized = items
+    .filter(isUsefulFixedPriceListing)
     .map((x) => {
       const value = Number(x?.price?.value);
       const shipping = Array.isArray(x.shippingOptions)
@@ -92,7 +102,7 @@ async function ebaySearch(url, env) {
         seller: x?.seller?.username || null,
       };
     })
-    .filter((x) => x.total != null && (!x.currency || x.currency === 'EUR'));
+    .filter((x) => x.total != null && x.total > 0 && (!x.currency || x.currency === 'EUR'));
 
   const prices = normalized.map((x) => x.total);
   return json({
@@ -105,7 +115,7 @@ async function ebaySearch(url, env) {
     max: prices.length ? Math.max(...prices) : null,
     median: median(prices),
     items: normalized.slice(0, 25),
-    note: 'Active listings. Sold-history is not inferred from active listings.',
+    note: 'Active fixed-price listings after basic parts/repair filtering. Sold-history is not inferred from active listings.',
     fetchedAt: new Date().toISOString(),
   });
 }
