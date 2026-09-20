@@ -32,6 +32,33 @@ void main() {
     expect(evaluation.roiThresholdReached, isTrue);
   });
 
+  test('loss-making recheck stays quiet despite material improvement', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(
+      preference: alert,
+      previousProfit: -30,
+      currentProfit: -10,
+      previousRoi: -25,
+      currentRoi: -10,
+    );
+    expect(evaluation.profitIncrease, 20);
+    expect(evaluation.roiIncrease, 15);
+    expect(evaluation.triggered, isFalse);
+    expect(evaluation.profitThresholdReached, isFalse);
+    expect(evaluation.roiThresholdReached, isFalse);
+  });
+
+  test('crossing into profit can trigger an alert', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    expect(shouldTriggerDealAlert(
+      preference: alert,
+      previousProfit: -4,
+      currentProfit: 6,
+      previousRoi: -3,
+      currentRoi: 5,
+    ), isTrue);
+  });
+
   test('zero thresholds still require a real improvement', () {
     final alert = DealAlertPreference.defaults('flip-1').copyWith(minProfitIncrease: 0, minRoiIncrease: 0);
     final unchanged = evaluateDealAlert(
