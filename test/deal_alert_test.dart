@@ -47,11 +47,15 @@ void main() {
     expect(evaluation.roiThresholdReached, isFalse);
   });
 
-  test('break-even to profit also counts as becoming profitable', () {
+  test('break-even noise below one euro does not trigger a deal alert', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    final evaluation = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 0.01, previousRoi: 0, currentRoi: 0.01);
-    expect(evaluation.triggered, isTrue);
-    expect(evaluation.becameProfitable, isTrue);
+    final noise = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 0.99, previousRoi: 0, currentRoi: 0.5);
+    expect(noise.triggered, isFalse);
+    expect(noise.becameProfitable, isFalse);
+
+    final actionable = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 1, previousRoi: 0, currentRoi: 1);
+    expect(actionable.triggered, isTrue);
+    expect(actionable.becameProfitable, isTrue);
   });
 
   test('zero thresholds still require a real improvement', () {
