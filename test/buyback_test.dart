@@ -7,6 +7,7 @@ BuybackOffer offer({
   double confidence = 0.98,
   bool uncertain = false,
   DateTime? checkedAt,
+  Uri? offerUrl,
 }) {
   return BuybackOffer(
     providerId: 'provider-$price',
@@ -16,7 +17,7 @@ BuybackOffer offer({
     condition: condition,
     price: price,
     currency: 'EUR',
-    offerUrl: Uri.parse('https://example.com/offer'),
+    offerUrl: offerUrl ?? Uri.parse('https://example.com/offer'),
     checkedAt: checkedAt ?? DateTime.parse('2026-09-16T08:30:00+02:00'),
     requiresInspection: true,
     matchConfidence: confidence,
@@ -88,6 +89,17 @@ void main() {
 
     expect(best?.price, 620);
     expect(offer(price: 0).isEligibleForComparison, isFalse);
+  });
+
+  test('excludes implausible prices and credentialed offer URLs', () {
+    expect(offer(price: 10001).isEligibleForComparison, isFalse);
+    expect(
+      offer(
+        price: 620,
+        offerUrl: Uri.parse('https://user:secret@example.com/offer'),
+      ).isEligibleForComparison,
+      isFalse,
+    );
   });
 
   test('excludes stale offers when a comparison time is supplied', () {
