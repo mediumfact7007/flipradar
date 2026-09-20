@@ -32,7 +32,7 @@ function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
   if (text(raw.price_kind, 40) !== 'indicative_buyback') return null;
   if (!Number.isFinite(confidence) || confidence < 0.9 || confidence > 1) return null;
   if (!Number.isFinite(checkedAt) || checkedAt > now + 5 * 60 * 1000 || now - checkedAt > MAX_AGE_MS) return null;
-  if (parsedUrl.protocol !== 'https:') return null;
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) return null;
   if (raw.condition_uncertain === true) return null;
 
   const providerId = text(raw.provider_id, 80);
