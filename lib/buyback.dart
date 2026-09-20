@@ -72,9 +72,10 @@ class BuybackOffer {
   bool isFreshAt(
     DateTime now, {
     Duration maxAge = const Duration(hours: 24),
+    Duration futureTolerance = const Duration(minutes: 5),
   }) {
     final age = now.toUtc().difference(checkedAt.toUtc());
-    return !age.isNegative && age <= maxAge;
+    return age >= -futureTolerance && age <= maxAge;
   }
 
   factory BuybackOffer.fromJson(Map<String, dynamic> json) {
