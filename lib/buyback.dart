@@ -41,6 +41,8 @@ class BuybackOffer {
     this.conditionUncertain = false,
   });
 
+  static const double maxComparablePriceEur = 10000;
+
   final String providerId;
   final String providerName;
   final String productId;
@@ -62,9 +64,11 @@ class BuybackOffer {
       matchedTitle.trim().isNotEmpty &&
       price.isFinite &&
       price > 0 &&
+      price <= maxComparablePriceEur &&
       currency == 'EUR' &&
       offerUrl.hasScheme &&
       offerUrl.scheme == 'https' &&
+      offerUrl.userInfo.isEmpty &&
       matchConfidence.isFinite &&
       matchConfidence >= 0.9 &&
       matchConfidence <= 1;
