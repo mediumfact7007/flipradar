@@ -77,9 +77,10 @@ DealAlertEvaluation evaluateDealAlert({
   // the loss became smaller or ROI improved materially.
   final isProfitableNow = currentProfit > 0;
   // Becoming profitable is itself actionable even when the configured delta
-  // threshold is larger than the move. This avoids silently missing the most
-  // important state change for a watched deal.
-  final becameProfitable = previousProfit <= 0 && isProfitableNow;
+  // threshold is larger than the move. Require at least one euro of modeled
+  // profit so rounding/currency noise around break-even cannot create a noisy
+  // "deal" alert that has no practical value.
+  final becameProfitable = previousProfit <= 0 && currentProfit >= 1;
   // Even a zero threshold means "alert on any improvement", not "alert on no
   // change". This keeps rechecks trustworthy for custom low thresholds.
   final profitReached = isProfitableNow && profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
