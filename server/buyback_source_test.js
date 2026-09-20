@@ -8,11 +8,14 @@ function loadSource(env = {}) {
   const previous = {
     BUYBACK_SOURCE_URL: process.env.BUYBACK_SOURCE_URL,
     BUYBACK_SOURCE_TOKEN: process.env.BUYBACK_SOURCE_TOKEN,
+    BUYBACK_SOURCE_TIMEOUT_MS: process.env.BUYBACK_SOURCE_TIMEOUT_MS,
   };
   if (env.url === undefined) delete process.env.BUYBACK_SOURCE_URL;
   else process.env.BUYBACK_SOURCE_URL = env.url;
   if (env.token === undefined) delete process.env.BUYBACK_SOURCE_TOKEN;
   else process.env.BUYBACK_SOURCE_TOKEN = env.token;
+  if (env.timeout === undefined) delete process.env.BUYBACK_SOURCE_TIMEOUT_MS;
+  else process.env.BUYBACK_SOURCE_TIMEOUT_MS = String(env.timeout);
   delete require.cache[MODULE];
   const source = require('./buyback_source');
   return {
@@ -58,7 +61,28 @@ function loadSource(env = {}) {
     best: null,
     unavailable: true,
   });
+  loaded.restore();
 
+  loaded = loadSource({ url: 'https://partner.example/quotes', timeout: 1 });
+  let timeoutSignal;
+  const timeoutResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new', {
+    fetchImpl: async (_url, options) => {
+      timeoutSignal = options.signal;
+      return new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+      });
+    },
+  });
+  assert.strictEqual(timeoutSignal.aborted, true, 'partner request must be aborted at the bounded timeout');
+  assert.deepStrictEqual(timeoutResult, {
+    configured: true,
+    items: [],
+    best: null,
+    unavailable: true,
+  });
+  loaded.restore();
+
+  loaded = loadSource({ url: 'https://partner.example/quotes', token: 'server-secret' });
   let requestedUrl;
   let requestedOptions;
   const now = Date.parse('2026-09-20T08:00:00Z');
