@@ -19,8 +19,11 @@ function configured() {
 async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = Date.now() } = {}) {
   if (!configured()) return { configured: false, items: [], best: null };
 
+  const normalizedQuery = String(query || '').trim().slice(0, 160);
+  if (normalizedQuery.length < 3) return { configured: true, items: [], best: null };
+
   const endpoint = new URL(BUYBACK_SOURCE_URL);
-  endpoint.searchParams.set('q', String(query || '').trim().slice(0, 160));
+  endpoint.searchParams.set('q', normalizedQuery);
   if (condition) endpoint.searchParams.set('condition', String(condition).trim().slice(0, 32));
 
   const controller = new AbortController();

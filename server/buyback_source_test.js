@@ -42,6 +42,13 @@ function loadSource(env = {}) {
   loaded.restore();
 
   loaded = loadSource({ url: 'https://partner.example/quotes', token: 'server-secret' });
+  let fetchCalls = 0;
+  const emptyResult = await loaded.source.fetchBuybackOffers('  ', 'like_new', {
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('must not fetch an empty query'); },
+  });
+  assert.deepStrictEqual(emptyResult, { configured: true, items: [], best: null });
+  assert.strictEqual(fetchCalls, 0);
+
   let requestedUrl;
   let requestedOptions;
   const now = Date.parse('2026-09-20T08:00:00Z');
