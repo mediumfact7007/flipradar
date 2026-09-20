@@ -52,6 +52,12 @@ function loadSource(env = {}) {
   assert.deepStrictEqual(emptyResult, { configured: true, items: [], best: null });
   assert.strictEqual(fetchCalls, 0);
 
+  const invalidConditionResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'mint-ish', {
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('must not fetch an invalid condition'); },
+  });
+  assert.deepStrictEqual(invalidConditionResult, { configured: true, items: [], best: null });
+  assert.strictEqual(fetchCalls, 0, 'invalid conditions must not consume partner requests');
+
   const outageResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new', {
     fetchImpl: async () => { throw new Error('partner offline'); },
   });
