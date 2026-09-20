@@ -18,56 +18,38 @@ void main() {
 
   test('evaluation explains exactly which threshold fired', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    final evaluation = evaluateDealAlert(
-      preference: alert,
-      previousProfit: 30,
-      currentProfit: 32,
-      previousRoi: 20,
-      currentRoi: 27,
-    );
+    final evaluation = evaluateDealAlert(preference: alert, previousProfit: 30, currentProfit: 32, previousRoi: 20, currentRoi: 27);
     expect(evaluation.triggered, isTrue);
     expect(evaluation.profitIncrease, 2);
     expect(evaluation.roiIncrease, 7);
     expect(evaluation.profitThresholdReached, isFalse);
     expect(evaluation.roiThresholdReached, isTrue);
+    expect(evaluation.becameProfitable, isFalse);
   });
 
   test('loss-making recheck stays quiet despite material improvement', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    final evaluation = evaluateDealAlert(
-      preference: alert,
-      previousProfit: -30,
-      currentProfit: -10,
-      previousRoi: -25,
-      currentRoi: -10,
-    );
+    final evaluation = evaluateDealAlert(preference: alert, previousProfit: -30, currentProfit: -10, previousRoi: -25, currentRoi: -10);
     expect(evaluation.profitIncrease, 20);
     expect(evaluation.roiIncrease, 15);
     expect(evaluation.triggered, isFalse);
     expect(evaluation.profitThresholdReached, isFalse);
     expect(evaluation.roiThresholdReached, isFalse);
+    expect(evaluation.becameProfitable, isFalse);
   });
 
-  test('crossing into profit can trigger an alert', () {
+  test('crossing into profit triggers even below configured delta thresholds', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    expect(shouldTriggerDealAlert(
-      preference: alert,
-      previousProfit: -4,
-      currentProfit: 6,
-      previousRoi: -3,
-      currentRoi: 5,
-    ), isTrue);
+    final evaluation = evaluateDealAlert(preference: alert, previousProfit: -1, currentProfit: 1, previousRoi: -1, currentRoi: 1);
+    expect(evaluation.triggered, isTrue);
+    expect(evaluation.becameProfitable, isTrue);
+    expect(evaluation.profitThresholdReached, isFalse);
+    expect(evaluation.roiThresholdReached, isFalse);
   });
 
   test('zero thresholds still require a real improvement', () {
     final alert = DealAlertPreference.defaults('flip-1').copyWith(minProfitIncrease: 0, minRoiIncrease: 0);
-    final unchanged = evaluateDealAlert(
-      preference: alert,
-      previousProfit: 30,
-      currentProfit: 30,
-      previousRoi: 25,
-      currentRoi: 25,
-    );
+    final unchanged = evaluateDealAlert(preference: alert, previousProfit: 30, currentProfit: 30, previousRoi: 25, currentRoi: 25);
     expect(unchanged.triggered, isFalse);
     expect(unchanged.profitThresholdReached, isFalse);
     expect(unchanged.roiThresholdReached, isFalse);
@@ -80,10 +62,7 @@ void main() {
   });
 
   test('preference survives json roundtrip', () {
-    final original = DealAlertPreference(
-      flipId: 'flip-7', enabled: true, minProfitIncrease: 8, minRoiIncrease: 12,
-      updatedAt: DateTime.parse('2026-09-17T10:00:00Z').toLocal(),
-    );
+    final original = DealAlertPreference(flipId: 'flip-7', enabled: true, minProfitIncrease: 8, minRoiIncrease: 12, updatedAt: DateTime.parse('2026-09-17T10:00:00Z').toLocal());
     final restored = DealAlertPreference.fromJson(original.toJson());
     expect(restored, isNotNull);
     expect(restored!.flipId, original.flipId);
@@ -94,9 +73,6 @@ void main() {
   });
 
   test('invalid persisted thresholds are rejected', () {
-    expect(DealAlertPreference.fromJson({
-      'flip_id': 'flip-1', 'enabled': true, 'min_profit_increase': -1,
-      'min_roi_increase': 5, 'updated_at': '2026-09-17T10:00:00Z',
-    }), isNull);
+    expect(DealAlertPreference.fromJson({'flip_id': 'flip-1', 'enabled': true, 'min_profit_increase': -1, 'min_roi_increase': 5, 'updated_at': '2026-09-17T10:00:00Z'}), isNull);
   });
 }
