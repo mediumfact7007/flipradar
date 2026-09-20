@@ -104,6 +104,13 @@ void main() {
     expect(best?.price, 620);
   });
 
+  test('tolerates small clock skew but rejects implausible future timestamps', () {
+    final now = DateTime.parse('2026-09-16T10:00:00Z');
+
+    expect(offer(price: 620, checkedAt: now.add(const Duration(minutes: 4))).isFreshAt(now), isTrue);
+    expect(offer(price: 700, checkedAt: now.add(const Duration(minutes: 6))).isFreshAt(now), isFalse);
+  });
+
   test('parses normalized adapter payload', () {
     final parsed = BuybackOffer.fromJson(payload());
 
