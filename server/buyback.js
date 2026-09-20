@@ -10,6 +10,7 @@ const CONDITIONS = new Set([
 ]);
 
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_PRICE_EUR = 10000;
 
 function text(value, max = 240) {
   return String(value || '').trim().slice(0, max);
@@ -26,7 +27,7 @@ function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
   try { parsedUrl = new URL(offerUrl); } catch (_) { return null; }
 
   if (!CONDITIONS.has(condition)) return null;
-  if (!Number.isFinite(price) || price <= 0) return null;
+  if (!Number.isFinite(price) || price <= 0 || price > MAX_PRICE_EUR) return null;
   if (text(raw.currency, 8) !== 'EUR') return null;
   if (text(raw.price_kind, 40) !== 'indicative_buyback') return null;
   if (!Number.isFinite(confidence) || confidence < 0.9 || confidence > 1) return null;
@@ -77,4 +78,4 @@ function bestBuybackOffer(items, condition) {
     .reduce((best, item) => (!best || item.price > best.price ? item : best), null);
 }
 
-module.exports = { CONDITIONS, MAX_AGE_MS, normalizeBuybackOffer, normalizeBuybackPayload, bestBuybackOffer };
+module.exports = { CONDITIONS, MAX_AGE_MS, MAX_PRICE_EUR, normalizeBuybackOffer, normalizeBuybackPayload, bestBuybackOffer };
