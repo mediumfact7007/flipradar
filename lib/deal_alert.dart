@@ -46,6 +46,7 @@ class DealAlertEvaluation {
   final double roiIncrease;
   final bool profitThresholdReached;
   final bool roiThresholdReached;
+  final bool becameProfitable;
 
   const DealAlertEvaluation({
     required this.triggered,
@@ -53,6 +54,7 @@ class DealAlertEvaluation {
     required this.roiIncrease,
     required this.profitThresholdReached,
     required this.roiThresholdReached,
+    this.becameProfitable = false,
   });
 }
 
@@ -74,16 +76,21 @@ DealAlertEvaluation evaluateDealAlert({
   // A recheck that is still loss-making must therefore stay quiet even when
   // the loss became smaller or ROI improved materially.
   final isProfitableNow = currentProfit > 0;
+  // Becoming profitable is itself actionable even when the configured delta
+  // threshold is larger than the move. This avoids silently missing the most
+  // important state change for a watched deal.
+  final becameProfitable = previousProfit <= 0 && isProfitableNow;
   // Even a zero threshold means "alert on any improvement", not "alert on no
   // change". This keeps rechecks trustworthy for custom low thresholds.
   final profitReached = isProfitableNow && profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
   final roiReached = isProfitableNow && roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
   return DealAlertEvaluation(
-    triggered: profitReached || roiReached,
+    triggered: becameProfitable || profitReached || roiReached,
     profitIncrease: profitIncrease,
     roiIncrease: roiIncrease,
     profitThresholdReached: profitReached,
     roiThresholdReached: roiReached,
+    becameProfitable: becameProfitable,
   );
 }
 
