@@ -47,6 +47,13 @@ void main() {
     expect(evaluation.roiThresholdReached, isFalse);
   });
 
+  test('break-even to profit also counts as becoming profitable', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 0.01, previousRoi: 0, currentRoi: 0.01);
+    expect(evaluation.triggered, isTrue);
+    expect(evaluation.becameProfitable, isTrue);
+  });
+
   test('zero thresholds still require a real improvement', () {
     final alert = DealAlertPreference.defaults('flip-1').copyWith(minProfitIncrease: 0, minRoiIncrease: 0);
     final unchanged = evaluateDealAlert(preference: alert, previousProfit: 30, currentProfit: 30, previousRoi: 25, currentRoi: 25);
