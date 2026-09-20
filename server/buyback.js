@@ -26,7 +26,7 @@ function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
   try { parsedUrl = new URL(offerUrl); } catch (_) { return null; }
 
   if (!CONDITIONS.has(condition)) return null;
-  if (!Number.isFinite(price) || price < 0) return null;
+  if (!Number.isFinite(price) || price <= 0) return null;
   if (text(raw.currency, 8) !== 'EUR') return null;
   if (text(raw.price_kind, 40) !== 'indicative_buyback') return null;
   if (!Number.isFinite(confidence) || confidence < 0.9 || confidence > 1) return null;
