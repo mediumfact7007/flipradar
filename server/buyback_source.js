@@ -2,7 +2,10 @@
 
 const { normalizeBuybackPayload, bestBuybackOffer } = require('./buyback');
 
-const BUYBACK_SOURCE_TIMEOUT_MS = Number(process.env.BUYBACK_SOURCE_TIMEOUT_MS || 6000);
+const configuredTimeoutMs = Number(process.env.BUYBACK_SOURCE_TIMEOUT_MS || 6000);
+const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
+  ? Math.min(15000, Math.max(1000, configuredTimeoutMs))
+  : 6000;
 const BUYBACK_SOURCE_URL = String(process.env.BUYBACK_SOURCE_URL || '').trim();
 const BUYBACK_SOURCE_TOKEN = String(process.env.BUYBACK_SOURCE_TOKEN || '').trim();
 
