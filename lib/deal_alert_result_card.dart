@@ -45,7 +45,6 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
   void didUpdateWidget(covariant DealAlertResultCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.flipId != widget.flipId) {
-      // Do not render the previous deal's alert while the new preference loads.
       setState(() => _preference = null);
       _load();
     }
@@ -72,6 +71,9 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
     if (!evaluation.triggered) return const SizedBox.shrink();
 
     final reasons = <String>[];
+    if (evaluation.becameProfitable) {
+      reasons.add(t('Jetzt profitabel', 'Now profitable'));
+    }
     if (evaluation.profitThresholdReached) {
       reasons.add('${t('Gewinn', 'Profit')} +${evaluation.profitIncrease.toStringAsFixed(0)} €');
     }
