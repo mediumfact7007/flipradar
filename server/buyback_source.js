@@ -13,7 +13,7 @@ function configured() {
   if (!BUYBACK_SOURCE_URL) return false;
   try {
     const url = new URL(BUYBACK_SOURCE_URL);
-    return url.protocol === 'https:';
+    return url.protocol === 'https:' && !url.username && !url.password;
   } catch (_) {
     return false;
   }
