@@ -22,7 +22,7 @@ function configured() {
 async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = Date.now() } = {}) {
   if (!configured()) return { configured: false, items: [], best: null };
 
-  const normalizedQuery = String(query || '').trim().slice(0, 160);
+  const normalizedQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 160);
   if (normalizedQuery.length < 3) return { configured: true, items: [], best: null };
   const normalizedCondition = String(condition || '').trim().slice(0, 32);
   if (normalizedCondition && !CONDITIONS.has(normalizedCondition)) {
