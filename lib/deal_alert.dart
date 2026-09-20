@@ -70,10 +70,14 @@ DealAlertEvaluation evaluateDealAlert({
   }
   final profitIncrease = currentProfit - previousProfit;
   final roiIncrease = currentRoi - previousRoi;
+  // Alerts are actionable deal signals, not generic market-change notices.
+  // A recheck that is still loss-making must therefore stay quiet even when
+  // the loss became smaller or ROI improved materially.
+  final isProfitableNow = currentProfit > 0;
   // Even a zero threshold means "alert on any improvement", not "alert on no
   // change". This keeps rechecks trustworthy for custom low thresholds.
-  final profitReached = profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
-  final roiReached = roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
+  final profitReached = isProfitableNow && profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
+  final roiReached = isProfitableNow && roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
   return DealAlertEvaluation(
     triggered: profitReached || roiReached,
     profitIncrease: profitIncrease,
