@@ -41,4 +41,15 @@ const comparable = normalizeBuybackPayload({ items: [
 assert.strictEqual(bestBuybackOffer(comparable, 'like_new').provider_id, 'b');
 assert.strictEqual(bestBuybackOffer(comparable, 'like_new').price, 645);
 
+const duplicates = normalizeBuybackPayload({ items: [
+  offer({ provider_id: 'a', price: 610, checked_at: '2026-09-16T09:20:00Z' }),
+  offer({ provider_id: 'a', price: 625, checked_at: '2026-09-16T09:10:00Z' }),
+  offer({ provider_id: 'a', price: 625, checked_at: '2026-09-16T09:40:00Z' }),
+  offer({ provider_id: 'b', price: 640 }),
+] }, { now });
+assert.strictEqual(duplicates.length, 2, 'same provider/product/condition must not inflate comparison');
+assert.strictEqual(duplicates[0].provider_id, 'b', 'comparison should be ordered by best payout');
+assert.strictEqual(duplicates[1].price, 625);
+assert.strictEqual(duplicates[1].checked_at, '2026-09-16T09:40:00.000Z', 'equal-price duplicate should keep freshest quote');
+
 console.log('buyback tests passed');

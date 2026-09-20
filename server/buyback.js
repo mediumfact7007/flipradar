@@ -58,7 +58,17 @@ function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
 
 function normalizeBuybackPayload(payload, options) {
   const rawItems = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-  return rawItems.map((item) => normalizeBuybackOffer(item, options)).filter(Boolean);
+  const unique = new Map();
+  for (const raw of rawItems) {
+    const item = normalizeBuybackOffer(raw, options);
+    if (!item) continue;
+    const key = `${item.provider_id}\u0000${item.product_id}\u0000${item.condition}`;
+    const current = unique.get(key);
+    if (!current || item.price > current.price || (item.price === current.price && item.checked_at > current.checked_at)) {
+      unique.set(key, item);
+    }
+  }
+  return [...unique.values()].sort((a, b) => b.price - a.price || b.checked_at.localeCompare(a.checked_at));
 }
 
 function bestBuybackOffer(items, condition) {
