@@ -33,6 +33,7 @@ assert.strictEqual(normalizeBuybackPayload({ items: [offer({ price_kind: 'asking
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ match_confidence: 0.72 })] }, { now }).length, 0);
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ condition_uncertain: true })] }, { now }).length, 0);
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ offer_url: 'http://example.com/offer' })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ offer_url: 'https://user:secret@example.com/offer' })] }, { now }).length, 0, 'offer URLs must not embed credentials');
 
 const comparable = normalizeBuybackPayload({ items: [
   offer({ provider_id: 'a', price: 610 }),
