@@ -44,6 +44,10 @@ function loadSource(env = {}) {
   assert.strictEqual(loaded.source.configured(), false, 'plain HTTP must never become a live source');
   loaded.restore();
 
+  loaded = loadSource({ url: 'https://user:password@partner.example/quotes' });
+  assert.strictEqual(loaded.source.configured(), false, 'credentials must not be embedded in the partner URL');
+  loaded.restore();
+
   loaded = loadSource({ url: 'https://partner.example/quotes', token: 'server-secret' });
   let fetchCalls = 0;
   const emptyResult = await loaded.source.fetchBuybackOffers('  ', 'like_new', {
