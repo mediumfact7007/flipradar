@@ -127,6 +127,7 @@ function loadSource(env = {}) {
   assert.strictEqual(requestedUrl.searchParams.get('q'), 'Apple iPhone 15 Pro 256 GB');
   assert.strictEqual(requestedUrl.searchParams.get('condition'), 'like_new');
   assert.strictEqual(requestedOptions.headers.authorization, 'Bearer server-secret');
+  assert.strictEqual(requestedOptions.redirect, 'error', 'partner auth requests must never follow redirects');
   assert.strictEqual(result.configured, true);
   assert.strictEqual(result.items.length, 1);
   assert.strictEqual(result.best.provider_id, 'clevertronic');
