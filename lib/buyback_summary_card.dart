@@ -48,12 +48,15 @@ class BuybackComparisonCard extends StatelessWidget {
     final marginDifference = summary.instantMargin - summary.privateMargin;
     final instantBetter = marginDifference > 0;
     final equalProfit = marginDifference.abs() < 0.01;
+    final noProfitableExit = summary.instantMargin <= 0 && summary.privateMargin <= 0;
     final theme = Theme.of(context);
-    final recommendation = equalProfit
-        ? (_de ? 'Gleicher Gewinn – Sofortankauf spart Zeit' : 'Same profit – instant buyback saves time')
-        : instantBetter
-            ? (_de ? 'Sofortankauf bringt hier mehr' : 'Instant buyback pays more here')
-            : (_de ? 'Privatverkauf bringt mehr' : 'Private sale pays more');
+    final recommendation = noProfitableExit
+        ? (_de ? 'Kein positiver Exit – Einkaufspreis zu hoch' : 'No profitable exit – purchase price is too high')
+        : equalProfit
+            ? (_de ? 'Gleicher Gewinn – Sofortankauf spart Zeit' : 'Same profit – instant buyback saves time')
+            : instantBetter
+                ? (_de ? 'Sofortankauf bringt hier mehr' : 'Instant buyback pays more here')
+                : (_de ? 'Privatverkauf bringt mehr' : 'Private sale pays more');
 
     return Card(
       key: const ValueKey('buyback-comparison-card'),
@@ -78,19 +81,23 @@ class BuybackComparisonCard extends StatelessWidget {
               key: const ValueKey('buyback-recommendation'),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
+                color: noProfitableExit ? theme.colorScheme.errorContainer : theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.auto_awesome_rounded, size: 16, color: theme.colorScheme.onPrimaryContainer),
+                  Icon(
+                    noProfitableExit ? Icons.warning_amber_rounded : Icons.auto_awesome_rounded,
+                    size: 16,
+                    color: noProfitableExit ? theme.colorScheme.onErrorContainer : theme.colorScheme.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       recommendation,
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
+                        color: noProfitableExit ? theme.colorScheme.onErrorContainer : theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -103,7 +110,7 @@ class BuybackComparisonCard extends StatelessWidget {
               title: _de ? 'Privat verkaufen' : 'Sell privately',
               value: _money(summary.privateMarketValue),
               detail: '${_de ? 'Gewinn' : 'Profit'} ${_money(summary.privateMargin)} · ROI ${_roi(summary.privateRoi)}',
-              emphasized: !instantBetter && !equalProfit,
+              emphasized: !noProfitableExit && !instantBetter && !equalProfit,
               emphasisLabel: _de ? 'Mehr Erlös' : 'Higher payout',
             ),
             const Divider(height: 22),
@@ -111,7 +118,7 @@ class BuybackComparisonCard extends StatelessWidget {
               title: _de ? 'Sofortankauf' : 'Instant buyback',
               value: _money(summary.offer.price),
               detail: '${summary.offer.providerName} · ${_de ? 'Gewinn' : 'Profit'} ${_money(summary.instantMargin)} · ROI ${_roi(summary.instantRoi)}',
-              emphasized: instantBetter,
+              emphasized: !noProfitableExit && instantBetter,
               emphasisLabel: _de ? 'Mehr Erlös' : 'Higher payout',
             ),
             if (summary.convenienceGap > 0) ...[
