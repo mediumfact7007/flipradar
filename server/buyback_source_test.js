@@ -49,6 +49,16 @@ function loadSource(env = {}) {
   assert.deepStrictEqual(emptyResult, { configured: true, items: [], best: null });
   assert.strictEqual(fetchCalls, 0);
 
+  const outageResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new', {
+    fetchImpl: async () => { throw new Error('partner offline'); },
+  });
+  assert.deepStrictEqual(outageResult, {
+    configured: true,
+    items: [],
+    best: null,
+    unavailable: true,
+  });
+
   let requestedUrl;
   let requestedOptions;
   const now = Date.parse('2026-09-20T08:00:00Z');
