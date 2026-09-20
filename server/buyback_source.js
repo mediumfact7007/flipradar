@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeBuybackPayload, bestBuybackOffer } = require('./buyback');
+const { CONDITIONS, normalizeBuybackPayload, bestBuybackOffer } = require('./buyback');
 
 const configuredTimeoutMs = Number(process.env.BUYBACK_SOURCE_TIMEOUT_MS || 6000);
 const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
@@ -24,10 +24,14 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
 
   const normalizedQuery = String(query || '').trim().slice(0, 160);
   if (normalizedQuery.length < 3) return { configured: true, items: [], best: null };
+  const normalizedCondition = String(condition || '').trim().slice(0, 32);
+  if (normalizedCondition && !CONDITIONS.has(normalizedCondition)) {
+    return { configured: true, items: [], best: null };
+  }
 
   const endpoint = new URL(BUYBACK_SOURCE_URL);
   endpoint.searchParams.set('q', normalizedQuery);
-  if (condition) endpoint.searchParams.set('condition', String(condition).trim().slice(0, 32));
+  if (normalizedCondition) endpoint.searchParams.set('condition', normalizedCondition);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BUYBACK_SOURCE_TIMEOUT_MS);
@@ -45,7 +49,7 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     return {
       configured: true,
       items,
-      best: condition ? bestBuybackOffer(items, condition) : null,
+      best: normalizedCondition ? bestBuybackOffer(items, normalizedCondition) : null,
     };
   } catch (_) {
     return { configured: true, items: [], best: null, unavailable: true };
