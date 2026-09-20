@@ -32,7 +32,7 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     const headers = { accept: 'application/json' };
     if (BUYBACK_SOURCE_TOKEN) headers.authorization = `Bearer ${BUYBACK_SOURCE_TOKEN}`;
     const response = await fetchImpl(endpoint, { headers, signal: controller.signal });
-    if (!response.ok) throw new Error(`buyback source failed (${response.status})`);
+    if (!response.ok) return { configured: true, items: [], best: null, unavailable: true };
     const payload = await response.json();
     const items = normalizeBuybackPayload(payload, { now });
     return {
@@ -40,6 +40,8 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
       items,
       best: condition ? bestBuybackOffer(items, condition) : null,
     };
+  } catch (_) {
+    return { configured: true, items: [], best: null, unavailable: true };
   } finally {
     clearTimeout(timer);
   }
