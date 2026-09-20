@@ -33,6 +33,10 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     if (BUYBACK_SOURCE_TOKEN) headers.authorization = `Bearer ${BUYBACK_SOURCE_TOKEN}`;
     const response = await fetchImpl(endpoint, { headers, signal: controller.signal });
     if (!response.ok) return { configured: true, items: [], best: null, unavailable: true };
+    const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase();
+    if (contentType && !contentType.includes('application/json')) {
+      return { configured: true, items: [], best: null, unavailable: true };
+    }
     const payload = await response.json();
     const items = normalizeBuybackPayload(payload, { now });
     return {
