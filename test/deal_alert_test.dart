@@ -83,6 +83,15 @@ void main() {
     expect(restored.updatedAt.toUtc(), original.updatedAt.toUtc());
   });
 
+  test('persisted alert key is normalized for reliable rechecks', () {
+    final restored = DealAlertPreference.fromJson({
+      'flip_id': '  flip-7  ', 'enabled': true, 'min_profit_increase': 5,
+      'min_roi_increase': 5, 'updated_at': '2026-09-17T10:00:00Z',
+    });
+    expect(restored, isNotNull);
+    expect(restored!.flipId, 'flip-7');
+  });
+
   test('invalid persisted thresholds are rejected', () {
     expect(DealAlertPreference.fromJson({'flip_id': 'flip-1', 'enabled': true, 'min_profit_increase': -1, 'min_roi_increase': 5, 'updated_at': '2026-09-17T10:00:00Z'}), isNull);
   });
