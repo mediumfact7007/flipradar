@@ -52,32 +52,22 @@ void main() {
       [offer(price: 590), offer(price: 625), offer(price: 610)],
       condition: BuybackCondition.likeNew,
     );
-
     expect(best?.price, 625);
   });
 
   test('does not compare different conditions', () {
     final best = bestComparableBuybackOffer(
-      [
-        offer(price: 600),
-        offer(price: 700, condition: BuybackCondition.usedGood),
-      ],
+      [offer(price: 600), offer(price: 700, condition: BuybackCondition.usedGood)],
       condition: BuybackCondition.likeNew,
     );
-
     expect(best?.price, 600);
   });
 
   test('excludes uncertain and low-confidence matches', () {
     final best = bestComparableBuybackOffer(
-      [
-        offer(price: 700, uncertain: true),
-        offer(price: 680, confidence: 0.75),
-        offer(price: 620),
-      ],
+      [offer(price: 700, uncertain: true), offer(price: 680, confidence: 0.75), offer(price: 620)],
       condition: BuybackCondition.likeNew,
     );
-
     expect(best?.price, 620);
   });
 
@@ -86,61 +76,47 @@ void main() {
       [offer(price: 0), offer(price: 620)],
       condition: BuybackCondition.likeNew,
     );
-
     expect(best?.price, 620);
     expect(offer(price: 0).isEligibleForComparison, isFalse);
   });
 
   test('excludes implausible prices and unsafe offer URLs', () {
     expect(offer(price: 10001).isEligibleForComparison, isFalse);
-    expect(
-      offer(
-        price: 620,
-        offerUrl: Uri.parse('https://user:secret@example.com/offer'),
-      ).isEligibleForComparison,
-      isFalse,
-    );
-    expect(
-      offer(price: 620, offerUrl: Uri.parse('https:/offer'))
-          .isEligibleForComparison,
-      isFalse,
-    );
-    expect(
-      offer(price: 620, offerUrl: Uri.parse('https://localhost/offer'))
-          .isEligibleForComparison,
-      isFalse,
-    );
-    expect(
-      offer(price: 620, offerUrl: Uri.parse('https://partner.local/offer'))
-          .isEligibleForComparison,
-      isFalse,
-    );
+    expect(offer(price: 620, offerUrl: Uri.parse('https://user:secret@example.com/offer')).isEligibleForComparison, isFalse);
+    expect(offer(price: 620, offerUrl: Uri.parse('https:/offer')).isEligibleForComparison, isFalse);
+    expect(offer(price: 620, offerUrl: Uri.parse('https://localhost/offer')).isEligibleForComparison, isFalse);
+    expect(offer(price: 620, offerUrl: Uri.parse('https://partner.local/offer')).isEligibleForComparison, isFalse);
+  });
+
+  test('excludes private-network offer URLs', () {
+    for (final host in ['127.0.0.1', '10.0.0.8', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.168.1.20', '[::1]']) {
+      expect(
+        offer(price: 620, offerUrl: Uri.parse('https://$host/offer')).isEligibleForComparison,
+        isFalse,
+        reason: host,
+      );
+    }
+    expect(offer(price: 620, offerUrl: Uri.parse('https://172.32.0.1/offer')).isEligibleForComparison, isTrue);
   });
 
   test('excludes stale offers when a comparison time is supplied', () {
     final now = DateTime.parse('2026-09-16T10:00:00Z');
     final best = bestComparableBuybackOffer(
-      [
-        offer(price: 700, checkedAt: now.subtract(const Duration(hours: 25))),
-        offer(price: 620, checkedAt: now.subtract(const Duration(hours: 2))),
-      ],
+      [offer(price: 700, checkedAt: now.subtract(const Duration(hours: 25))), offer(price: 620, checkedAt: now.subtract(const Duration(hours: 2)))],
       condition: BuybackCondition.likeNew,
       now: now,
     );
-
     expect(best?.price, 620);
   });
 
   test('tolerates small clock skew but rejects implausible future timestamps', () {
     final now = DateTime.parse('2026-09-16T10:00:00Z');
-
     expect(offer(price: 620, checkedAt: now.add(const Duration(minutes: 4))).isFreshAt(now), isTrue);
     expect(offer(price: 700, checkedAt: now.add(const Duration(minutes: 6))).isFreshAt(now), isFalse);
   });
 
   test('parses normalized adapter payload', () {
     final parsed = BuybackOffer.fromJson(payload());
-
     expect(parsed.condition, BuybackCondition.likeNew);
     expect(parsed.price, 620);
     expect(parsed.isEligibleForComparison, isTrue);
@@ -148,7 +124,6 @@ void main() {
 
   test('rejects non-buyback price kinds', () {
     final json = payload()..['price_kind'] = 'asking_price';
-
     expect(() => BuybackOffer.fromJson(json), throwsFormatException);
   });
 }
