@@ -76,4 +76,32 @@ void main() {
     expect(await store.save(invalid), isFalse);
     expect(await store.load(), isEmpty);
   });
+
+  test('stale save cannot roll back a newer alert preference', () async {
+    final store = DealAlertStore();
+    final newer = DealAlertPreference(
+      flipId: 'flip-1',
+      enabled: false,
+      minProfitIncrease: 12,
+      minRoiIncrease: 8,
+      updatedAt: DateTime.utc(2026, 9, 21, 10),
+    );
+    final stale = DealAlertPreference(
+      flipId: 'flip-1',
+      enabled: true,
+      minProfitIncrease: 5,
+      minRoiIncrease: 5,
+      updatedAt: DateTime.utc(2026, 9, 21, 9),
+    );
+
+    expect(await store.save(newer), isTrue);
+    expect(await DealAlertStore().save(stale), isTrue);
+
+    final loaded = await store.load();
+    expect(loaded, hasLength(1));
+    expect(loaded.single.enabled, isFalse);
+    expect(loaded.single.minProfitIncrease, 12);
+    expect(loaded.single.minRoiIncrease, 8);
+    expect(loaded.single.updatedAt, newer.updatedAt.toLocal());
+  });
 }
