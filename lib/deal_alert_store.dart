@@ -82,6 +82,19 @@ class DealAlertStore {
           );
     return _mutate(() async {
       final all = await load();
+      DealAlertPreference? existing;
+      for (final item in all) {
+        if (item.flipId == id) {
+          existing = item;
+          break;
+        }
+      }
+      // A delayed UI callback must never roll back a preference that was saved
+      // more recently from another card/recheck. The model already carries an
+      // update timestamp, so use it as the conflict-resolution source of truth.
+      if (existing != null && existing.updatedAt.isAfter(canonical.updatedAt)) {
+        return true;
+      }
       final next = <DealAlertPreference>[
         canonical,
         ...all.where((item) => item.flipId != id),
