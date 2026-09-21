@@ -89,7 +89,7 @@ void main() {
   });
 
   test('excludes private-network offer URLs', () {
-    for (final host in ['127.0.0.1', '10.0.0.8', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.168.1.20', '[::1]']) {
+    for (final host in ['127.0.0.1', '10.0.0.8', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.168.1.20', '[::1]', '[::]', '[fc00::1]', '[fd12:3456::1]', '[fe80::1]']) {
       expect(
         offer(price: 620, offerUrl: Uri.parse('https://$host/offer')).isEligibleForComparison,
         isFalse,
@@ -97,6 +97,7 @@ void main() {
       );
     }
     expect(offer(price: 620, offerUrl: Uri.parse('https://172.32.0.1/offer')).isEligibleForComparison, isTrue);
+    expect(offer(price: 620, offerUrl: Uri.parse('https://[2606:4700:4700::1111]/offer')).isEligibleForComparison, isTrue);
   });
 
   test('excludes stale offers when a comparison time is supplied', () {
