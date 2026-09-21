@@ -22,6 +22,27 @@ class RecheckDeltaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!delta.isValid) {
+      return Container(
+        key: const ValueKey('v149-recheck-delta-invalid'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0x336D7180)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.info_outline_rounded, color: Color(0xFF6D7180), size: 20),
+          const SizedBox(width: 7),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t('VERGLEICH NICHT VERFÜGBAR', 'COMPARISON UNAVAILABLE'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF6D7180))),
+            const SizedBox(height: 4),
+            Text(t('Für diesen Recheck fehlen verlässliche Marktdaten. Der Deal wird deshalb nicht als besser oder unverändert bewertet.', 'Reliable market data is missing for this recheck, so the deal is not rated as improved or unchanged.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483), height: 1.35)),
+          ])),
+        ]),
+      );
+    }
+
     final improved = delta.improved;
     final worsened = delta.worsened;
     final accent = improved
@@ -68,32 +89,14 @@ class RecheckDeltaCard extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _DeltaChip(
-                label: '${t('Preis', 'Price')} ${money(delta.askingDelta)}',
-                direction: _direction(-delta.askingDelta),
-              ),
-              _DeltaChip(
-                label: 'MAX ${money(delta.maxBuyDelta)}',
-                direction: _direction(delta.maxBuyDelta),
-              ),
-              _DeltaChip(
-                label: '${t('Gewinn', 'Profit')} ${money(delta.profitDelta)}',
-                direction: _direction(delta.profitDelta),
-              ),
-              _DeltaChip(
-                label: 'ROI ${points(delta.roiDelta)}',
-                direction: _direction(delta.roiDelta),
-              ),
+              _DeltaChip(label: '${t('Preis', 'Price')} ${money(delta.askingDelta)}', direction: _direction(-delta.askingDelta)),
+              _DeltaChip(label: 'MAX ${money(delta.maxBuyDelta)}', direction: _direction(delta.maxBuyDelta)),
+              _DeltaChip(label: '${t('Gewinn', 'Profit')} ${money(delta.profitDelta)}', direction: _direction(delta.profitDelta)),
+              _DeltaChip(label: 'ROI ${points(delta.roiDelta)}', direction: _direction(delta.roiDelta)),
             ],
           ),
           const SizedBox(height: 7),
-          Text(
-            t(
-              'Vergleich mit deinem letzten gespeicherten Check.',
-              'Compared with your last saved check.',
-            ),
-            style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483)),
-          ),
+          Text(t('Vergleich mit deinem letzten gespeicherten Check.', 'Compared with your last saved check.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483))),
         ],
       ),
     );
@@ -121,10 +124,7 @@ class _DeltaChip extends StatelessWidget {
             : const Color(0xFF6D7180);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F5F8),
-        borderRadius: BorderRadius.circular(99),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFF4F5F8), borderRadius: BorderRadius.circular(99)),
       child: Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: foreground)),
     );
   }
