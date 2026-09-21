@@ -56,8 +56,12 @@ class BuybackComparisonCard extends StatelessWidget {
         : equalProfit
             ? (_de ? 'Gleicher Gewinn – Sofortankauf spart Zeit' : 'Same profit – instant buyback saves time')
             : instantBetter
-                ? (_de ? 'Sofortankauf bringt hier mehr' : 'Instant buyback pays more here')
-                : (_de ? 'Privatverkauf bringt mehr' : 'Private sale pays more');
+                ? (_de
+                    ? 'Sofortankauf: ${_money(marginDifference)} mehr Gewinn'
+                    : 'Instant buyback: ${_money(marginDifference)} more profit')
+                : (_de
+                    ? 'Privatverkauf: ${_money(-marginDifference)} mehr Gewinn'
+                    : 'Private sale: ${_money(-marginDifference)} more profit');
 
     return Card(
       key: const ValueKey('buyback-comparison-card'),
