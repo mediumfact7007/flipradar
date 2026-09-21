@@ -48,7 +48,12 @@ void main() {
   test('save canonicalizes whitespace before replacing an existing alert', () async {
     final store = DealAlertStore();
     expect(
-      await store.save(DealAlertPreference.defaults('flip-1')),
+      await store.save(
+        DealAlertPreference.defaults(
+          'flip-1',
+          now: DateTime.utc(2026, 9, 21, 7),
+        ),
+      ),
       isTrue,
     );
 
