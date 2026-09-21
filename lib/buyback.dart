@@ -34,6 +34,18 @@ bool _hasPublicOfferHost(String host) {
     return false;
   }
 
+  if (normalized.contains(':')) {
+    // Only globally routable IPv6 destinations belong in user-facing offer links.
+    // Block unspecified, loopback, unique-local and link-local ranges.
+    return normalized != '::' &&
+        !normalized.startsWith('fc') &&
+        !normalized.startsWith('fd') &&
+        !normalized.startsWith('fe8') &&
+        !normalized.startsWith('fe9') &&
+        !normalized.startsWith('fea') &&
+        !normalized.startsWith('feb');
+  }
+
   final octets = normalized.split('.');
   if (octets.length != 4) return true;
   final ipv4 = octets.map(int.tryParse).toList();
