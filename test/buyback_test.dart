@@ -105,6 +105,16 @@ void main() {
           .isEligibleForComparison,
       isFalse,
     );
+    expect(
+      offer(price: 620, offerUrl: Uri.parse('https://localhost/offer'))
+          .isEligibleForComparison,
+      isFalse,
+    );
+    expect(
+      offer(price: 620, offerUrl: Uri.parse('https://partner.local/offer'))
+          .isEligibleForComparison,
+      isFalse,
+    );
   });
 
   test('excludes stale offers when a comparison time is supplied', () {

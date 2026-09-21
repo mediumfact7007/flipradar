@@ -56,23 +56,27 @@ class BuybackOffer {
   final double matchConfidence;
   final bool conditionUncertain;
 
-  bool get isEligibleForComparison =>
-      !conditionUncertain &&
-      providerId.trim().isNotEmpty &&
-      providerName.trim().isNotEmpty &&
-      productId.trim().isNotEmpty &&
-      matchedTitle.trim().isNotEmpty &&
-      price.isFinite &&
-      price > 0 &&
-      price <= maxComparablePriceEur &&
-      currency == 'EUR' &&
-      offerUrl.hasScheme &&
-      offerUrl.scheme == 'https' &&
-      offerUrl.host.isNotEmpty &&
-      offerUrl.userInfo.isEmpty &&
-      matchConfidence.isFinite &&
-      matchConfidence >= 0.9 &&
-      matchConfidence <= 1;
+  bool get isEligibleForComparison {
+    final host = offerUrl.host.toLowerCase();
+    final hasPublicOfferHost = host.isNotEmpty && host != 'localhost' && !host.endsWith('.local');
+
+    return !conditionUncertain &&
+        providerId.trim().isNotEmpty &&
+        providerName.trim().isNotEmpty &&
+        productId.trim().isNotEmpty &&
+        matchedTitle.trim().isNotEmpty &&
+        price.isFinite &&
+        price > 0 &&
+        price <= maxComparablePriceEur &&
+        currency == 'EUR' &&
+        offerUrl.hasScheme &&
+        offerUrl.scheme == 'https' &&
+        hasPublicOfferHost &&
+        offerUrl.userInfo.isEmpty &&
+        matchConfidence.isFinite &&
+        matchConfidence >= 0.9 &&
+        matchConfidence <= 1;
+  }
 
   bool isFreshAt(
     DateTime now, {
