@@ -48,6 +48,12 @@ function loadSource(env = {}) {
   assert.strictEqual(loaded.source.configured(), false, 'credentials must not be embedded in the partner URL');
   loaded.restore();
 
+  for (const url of ['https://localhost/quotes', 'https://partner.local/quotes', 'https://127.0.0.1/quotes', 'https://10.0.0.8/quotes', 'https://169.254.1.2/quotes', 'https://192.168.1.5/quotes', 'https://[::1]/quotes', 'https://[fd12:3456::1]/quotes']) {
+    loaded = loadSource({ url });
+    assert.strictEqual(loaded.source.configured(), false, `non-public partner host must be rejected: ${url}`);
+    loaded.restore();
+  }
+
   loaded = loadSource({ url: 'https://partner.example/quotes', token: 'server-secret' });
   let fetchCalls = 0;
   const emptyResult = await loaded.source.fetchBuybackOffers('  ', 'like_new', {
@@ -65,12 +71,7 @@ function loadSource(env = {}) {
   const outageResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new', {
     fetchImpl: async () => { throw new Error('partner offline'); },
   });
-  assert.deepStrictEqual(outageResult, {
-    configured: true,
-    items: [],
-    best: null,
-    unavailable: true,
-  });
+  assert.deepStrictEqual(outageResult, { configured: true, items: [], best: null, unavailable: true });
   loaded.restore();
 
   loaded = loadSource({ url: 'https://partner.example/quotes', timeout: 1 });
@@ -84,12 +85,7 @@ function loadSource(env = {}) {
     },
   });
   assert.strictEqual(timeoutSignal.aborted, true, 'partner request must be aborted at the bounded timeout');
-  assert.deepStrictEqual(timeoutResult, {
-    configured: true,
-    items: [],
-    best: null,
-    unavailable: true,
-  });
+  assert.deepStrictEqual(timeoutResult, { configured: true, items: [], best: null, unavailable: true });
   loaded.restore();
 
   loaded = loadSource({ url: 'https://partner.example/quotes', token: 'server-secret' });
@@ -105,18 +101,10 @@ function loadSource(env = {}) {
         ok: true,
         async json() {
           return { items: [{
-            provider_id: 'clevertronic',
-            provider_name: 'Clevertronic',
-            product_id: 'iphone-15-pro-256',
-            matched_title: 'Apple iPhone 15 Pro 256 GB',
-            condition: 'like_new',
-            price: 615,
-            currency: 'EUR',
-            offer_url: 'https://partner.example/offer/123',
-            checked_at: '2026-09-20T07:55:00Z',
-            price_kind: 'indicative_buyback',
-            requires_inspection: true,
-            match_confidence: 0.98,
+            provider_id: 'clevertronic', provider_name: 'Clevertronic', product_id: 'iphone-15-pro-256',
+            matched_title: 'Apple iPhone 15 Pro 256 GB', condition: 'like_new', price: 615, currency: 'EUR',
+            offer_url: 'https://partner.example/offer/123', checked_at: '2026-09-20T07:55:00Z',
+            price_kind: 'indicative_buyback', requires_inspection: true, match_confidence: 0.98,
           }] };
         },
       };
