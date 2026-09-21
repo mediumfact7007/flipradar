@@ -88,14 +88,15 @@ void main() {
     expect(offer(price: 620, offerUrl: Uri.parse('https://partner.local/offer')).isEligibleForComparison, isFalse);
   });
 
-  test('excludes private-network offer URLs', () {
-    for (final host in ['127.0.0.1', '10.0.0.8', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.168.1.20', '[::1]', '[::]', '[fc00::1]', '[fd12:3456::1]', '[fe80::1]']) {
+  test('excludes non-public network offer URLs', () {
+    for (final host in ['127.0.0.1', '10.0.0.8', '100.64.0.1', '100.127.255.254', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.0.0.1', '192.0.2.1', '192.168.1.20', '198.18.0.1', '198.51.100.1', '203.0.113.1', '224.0.0.1', '255.255.255.255', '[::1]', '[::]', '[fc00::1]', '[fd12:3456::1]', '[fe80::1]']) {
       expect(
         offer(price: 620, offerUrl: Uri.parse('https://$host/offer')).isEligibleForComparison,
         isFalse,
         reason: host,
       );
     }
+    expect(offer(price: 620, offerUrl: Uri.parse('https://100.128.0.1/offer')).isEligibleForComparison, isTrue);
     expect(offer(price: 620, offerUrl: Uri.parse('https://172.32.0.1/offer')).isEligibleForComparison, isTrue);
     expect(offer(price: 620, offerUrl: Uri.parse('https://[2606:4700:4700::1111]/offer')).isEligibleForComparison, isTrue);
   });
