@@ -13,7 +13,7 @@ class DealAlertPreference {
   const DealAlertPreference({required this.flipId, required this.enabled, required this.minProfitIncrease, required this.minRoiIncrease, required this.updatedAt});
 
   factory DealAlertPreference.defaults(String flipId, {DateTime? now}) => DealAlertPreference(
-    flipId: flipId, enabled: true, minProfitIncrease: 5, minRoiIncrease: 5, updatedAt: now ?? DateTime.now());
+    flipId: flipId.trim(), enabled: true, minProfitIncrease: 5, minRoiIncrease: 5, updatedAt: now ?? DateTime.now());
 
   DealAlertPreference copyWith({bool? enabled, double? minProfitIncrease, double? minRoiIncrease, DateTime? updatedAt}) => DealAlertPreference(
     flipId: flipId, enabled: enabled ?? this.enabled,
