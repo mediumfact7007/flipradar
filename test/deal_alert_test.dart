@@ -10,6 +10,11 @@ void main() {
     expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 33, previousRoi: 25, currentRoi: 28), isFalse);
   });
 
+  test('default alert key is canonical before first save', () {
+    final alert = DealAlertPreference.defaults('  flip-1  ');
+    expect(alert.flipId, 'flip-1');
+  });
+
   test('material profit or roi improvement triggers enabled alert', () {
     final alert = DealAlertPreference.defaults('flip-1');
     expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 35, previousRoi: 25, currentRoi: 26), isTrue);
