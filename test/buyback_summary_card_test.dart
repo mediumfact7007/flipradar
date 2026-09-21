@@ -89,5 +89,10 @@ void main() {
     );
 
     expect(find.text('Sofortankauf: 40 € mehr Gewinn (vor Prüfung)'), findsOneWidget);
+    expect(find.text('720 €*'), findsOneWidget);
+    expect(
+      find.text('* Vorläufiger Ankaufspreis: Der Anbieter kann ihn nach Prüfung ändern.'),
+      findsOneWidget,
+    );
   });
 }
