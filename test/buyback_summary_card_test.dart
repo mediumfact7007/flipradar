@@ -71,6 +71,6 @@ void main() {
       ),
     );
 
-    expect(find.text('Privatverkauf: 60,00 € mehr Gewinn'), findsOneWidget);
+    expect(find.text('Privatverkauf: 60 € mehr Gewinn'), findsOneWidget);
   });
 }
