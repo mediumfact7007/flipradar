@@ -90,9 +90,11 @@ class DealAlertStore {
         }
       }
       // A delayed UI callback must never roll back a preference that was saved
-      // more recently from another card/recheck. The model already carries an
-      // update timestamp, so use it as the conflict-resolution source of truth.
-      if (existing != null && existing.updatedAt.isAfter(canonical.updatedAt)) {
+      // more recently from another card/recheck. Treat equal timestamps as the
+      // same logical revision too: timer resolution or restored state can make
+      // two callbacks share a timestamp, and arrival order must not decide the
+      // user's final alert setting.
+      if (existing != null && !canonical.updatedAt.isAfter(existing.updatedAt)) {
         return true;
       }
       final next = <DealAlertPreference>[

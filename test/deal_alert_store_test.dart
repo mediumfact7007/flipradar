@@ -104,4 +104,32 @@ void main() {
     expect(loaded.single.minRoiIncrease, 8);
     expect(loaded.single.updatedAt, newer.updatedAt.toLocal());
   });
+
+  test('equal timestamp cannot make callback order change alert preference', () async {
+    final store = DealAlertStore();
+    final revision = DateTime.utc(2026, 9, 21, 10, 30);
+    final first = DealAlertPreference(
+      flipId: 'flip-1',
+      enabled: false,
+      minProfitIncrease: 10,
+      minRoiIncrease: 10,
+      updatedAt: revision,
+    );
+    final conflicting = DealAlertPreference(
+      flipId: 'flip-1',
+      enabled: true,
+      minProfitIncrease: 2,
+      minRoiIncrease: 2,
+      updatedAt: revision,
+    );
+
+    expect(await store.save(first), isTrue);
+    expect(await DealAlertStore().save(conflicting), isTrue);
+
+    final loaded = await store.load();
+    expect(loaded, hasLength(1));
+    expect(loaded.single.enabled, isFalse);
+    expect(loaded.single.minProfitIncrease, 10);
+    expect(loaded.single.minRoiIncrease, 10);
+  });
 }
