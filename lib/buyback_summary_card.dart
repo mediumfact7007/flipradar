@@ -33,10 +33,6 @@ class BuybackComparisonCard extends StatelessWidget {
         : 'Price checked: $month/$day · $hour:$minute local time';
   }
 
-  // Keep the final user action behind the same trust gate as the comparison.
-  // This is intentionally stricter than checking only scheme/host so a card
-  // can never open a low-confidence, malformed or non-public provider target
-  // even if a summary is constructed outside the normal filtered pipeline.
   bool get _hasSafeOfferUrl => summary.offer.isEligibleForComparison;
 
   Future<void> _openOffer() async {
@@ -65,6 +61,9 @@ class BuybackComparisonCard extends StatelessWidget {
                 : (_de
                     ? 'Privatverkauf: ${_money(-marginDifference)} mehr Gewinn'
                     : 'Private sale: ${_money(-marginDifference)} more profit');
+    final instantValue = summary.offer.requiresInspection
+        ? '${_money(summary.offer.price)}*'
+        : _money(summary.offer.price);
 
     return Card(
       key: const ValueKey('buyback-comparison-card'),
@@ -124,7 +123,7 @@ class BuybackComparisonCard extends StatelessWidget {
             const Divider(height: 22),
             _ExitRow(
               title: _de ? 'Sofortankauf' : 'Instant buyback',
-              value: _money(summary.offer.price),
+              value: instantValue,
               detail: '${summary.offer.providerName} · ${_de ? 'Gewinn' : 'Profit'} ${_money(summary.instantMargin)} · ROI ${_roi(summary.instantRoi)}',
               emphasized: !noProfitableExit && instantBetter,
               emphasisLabel: _de ? 'Mehr Erlös' : 'Higher payout',
@@ -158,8 +157,8 @@ class BuybackComparisonCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 _de
-                    ? 'Wichtig: Der endgültige Ankaufspreis kann sich nach Prüfung durch den Anbieter ändern.'
-                    : 'Important: the final buyback price may change after provider inspection.',
+                    ? '* Vorläufiger Ankaufspreis: Der Anbieter kann ihn nach Prüfung ändern.'
+                    : '* Provisional buyback price: the provider may change it after inspection.',
                 style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
