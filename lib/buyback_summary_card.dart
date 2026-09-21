@@ -51,14 +51,17 @@ class BuybackComparisonCard extends StatelessWidget {
     final equalProfit = marginDifference.abs() < 0.01;
     final noProfitableExit = summary.instantMargin <= 0 && summary.privateMargin <= 0;
     final theme = Theme.of(context);
+    final provisionalSuffix = summary.offer.requiresInspection
+        ? (_de ? ' (vor Prüfung)' : ' (before inspection)')
+        : '';
     final recommendation = noProfitableExit
         ? (_de ? 'Kein positiver Exit – Einkaufspreis zu hoch' : 'No profitable exit – purchase price is too high')
         : equalProfit
             ? (_de ? 'Gleicher Gewinn – Sofortankauf spart Zeit' : 'Same profit – instant buyback saves time')
             : instantBetter
                 ? (_de
-                    ? 'Sofortankauf: ${_money(marginDifference)} mehr Gewinn'
-                    : 'Instant buyback: ${_money(marginDifference)} more profit')
+                    ? 'Sofortankauf: ${_money(marginDifference)} mehr Gewinn$provisionalSuffix'
+                    : 'Instant buyback: ${_money(marginDifference)} more profit$provisionalSuffix')
                 : (_de
                     ? 'Privatverkauf: ${_money(-marginDifference)} mehr Gewinn'
                     : 'Private sale: ${_money(-marginDifference)} more profit');
