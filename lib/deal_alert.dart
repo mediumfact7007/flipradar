@@ -33,10 +33,14 @@ class DealAlertPreference {
     final roi = json['min_roi_increase'];
     final updated = DateTime.tryParse(json['updated_at']?.toString() ?? '');
     if (flipId is! String || flipId.trim().isEmpty || enabled is! bool || profit is! num || roi is! num || updated == null) return null;
+    final normalizedFlipId = flipId.trim();
     final p = profit.toDouble();
     final r = roi.toDouble();
     if (!p.isFinite || !r.isFinite || p < 0 || r < 0 || p > 10000 || r > 1000) return null;
-    return DealAlertPreference(flipId: flipId, enabled: enabled, minProfitIncrease: p, minRoiIncrease: r, updatedAt: updated.toLocal());
+    // Persist the canonical saved-deal key. Older/local data can contain
+    // harmless surrounding whitespace; keeping it would create a second alert
+    // entry that no longer matches the watchlist item during rechecks.
+    return DealAlertPreference(flipId: normalizedFlipId, enabled: enabled, minProfitIncrease: p, minRoiIncrease: r, updatedAt: updated.toLocal());
   }
 }
 
