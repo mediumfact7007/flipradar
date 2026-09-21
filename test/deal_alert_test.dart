@@ -49,8 +49,10 @@ void main() {
 
   test('break-even noise below one euro does not trigger a deal alert', () {
     final alert = DealAlertPreference.defaults('flip-1');
-    final noise = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 0.99, previousRoi: 0, currentRoi: 0.5);
+    final noise = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 0.99, previousRoi: 0, currentRoi: 10);
     expect(noise.triggered, isFalse);
+    expect(noise.profitThresholdReached, isFalse);
+    expect(noise.roiThresholdReached, isFalse);
     expect(noise.becameProfitable, isFalse);
 
     final actionable = evaluateDealAlert(preference: alert, previousProfit: 0, currentProfit: 1, previousRoi: 0, currentRoi: 1);
