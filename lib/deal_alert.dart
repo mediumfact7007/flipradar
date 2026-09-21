@@ -77,18 +77,16 @@ DealAlertEvaluation evaluateDealAlert({
   final profitIncrease = currentProfit - previousProfit;
   final roiIncrease = currentRoi - previousRoi;
   // Alerts are actionable deal signals, not generic market-change notices.
-  // A recheck that is still loss-making must therefore stay quiet even when
-  // the loss became smaller or ROI improved materially.
-  final isProfitableNow = currentProfit > 0;
+  // Require at least one euro of modeled profit for every alert path so a
+  // large ROI swing on a near-zero absolute margin cannot create noisy alerts.
+  final isActionablyProfitableNow = currentProfit >= 1;
   // Becoming profitable is itself actionable even when the configured delta
-  // threshold is larger than the move. Require at least one euro of modeled
-  // profit so rounding/currency noise around break-even cannot create a noisy
-  // "deal" alert that has no practical value.
-  final becameProfitable = previousProfit <= 0 && currentProfit >= 1;
+  // threshold is larger than the move.
+  final becameProfitable = previousProfit <= 0 && isActionablyProfitableNow;
   // Even a zero threshold means "alert on any improvement", not "alert on no
   // change". This keeps rechecks trustworthy for custom low thresholds.
-  final profitReached = isProfitableNow && profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
-  final roiReached = isProfitableNow && roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
+  final profitReached = isActionablyProfitableNow && profitIncrease > 0 && profitIncrease >= preference.minProfitIncrease;
+  final roiReached = isActionablyProfitableNow && roiIncrease > 0 && roiIncrease >= preference.minRoiIncrease;
   return DealAlertEvaluation(
     triggered: becameProfitable || profitReached || roiReached,
     profitIncrease: profitIncrease,
