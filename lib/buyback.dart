@@ -68,6 +68,7 @@ class BuybackOffer {
       currency == 'EUR' &&
       offerUrl.hasScheme &&
       offerUrl.scheme == 'https' &&
+      offerUrl.host.isNotEmpty &&
       offerUrl.userInfo.isEmpty &&
       matchConfidence.isFinite &&
       matchConfidence >= 0.9 &&
