@@ -33,10 +33,11 @@ class BuybackComparisonCard extends StatelessWidget {
         : 'Price checked: $month/$day · $hour:$minute local time';
   }
 
-  bool get _hasSafeOfferUrl {
-    final uri = summary.offer.offerUrl;
-    return uri.hasScheme && uri.scheme == 'https' && uri.host.isNotEmpty;
-  }
+  // Keep the final user action behind the same trust gate as the comparison.
+  // This is intentionally stricter than checking only scheme/host so a card
+  // can never open a low-confidence, malformed or non-public provider target
+  // even if a summary is constructed outside the normal filtered pipeline.
+  bool get _hasSafeOfferUrl => summary.offer.isEligibleForComparison;
 
   Future<void> _openOffer() async {
     if (!_hasSafeOfferUrl) return;
@@ -226,7 +227,7 @@ class _ExitRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
       ],
     );
   }
