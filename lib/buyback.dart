@@ -25,6 +25,30 @@ extension BuybackConditionWire on BuybackCondition {
   }
 }
 
+bool _hasPublicOfferHost(String host) {
+  final normalized = host.toLowerCase();
+  if (normalized.isEmpty ||
+      normalized == 'localhost' ||
+      normalized.endsWith('.local') ||
+      normalized == '::1') {
+    return false;
+  }
+
+  final octets = normalized.split('.');
+  if (octets.length != 4) return true;
+  final ipv4 = octets.map(int.tryParse).toList();
+  if (ipv4.any((part) => part == null || part < 0 || part > 255)) return true;
+
+  final a = ipv4[0]!;
+  final b = ipv4[1]!;
+  return !(a == 0 ||
+      a == 10 ||
+      a == 127 ||
+      (a == 169 && b == 254) ||
+      (a == 172 && b >= 16 && b <= 31) ||
+      (a == 192 && b == 168));
+}
+
 class BuybackOffer {
   const BuybackOffer({
     required this.providerId,
@@ -57,8 +81,7 @@ class BuybackOffer {
   final bool conditionUncertain;
 
   bool get isEligibleForComparison {
-    final host = offerUrl.host.toLowerCase();
-    final hasPublicOfferHost = host.isNotEmpty && host != 'localhost' && !host.endsWith('.local');
+    final hasPublicOfferHost = _hasPublicOfferHost(offerUrl.host);
 
     return !conditionUncertain &&
         providerId.trim().isNotEmpty &&
