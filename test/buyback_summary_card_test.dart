@@ -59,4 +59,18 @@ void main() {
     );
     expect(button.onPressed, isNotNull);
   });
+
+  testWidgets('recommendation states the concrete private-sale profit advantage', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BuybackComparisonCard(
+            summary: summaryWithUrl(Uri.parse('https://example.com/offer')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Privatverkauf: 60,00 € mehr Gewinn'), findsOneWidget);
+  });
 }
