@@ -91,13 +91,18 @@ void main() {
     expect(offer(price: 0).isEligibleForComparison, isFalse);
   });
 
-  test('excludes implausible prices and credentialed offer URLs', () {
+  test('excludes implausible prices and unsafe offer URLs', () {
     expect(offer(price: 10001).isEligibleForComparison, isFalse);
     expect(
       offer(
         price: 620,
         offerUrl: Uri.parse('https://user:secret@example.com/offer'),
       ).isEligibleForComparison,
+      isFalse,
+    );
+    expect(
+      offer(price: 620, offerUrl: Uri.parse('https:/offer'))
+          .isEligibleForComparison,
       isFalse,
     );
   });
