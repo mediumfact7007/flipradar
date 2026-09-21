@@ -29,7 +29,16 @@ class RecheckDelta {
     );
   }
 
+  /// A recheck comparison is only trustworthy when every input-derived delta
+  /// is finite. NaN/Infinity must never be presented as a stable market.
+  bool get isValid =>
+      askingDelta.isFinite &&
+      maxBuyDelta.isFinite &&
+      profitDelta.isFinite &&
+      roiDelta.isFinite;
+
   int get directionScore {
+    if (!isValid) return 0;
     var score = 0;
     if (askingDelta <= -3) score++;
     if (askingDelta >= 3) score--;
@@ -42,7 +51,7 @@ class RecheckDelta {
     return score;
   }
 
-  bool get improved => directionScore >= 2;
-  bool get worsened => directionScore <= -2;
-  bool get stable => !improved && !worsened;
+  bool get improved => isValid && directionScore >= 2;
+  bool get worsened => isValid && directionScore <= -2;
+  bool get stable => isValid && !improved && !worsened;
 }
