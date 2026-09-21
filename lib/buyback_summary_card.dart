@@ -143,8 +143,8 @@ class BuybackComparisonCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               _de
-                  ? 'Privatwert = aktueller FlipRadar-Marktwert. Ankauf = verifiziertes, frisches Anbieterangebot.'
-                  : 'Private value = current FlipRadar market value. Buyback = verified, fresh provider offer.',
+                  ? 'Privatwert = aktueller FlipRadar-Marktwert. Ankauf = frisches, qualitätsgefiltertes Anbieterangebot.'
+                  : 'Private value = current FlipRadar market value. Buyback = fresh, quality-filtered provider offer.',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (summary.offer.requiresInspection) ...[
