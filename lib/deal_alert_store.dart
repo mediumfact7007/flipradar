@@ -69,11 +69,22 @@ class DealAlertStore {
   }
 
   Future<bool> save(DealAlertPreference preference) {
+    final id = preference.flipId.trim();
+    if (id.isEmpty) return Future<bool>.value(false);
+    final canonical = id == preference.flipId
+        ? preference
+        : DealAlertPreference(
+            flipId: id,
+            enabled: preference.enabled,
+            minProfitIncrease: preference.minProfitIncrease,
+            minRoiIncrease: preference.minRoiIncrease,
+            updatedAt: preference.updatedAt,
+          );
     return _mutate(() async {
       final all = await load();
       final next = <DealAlertPreference>[
-        preference,
-        ...all.where((item) => item.flipId != preference.flipId),
+        canonical,
+        ...all.where((item) => item.flipId != id),
       ];
       final prefs = await SharedPreferences.getInstance();
       return prefs.setString(
