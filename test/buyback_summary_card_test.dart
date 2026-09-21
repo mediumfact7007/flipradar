@@ -4,7 +4,7 @@ import 'package:flipradar/buyback_summary_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-BuybackComparisonSummary summaryWithUrl(Uri url) {
+BuybackComparisonSummary summaryWithUrl(Uri url, {double buybackPrice = 620}) {
   return BuybackComparisonSummary(
     offer: BuybackOffer(
       providerId: 'provider',
@@ -12,7 +12,7 @@ BuybackComparisonSummary summaryWithUrl(Uri url) {
       productId: 'iphone-15-pro-256',
       matchedTitle: 'Apple iPhone 15 Pro 256 GB',
       condition: BuybackCondition.likeNew,
-      price: 620,
+      price: buybackPrice,
       currency: 'EUR',
       offerUrl: url,
       checkedAt: DateTime.parse('2026-09-21T12:00:00Z'),
@@ -72,5 +72,22 @@ void main() {
     );
 
     expect(find.text('Privatverkauf: 60 € mehr Gewinn'), findsOneWidget);
+  });
+
+  testWidgets('inspection-dependent buyback advantage is clearly provisional', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BuybackComparisonCard(
+            summary: summaryWithUrl(
+              Uri.parse('https://example.com/offer'),
+              buybackPrice: 720,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Sofortankauf: 40 € mehr Gewinn (vor Prüfung)'), findsOneWidget);
   });
 }
