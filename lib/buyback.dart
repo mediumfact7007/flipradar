@@ -39,6 +39,11 @@ bool _hasPublicOfferHost(String host) {
   }
 
   if (normalized.contains(':')) {
+    // IPv4-mapped IPv6 can disguise a local/private IPv4 destination behind
+    // an IPv6-looking host. Provider links do not need that representation,
+    // so reject the whole mapped range at this trust boundary.
+    if (normalized.startsWith('::ffff:')) return false;
+
     // Only globally routable IPv6 destinations belong in user-facing offer links.
     // Block unspecified, loopback, unique-local and link-local ranges.
     return normalized != '::' &&
