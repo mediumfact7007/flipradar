@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
+String normalizeBuybackQuery(String query) =>
+    query.trim().replaceAll(RegExp(r'\s+'), ' ');
+
 /// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
 /// provider look like multiple independent market signals.
 ///
@@ -76,7 +79,7 @@ class BuybackClient {
     required BuybackCondition condition,
     DateTime? now,
   }) async {
-    final q = query.trim();
+    final q = normalizeBuybackQuery(query);
     if (q.isEmpty || q.length > 180) return const [];
 
     final base = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
