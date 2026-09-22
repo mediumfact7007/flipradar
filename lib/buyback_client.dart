@@ -8,13 +8,17 @@ import 'source_registry.dart';
 /// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
 /// provider look like multiple independent market signals.
 ///
-/// When a provider returns multiple matches, prefer the most confident match,
-/// then the freshest quote, and only then the higher price. Across providers,
-/// keep that same trust-first ordering so a less certain match is never shown
-/// ahead of a more reliable quote merely because its indicative price is higher.
+/// Invalid or low-confidence quotes are discarded here as a second trust
+/// boundary, so future callers cannot accidentally bypass [BuybackOffer]'s
+/// comparison rules. When a provider returns multiple matches, prefer the most
+/// confident match, then the freshest quote, and only then the higher price.
+/// Across providers, keep that same trust-first ordering so a less certain
+/// match is never shown ahead of a more reliable quote merely because its
+/// indicative price is higher.
 List<BuybackOffer> distinctBuybackOffers(Iterable<BuybackOffer> offers) {
   final byProvider = <String, BuybackOffer>{};
   for (final offer in offers) {
+    if (!offer.isEligibleForComparison) continue;
     final key = offer.providerId.trim().toLowerCase();
     if (key.isEmpty) continue;
     final current = byProvider[key];
