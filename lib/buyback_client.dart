@@ -7,19 +7,32 @@ import 'source_registry.dart';
 
 /// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
 /// provider look like multiple independent market signals.
+///
+/// When a provider returns multiple matches, prefer the most confident match,
+/// then the freshest quote, and only then the higher price. This avoids a less
+/// certain product match winning merely because its indicative price is higher.
 List<BuybackOffer> distinctBuybackOffers(Iterable<BuybackOffer> offers) {
   final byProvider = <String, BuybackOffer>{};
   for (final offer in offers) {
     final key = offer.providerId.trim().toLowerCase();
     if (key.isEmpty) continue;
     final current = byProvider[key];
-    if (current == null || offer.price > current.price) {
+    if (current == null || _isBetterProviderQuote(offer, current)) {
       byProvider[key] = offer;
     }
   }
   final result = byProvider.values.toList()
     ..sort((a, b) => b.price.compareTo(a.price));
   return List.unmodifiable(result);
+}
+
+bool _isBetterProviderQuote(BuybackOffer candidate, BuybackOffer current) {
+  if (candidate.matchConfidence != current.matchConfidence) {
+    return candidate.matchConfidence > current.matchConfidence;
+  }
+  final freshness = candidate.checkedAt.toUtc().compareTo(current.checkedAt.toUtc());
+  if (freshness != 0) return freshness > 0;
+  return candidate.price > current.price;
 }
 
 /// Isolated client for FlipRadar's buyback endpoint.

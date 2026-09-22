@@ -2,7 +2,13 @@ import 'package:flipradar/buyback.dart';
 import 'package:flipradar/buyback_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-BuybackOffer offer(String provider, double price) => BuybackOffer(
+BuybackOffer offer(
+  String provider,
+  double price, {
+  double confidence = 0.98,
+  String checkedAt = '2026-09-22T12:00:00Z',
+}) =>
+    BuybackOffer(
       providerId: provider,
       providerName: provider,
       productId: 'iphone-15-pro-256',
@@ -11,9 +17,9 @@ BuybackOffer offer(String provider, double price) => BuybackOffer(
       price: price,
       currency: 'EUR',
       offerUrl: Uri.parse('https://example.com/$provider'),
-      checkedAt: DateTime.parse('2026-09-22T12:00:00Z'),
+      checkedAt: DateTime.parse(checkedAt),
       requiresInspection: true,
-      matchConfidence: 0.98,
+      matchConfidence: confidence,
     );
 
 void main() {
@@ -36,5 +42,27 @@ void main() {
 
     expect(result, hasLength(1));
     expect(result.single.price, 515);
+  });
+
+  test('prefers a more confident provider match over a higher price', () {
+    final result = distinctBuybackOffers([
+      offer('rebuy', 550, confidence: 0.91),
+      offer('rebuy', 510, confidence: 0.99),
+    ]);
+
+    expect(result, hasLength(1));
+    expect(result.single.price, 510);
+    expect(result.single.matchConfidence, 0.99);
+  });
+
+  test('prefers a fresher quote when provider match confidence is equal', () {
+    final result = distinctBuybackOffers([
+      offer('rebuy', 540, checkedAt: '2026-09-22T10:00:00Z'),
+      offer('rebuy', 515, checkedAt: '2026-09-22T12:00:00Z'),
+    ]);
+
+    expect(result, hasLength(1));
+    expect(result.single.price, 515);
+    expect(result.single.checkedAt, DateTime.parse('2026-09-22T12:00:00Z'));
   });
 }
