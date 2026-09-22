@@ -1,0 +1,67 @@
+import 'package:flipradar/buyback_source_bridge.dart';
+import 'package:flipradar/source_registry.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const buybackSource = PriceSource(
+  id: 'buyback-test',
+  name: 'Buyback Test',
+  subtitle: 'test',
+  searchUrlTemplate: 'https://example.com/?q={query}',
+  role: 'buyback',
+  trustedForDecision: true,
+);
+
+Map<String, dynamic> payload(DateTime checkedAt, {double price = 620}) => {
+      'title': 'Apple iPhone 15 Pro 256 GB',
+      'provider_id': 'provider',
+      'provider_name': 'Provider',
+      'product_id': 'iphone-15-pro-256',
+      'matched_title': 'Apple iPhone 15 Pro 256 GB',
+      'condition': 'like_new',
+      'price': price,
+      'currency': 'EUR',
+      'offer_url': 'https://example.com/offer',
+      'checked_at': checkedAt.toIso8601String(),
+      'price_kind': 'indicative_buyback',
+      'requires_inspection': true,
+      'match_confidence': 0.98,
+      'live': true,
+    };
+
+void main() {
+  test('bridge only promotes fresh comparable buyback offers', () {
+    final now = DateTime.parse('2026-09-22T08:00:00Z');
+    final fresh = parseBuybackSourceItem(
+      payload(now.subtract(const Duration(hours: 2))),
+      buybackSource,
+    );
+    final stale = parseBuybackSourceItem(
+      payload(now.subtract(const Duration(hours: 25)), price: 700),
+      buybackSource,
+    );
+    final future = parseBuybackSourceItem(
+      payload(now.add(const Duration(minutes: 6)), price: 800),
+      buybackSource,
+    );
+
+    expect(fresh.hasFreshComparableOfferAt(now), isTrue);
+    expect(stale.hasFreshComparableOfferAt(now), isFalse);
+    expect(future.hasFreshComparableOfferAt(now), isFalse);
+    expect(
+      comparableBuybackOffers([fresh, stale, future], now: now)
+          .map((offer) => offer.price),
+      [620],
+    );
+  });
+
+  test('malformed buyback payload remains visible but never comparable', () {
+    final now = DateTime.parse('2026-09-22T08:00:00Z');
+    final json = payload(now)..remove('offer_url');
+    final result = parseBuybackSourceItem(json, buybackSource);
+
+    expect(result.listing.title, 'Apple iPhone 15 Pro 256 GB');
+    expect(result.offer, isNull);
+    expect(result.hasComparableOffer, isFalse);
+    expect(comparableBuybackOffers([result], now: now), isEmpty);
+  });
+}
