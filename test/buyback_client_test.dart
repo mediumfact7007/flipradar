@@ -37,6 +37,13 @@ void main() {
     );
   });
 
+  test('removes bidi formatting marks from shared listing searches', () {
+    expect(
+      normalizeBuybackQuery('Apple\u202EiPhone 15\u2067 Pro\u2069 256 GB'),
+      'AppleiPhone 15 Pro 256 GB',
+    );
+  });
+
   test('keeps only the best quote from each buyback provider', () {
     final result = distinctBuybackOffers([
       offer('rebuy', 510),
