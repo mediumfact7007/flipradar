@@ -5,10 +5,11 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
-// Shared/copied listing titles can contain invisible Unicode separators that
-// make an otherwise exact provider search miss. Remove those before sending it.
+// Shared/copied listing titles can contain invisible Unicode separators or
+// bidirectional formatting marks that make an otherwise exact provider search
+// miss. Remove those before sending it.
 String normalizeBuybackQuery(String query) => query
-    .replaceAll(RegExp(r'[\u200B-\u200D\u2060\uFEFF]'), '')
+    .replaceAll(RegExp(r'[\u200B-\u200D\u202A-\u202E\u2060\u2066-\u2069\uFEFF]'), '')
     .trim()
     .replaceAll(RegExp(r'\s+'), ' ');
 
