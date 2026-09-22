@@ -5,6 +5,23 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
+/// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
+/// provider look like multiple independent market signals.
+List<BuybackOffer> distinctBuybackOffers(Iterable<BuybackOffer> offers) {
+  final byProvider = <String, BuybackOffer>{};
+  for (final offer in offers) {
+    final key = offer.providerId.trim().toLowerCase();
+    if (key.isEmpty) continue;
+    final current = byProvider[key];
+    if (current == null || offer.price > current.price) {
+      byProvider[key] = offer;
+    }
+  }
+  final result = byProvider.values.toList()
+    ..sort((a, b) => b.price.compareTo(a.price));
+  return List.unmodifiable(result);
+}
+
 /// Isolated client for FlipRadar's buyback endpoint.
 ///
 /// It deliberately does not feed buyback prices into the normal resale-market
@@ -61,8 +78,7 @@ class BuybackClient {
           // Wrongly typed provider payloads are treated as unavailable data.
         }
       }
-      offers.sort((a, b) => b.price.compareTo(a.price));
-      return List.unmodifiable(offers);
+      return distinctBuybackOffers(offers);
     } catch (_) {
       // Buyback is optional: network/provider failure must never break the
       // primary deal check or the Kleinanzeigen share flow.
