@@ -23,6 +23,13 @@ BuybackOffer offer(
     );
 
 void main() {
+  test('normalizes whitespace before buyback searches', () {
+    expect(
+      normalizeBuybackQuery('  Apple\t iPhone 15 Pro\n256 GB  '),
+      'Apple iPhone 15 Pro 256 GB',
+    );
+  });
+
   test('keeps only the best quote from each buyback provider', () {
     final result = distinctBuybackOffers([
       offer('rebuy', 510),
