@@ -39,13 +39,7 @@ bool _hasPublicOfferHost(String host) {
   }
 
   if (normalized.contains(':')) {
-    // IPv4-mapped IPv6 can disguise a local/private IPv4 destination behind
-    // an IPv6-looking host. Provider links do not need that representation,
-    // so reject the whole mapped range at this trust boundary.
     if (normalized.startsWith('::ffff:')) return false;
-
-    // Only globally routable IPv6 destinations belong in user-facing offer links.
-    // Block unspecified, loopback, unique-local and link-local ranges.
     return normalized != '::' &&
         !normalized.startsWith('fc') &&
         !normalized.startsWith('fd') &&
@@ -76,6 +70,15 @@ bool _hasPublicOfferHost(String host) {
       (a == 198 && b == 51 && c == 100) ||
       (a == 203 && b == 0 && c == 113) ||
       a >= 224);
+}
+
+bool _hasSafeOfferUrl(Uri url) {
+  return url.hasScheme &&
+      url.scheme == 'https' &&
+      url.host.isNotEmpty &&
+      _hasPublicOfferHost(url.host) &&
+      url.userInfo.isEmpty &&
+      (!url.hasPort || url.port == 443);
 }
 
 class BuybackOffer {
@@ -110,8 +113,6 @@ class BuybackOffer {
   final bool conditionUncertain;
 
   bool get isEligibleForComparison {
-    final hasPublicOfferHost = _hasPublicOfferHost(offerUrl.host);
-
     return !conditionUncertain &&
         providerId.trim().isNotEmpty &&
         providerName.trim().isNotEmpty &&
@@ -121,10 +122,7 @@ class BuybackOffer {
         price > 0 &&
         price <= maxComparablePriceEur &&
         currency == 'EUR' &&
-        offerUrl.hasScheme &&
-        offerUrl.scheme == 'https' &&
-        hasPublicOfferHost &&
-        offerUrl.userInfo.isEmpty &&
+        _hasSafeOfferUrl(offerUrl) &&
         matchConfidence.isFinite &&
         matchConfidence >= 0.9 &&
         matchConfidence <= 1;
@@ -163,12 +161,7 @@ class BuybackOffer {
       throw const FormatException('Incomplete buyback offer');
     }
 
-    // Provider URLs are external navigation targets. Reject unsafe destinations
-    // at the trust boundary so they can never become a BuybackOffer that a
-    // future UI path might accidentally expose before comparison filtering.
-    if (offerUrl.scheme != 'https' ||
-        !_hasPublicOfferHost(offerUrl.host) ||
-        offerUrl.userInfo.isNotEmpty) {
+    if (!_hasSafeOfferUrl(offerUrl)) {
       throw const FormatException('Unsafe buyback offer URL');
     }
 
