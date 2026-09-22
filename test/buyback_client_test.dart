@@ -74,4 +74,18 @@ void main() {
 
     expect(result.map((item) => item.providerId), ['trusted', 'high-price']);
   });
+
+  test('keeps equally strong providers stable across response order', () {
+    final first = distinctBuybackOffers([
+      offer('zeta', 510),
+      offer('alpha', 510),
+    ]);
+    final reversed = distinctBuybackOffers([
+      offer('alpha', 510),
+      offer('zeta', 510),
+    ]);
+
+    expect(first.map((item) => item.providerId), ['alpha', 'zeta']);
+    expect(reversed.map((item) => item.providerId), ['alpha', 'zeta']);
+  });
 }
