@@ -124,6 +124,23 @@ void main() {
     expect(parsed.isEligibleForComparison, isTrue);
   });
 
+  test('rejects unsafe offer URLs while parsing provider payloads', () {
+    for (final url in [
+      'http://example.com/offer',
+      'https://user:secret@example.com/offer',
+      'https://localhost/offer',
+      'https://192.168.1.20/offer',
+      'https://[fd12:3456::1]/offer',
+    ]) {
+      final json = payload()..['offer_url'] = url;
+      expect(
+        () => BuybackOffer.fromJson(json),
+        throwsFormatException,
+        reason: url,
+      );
+    }
+  });
+
   test('rejects non-buyback price kinds', () {
     final json = payload()..['price_kind'] = 'asking_price';
     expect(() => BuybackOffer.fromJson(json), throwsFormatException);
