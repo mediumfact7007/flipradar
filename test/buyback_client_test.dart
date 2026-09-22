@@ -88,4 +88,17 @@ void main() {
     expect(first.map((item) => item.providerId), ['alpha', 'zeta']);
     expect(reversed.map((item) => item.providerId), ['alpha', 'zeta']);
   });
+
+  test('drops stale and implausibly future-dated quotes when rechecking', () {
+    final result = distinctBuybackOffers(
+      [
+        offer('stale', 600, checkedAt: '2026-09-21T11:59:59Z'),
+        offer('fresh', 510, checkedAt: '2026-09-22T12:00:00Z'),
+        offer('future', 700, checkedAt: '2026-09-22T12:06:00Z'),
+      ],
+      now: DateTime.parse('2026-09-22T12:00:00Z'),
+    );
+
+    expect(result.map((item) => item.providerId), ['fresh']);
+  });
 }
