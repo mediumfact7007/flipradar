@@ -26,73 +26,32 @@ BuybackComparisonSummary summaryWithUrl(Uri url, {double buybackPrice = 620}) {
 
 void main() {
   testWidgets('buyback action stays disabled for non-public offer targets', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: BuybackComparisonCard(
-            summary: summaryWithUrl(Uri.parse('https://127.0.0.1/offer')),
-          ),
-        ),
-      ),
-    );
-
-    final button = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('buyback-open-offer')),
-    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuybackComparisonCard(summary: summaryWithUrl(Uri.parse('https://127.0.0.1/offer'))))));
+    final button = tester.widget<OutlinedButton>(find.byKey(const ValueKey('buyback-open-offer')));
     expect(button.onPressed, isNull);
     expect(find.text('Angebotslink nicht verfügbar'), findsOneWidget);
   });
 
   testWidgets('buyback action stays enabled for a trusted public offer', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: BuybackComparisonCard(
-            summary: summaryWithUrl(Uri.parse('https://example.com/offer')),
-          ),
-        ),
-      ),
-    );
-
-    final button = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('buyback-open-offer')),
-    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuybackComparisonCard(summary: summaryWithUrl(Uri.parse('https://example.com/offer'))))));
+    final button = tester.widget<OutlinedButton>(find.byKey(const ValueKey('buyback-open-offer')));
     expect(button.onPressed, isNotNull);
   });
 
-  testWidgets('recommendation states the concrete private-sale profit advantage', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: BuybackComparisonCard(
-            summary: summaryWithUrl(Uri.parse('https://example.com/offer')),
-          ),
-        ),
-      ),
-    );
+  testWidgets('shows the purchase basis used for both profit calculations', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuybackComparisonCard(summary: summaryWithUrl(Uri.parse('https://example.com/offer'))))));
+    expect(find.text('Basis: Einkauf 500 €'), findsOneWidget);
+  });
 
+  testWidgets('recommendation states the concrete private-sale profit advantage', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuybackComparisonCard(summary: summaryWithUrl(Uri.parse('https://example.com/offer'))))));
     expect(find.text('Privatverkauf: 60 € mehr Gewinn'), findsOneWidget);
   });
 
   testWidgets('inspection-dependent buyback advantage is clearly provisional', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: BuybackComparisonCard(
-            summary: summaryWithUrl(
-              Uri.parse('https://example.com/offer'),
-              buybackPrice: 720,
-            ),
-          ),
-        ),
-      ),
-    );
-
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: BuybackComparisonCard(summary: summaryWithUrl(Uri.parse('https://example.com/offer'), buybackPrice: 720))));
     expect(find.text('Sofortankauf: 40 € mehr Gewinn (vor Prüfung)'), findsOneWidget);
     expect(find.text('720 €*'), findsOneWidget);
-    expect(
-      find.text('* Vorläufiger Ankaufspreis: Der Anbieter kann ihn nach Prüfung ändern.'),
-      findsOneWidget,
-    );
+    expect(find.text('* Vorläufiger Ankaufspreis: Der Anbieter kann ihn nach Prüfung ändern.'), findsOneWidget);
   });
 }
