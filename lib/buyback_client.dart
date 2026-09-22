@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
+// Shared/copied listing titles can contain invisible Unicode separators that
+// make an otherwise exact provider search miss. Remove those before sending it.
 String normalizeBuybackQuery(String query) => query
     .replaceAll(RegExp(r'[\u200B-\u200D\u2060\uFEFF]'), '')
     .trim()
