@@ -10,15 +10,21 @@ import 'source_registry.dart';
 ///
 /// Invalid or low-confidence quotes are discarded here as a second trust
 /// boundary, so future callers cannot accidentally bypass [BuybackOffer]'s
-/// comparison rules. When a provider returns multiple matches, prefer the most
-/// confident match, then the freshest quote, and only then the higher price.
-/// Across providers, keep that same trust-first ordering so a less certain
-/// match is never shown ahead of a more reliable quote merely because its
-/// indicative price is higher.
-List<BuybackOffer> distinctBuybackOffers(Iterable<BuybackOffer> offers) {
+/// comparison rules. When [now] is supplied, stale or implausibly future-dated
+/// quotes are rejected here as well. When a provider returns multiple matches,
+/// prefer the most confident match, then the freshest quote, and only then the
+/// higher price. Across providers, keep that same trust-first ordering so a
+/// less certain match is never shown ahead of a more reliable quote merely
+/// because its indicative price is higher.
+List<BuybackOffer> distinctBuybackOffers(
+  Iterable<BuybackOffer> offers, {
+  DateTime? now,
+}) {
+  final checkedNow = now?.toUtc();
   final byProvider = <String, BuybackOffer>{};
   for (final offer in offers) {
     if (!offer.isEligibleForComparison) continue;
+    if (checkedNow != null && !offer.isFreshAt(checkedNow)) continue;
     final key = offer.providerId.trim().toLowerCase();
     if (key.isEmpty) continue;
     final current = byProvider[key];
@@ -111,7 +117,7 @@ class BuybackClient {
           // Wrongly typed provider payloads are treated as unavailable data.
         }
       }
-      return distinctBuybackOffers(offers);
+      return distinctBuybackOffers(offers, now: checkedNow);
     } catch (_) {
       // Buyback is optional: network/provider failure must never break the
       // primary deal check or the Kleinanzeigen share flow.
