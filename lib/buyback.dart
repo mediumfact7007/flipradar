@@ -154,6 +154,15 @@ class BuybackOffer {
       throw const FormatException('Incomplete buyback offer');
     }
 
+    // Provider URLs are external navigation targets. Reject unsafe destinations
+    // at the trust boundary so they can never become a BuybackOffer that a
+    // future UI path might accidentally expose before comparison filtering.
+    if (offerUrl.scheme != 'https' ||
+        !_hasPublicOfferHost(offerUrl.host) ||
+        offerUrl.userInfo.isNotEmpty) {
+      throw const FormatException('Unsafe buyback offer URL');
+    }
+
     return BuybackOffer(
       providerId: json['provider_id'] as String? ?? '',
       providerName: json['provider_name'] as String? ?? '',
