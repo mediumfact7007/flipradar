@@ -49,13 +49,16 @@ List<BuybackOffer> comparableBuybackOffers(
   DateTime? now,
   Duration maxAge = const Duration(hours: 24),
 }) {
-  // User-facing comparisons must never silently accept stale provider data.
-  // Callers can still inject [now] for deterministic tests/rechecks.
+  // Keep the collection path on exactly the same freshness/eligibility rule as
+  // single-result UI decisions so future quality gates cannot drift apart.
   final comparisonTime = now ?? DateTime.now();
   return results
-      .map((result) => result.offer)
-      .whereType<BuybackOffer>()
-      .where((offer) => offer.isEligibleForComparison)
-      .where((offer) => offer.isFreshAt(comparisonTime, maxAge: maxAge))
+      .where(
+        (result) => result.hasFreshComparableOfferAt(
+          comparisonTime,
+          maxAge: maxAge,
+        ),
+      )
+      .map((result) => result.offer!)
       .toList(growable: false);
 }
