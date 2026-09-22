@@ -30,6 +30,13 @@ void main() {
     );
   });
 
+  test('removes invisible copy-paste characters from buyback searches', () {
+    expect(
+      normalizeBuybackQuery('Apple\u200BiPhone 15 Pro\u2060 256 GB\uFEFF'),
+      'AppleiPhone 15 Pro 256 GB',
+    );
+  });
+
   test('keeps only the best quote from each buyback provider', () {
     final result = distinctBuybackOffers([
       offer('rebuy', 510),
