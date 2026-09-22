@@ -1,165 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flipradar/buyback.dart';
 
-BuybackOffer offer({
-  required double price,
-  BuybackCondition condition = BuybackCondition.likeNew,
-  double confidence = 0.98,
-  bool uncertain = false,
-  DateTime? checkedAt,
-  Uri? offerUrl,
-}) {
-  return BuybackOffer(
-    providerId: 'provider-$price',
-    providerName: 'Provider',
-    productId: 'iphone-15-pro-256',
-    matchedTitle: 'Apple iPhone 15 Pro 256 GB',
-    condition: condition,
-    price: price,
-    currency: 'EUR',
-    offerUrl: offerUrl ?? Uri.parse('https://example.com/offer'),
-    checkedAt: checkedAt ?? DateTime.parse('2026-09-16T08:30:00+02:00'),
-    requiresInspection: true,
-    matchConfidence: confidence,
-    conditionUncertain: uncertain,
-  );
-}
+BuybackOffer offer({required double price, BuybackCondition condition = BuybackCondition.likeNew, double confidence = 0.98, bool uncertain = false, DateTime? checkedAt, Uri? offerUrl}) => BuybackOffer(providerId: 'provider-$price', providerName: 'Provider', productId: 'iphone-15-pro-256', matchedTitle: 'Apple iPhone 15 Pro 256 GB', condition: condition, price: price, currency: 'EUR', offerUrl: offerUrl ?? Uri.parse('https://example.com/offer'), checkedAt: checkedAt ?? DateTime.parse('2026-09-16T08:30:00+02:00'), requiresInspection: true, matchConfidence: confidence, conditionUncertain: uncertain);
 
-Map<String, dynamic> payload() => {
-      'provider_id': 'example',
-      'provider_name': 'Example',
-      'product_id': 'iphone-15-pro-256',
-      'matched_title': 'Apple iPhone 15 Pro 256 GB',
-      'condition': 'like_new',
-      'price': 620,
-      'currency': 'EUR',
-      'offer_url': 'https://example.com/offer',
-      'checked_at': '2026-09-16T08:30:00+02:00',
-      'price_kind': 'indicative_buyback',
-      'requires_inspection': true,
-      'match_confidence': 0.98,
-    };
+Map<String, dynamic> payload() => {'provider_id':'example','provider_name':'Example','product_id':'iphone-15-pro-256','matched_title':'Apple iPhone 15 Pro 256 GB','condition':'like_new','price':620,'currency':'EUR','offer_url':'https://example.com/offer','checked_at':'2026-09-16T08:30:00+02:00','price_kind':'indicative_buyback','requires_inspection':true,'match_confidence':0.98};
 
 void main() {
-  test('condition wire values round-trip', () {
-    for (final condition in BuybackCondition.values) {
-      expect(BuybackConditionWire.tryParse(condition.wireValue), condition);
-    }
-  });
-
-  test('selects highest eligible offer for the requested condition', () {
-    final best = bestComparableBuybackOffer(
-      [offer(price: 590), offer(price: 625), offer(price: 610)],
-      condition: BuybackCondition.likeNew,
-    );
-    expect(best?.price, 625);
-  });
-
-  test('does not compare different conditions', () {
-    final best = bestComparableBuybackOffer(
-      [offer(price: 600), offer(price: 700, condition: BuybackCondition.usedGood)],
-      condition: BuybackCondition.likeNew,
-    );
-    expect(best?.price, 600);
-  });
-
-  test('excludes uncertain and low-confidence matches', () {
-    final best = bestComparableBuybackOffer(
-      [offer(price: 700, uncertain: true), offer(price: 680, confidence: 0.75), offer(price: 620)],
-      condition: BuybackCondition.likeNew,
-    );
-    expect(best?.price, 620);
-  });
-
-  test('excludes zero-value offers from comparison', () {
-    final best = bestComparableBuybackOffer(
-      [offer(price: 0), offer(price: 620)],
-      condition: BuybackCondition.likeNew,
-    );
-    expect(best?.price, 620);
-    expect(offer(price: 0).isEligibleForComparison, isFalse);
-  });
-
-  test('excludes implausible prices and unsafe offer URLs', () {
-    expect(offer(price: 10001).isEligibleForComparison, isFalse);
-    expect(offer(price: 620, offerUrl: Uri.parse('https://user:secret@example.com/offer')).isEligibleForComparison, isFalse);
-    expect(offer(price: 620, offerUrl: Uri.parse('https:/offer')).isEligibleForComparison, isFalse);
-    expect(offer(price: 620, offerUrl: Uri.parse('https://localhost/offer')).isEligibleForComparison, isFalse);
-    expect(offer(price: 620, offerUrl: Uri.parse('https://partner.local/offer')).isEligibleForComparison, isFalse);
-  });
-
-  test('excludes non-public network offer URLs', () {
-    for (final host in ['127.0.0.1', '10.0.0.8', '100.64.0.1', '100.127.255.254', '169.254.10.20', '172.16.0.1', '172.31.255.254', '192.0.0.1', '192.0.2.1', '192.168.1.20', '198.18.0.1', '198.51.100.1', '203.0.113.1', '224.0.0.1', '255.255.255.255', '[::1]', '[::]', '[fc00::1]', '[fd12:3456::1]', '[fe80::1]']) {
-      expect(
-        offer(price: 620, offerUrl: Uri.parse('https://$host/offer')).isEligibleForComparison,
-        isFalse,
-        reason: host,
-      );
-    }
-    expect(offer(price: 620, offerUrl: Uri.parse('https://100.128.0.1/offer')).isEligibleForComparison, isTrue);
-    expect(offer(price: 620, offerUrl: Uri.parse('https://172.32.0.1/offer')).isEligibleForComparison, isTrue);
-    expect(offer(price: 620, offerUrl: Uri.parse('https://[2606:4700:4700::1111]/offer')).isEligibleForComparison, isTrue);
-  });
-
-  test('excludes disguised local offer hosts', () {
-    for (final url in [
-      'https://localhost./offer',
-      'https://api.localhost/offer',
-      'https://api.localhost./offer',
-      'https://partner.local./offer',
-    ]) {
-      expect(
-        offer(price: 620, offerUrl: Uri.parse(url)).isEligibleForComparison,
-        isFalse,
-        reason: url,
-      );
-    }
-  });
-
-  test('excludes stale offers when a comparison time is supplied', () {
-    final now = DateTime.parse('2026-09-16T10:00:00Z');
-    final best = bestComparableBuybackOffer(
-      [offer(price: 700, checkedAt: now.subtract(const Duration(hours: 25))), offer(price: 620, checkedAt: now.subtract(const Duration(hours: 2)))],
-      condition: BuybackCondition.likeNew,
-      now: now,
-    );
-    expect(best?.price, 620);
-  });
-
-  test('tolerates small clock skew but rejects implausible future timestamps', () {
-    final now = DateTime.parse('2026-09-16T10:00:00Z');
-    expect(offer(price: 620, checkedAt: now.add(const Duration(minutes: 4))).isFreshAt(now), isTrue);
-    expect(offer(price: 700, checkedAt: now.add(const Duration(minutes: 6))).isFreshAt(now), isFalse);
-  });
-
-  test('parses normalized adapter payload', () {
-    final parsed = BuybackOffer.fromJson(payload());
-    expect(parsed.condition, BuybackCondition.likeNew);
-    expect(parsed.price, 620);
-    expect(parsed.isEligibleForComparison, isTrue);
-  });
-
-  test('rejects unsafe offer URLs while parsing provider payloads', () {
-    for (final url in [
-      'http://example.com/offer',
-      'https://user:secret@example.com/offer',
-      'https://localhost/offer',
-      'https://localhost./offer',
-      'https://api.localhost/offer',
-      'https://192.168.1.20/offer',
-      'https://[fd12:3456::1]/offer',
-    ]) {
-      final json = payload()..['offer_url'] = url;
-      expect(
-        () => BuybackOffer.fromJson(json),
-        throwsFormatException,
-        reason: url,
-      );
-    }
-  });
-
-  test('rejects non-buyback price kinds', () {
-    final json = payload()..['price_kind'] = 'asking_price';
-    expect(() => BuybackOffer.fromJson(json), throwsFormatException);
-  });
+  test('condition wire values round-trip', () { for (final condition in BuybackCondition.values) { expect(BuybackConditionWire.tryParse(condition.wireValue), condition); } });
+  test('selects highest eligible offer for the requested condition', () { final best = bestComparableBuybackOffer([offer(price:590),offer(price:625),offer(price:610)], condition:BuybackCondition.likeNew); expect(best?.price,625); });
+  test('does not compare different conditions', () { final best = bestComparableBuybackOffer([offer(price:600),offer(price:700,condition:BuybackCondition.usedGood)], condition:BuybackCondition.likeNew); expect(best?.price,600); });
+  test('excludes uncertain and low-confidence matches', () { final best=bestComparableBuybackOffer([offer(price:700,uncertain:true),offer(price:680,confidence:.75),offer(price:620)],condition:BuybackCondition.likeNew); expect(best?.price,620); });
+  test('excludes zero-value offers from comparison', () { final best=bestComparableBuybackOffer([offer(price:0),offer(price:620)],condition:BuybackCondition.likeNew); expect(best?.price,620); expect(offer(price:0).isEligibleForComparison,isFalse); });
+  test('excludes implausible prices and unsafe offer URLs', () { expect(offer(price:10001).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https://user:secret@example.com/offer')).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https:/offer')).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https://localhost/offer')).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https://partner.local/offer')).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https://example.com:8443/offer')).isEligibleForComparison,isFalse); expect(offer(price:620,offerUrl:Uri.parse('https://example.com:443/offer')).isEligibleForComparison,isTrue); });
+  test('excludes non-public network offer URLs', () { for(final host in ['127.0.0.1','10.0.0.8','100.64.0.1','100.127.255.254','169.254.10.20','172.16.0.1','172.31.255.254','192.0.0.1','192.0.2.1','192.168.1.20','198.18.0.1','198.51.100.1','203.0.113.1','224.0.0.1','255.255.255.255','[::1]','[::]','[fc00::1]','[fd12:3456::1]','[fe80::1]','[::ffff:127.0.0.1]']) { expect(offer(price:620,offerUrl:Uri.parse('https://$host/offer')).isEligibleForComparison,isFalse,reason:host); } expect(offer(price:620,offerUrl:Uri.parse('https://100.128.0.1/offer')).isEligibleForComparison,isTrue); expect(offer(price:620,offerUrl:Uri.parse('https://172.32.0.1/offer')).isEligibleForComparison,isTrue); expect(offer(price:620,offerUrl:Uri.parse('https://[2606:4700:4700::1111]/offer')).isEligibleForComparison,isTrue); });
+  test('excludes disguised local offer hosts', () { for(final url in ['https://localhost./offer','https://api.localhost/offer','https://api.localhost./offer','https://partner.local./offer']) { expect(offer(price:620,offerUrl:Uri.parse(url)).isEligibleForComparison,isFalse,reason:url); } });
+  test('excludes stale offers when a comparison time is supplied', () { final now=DateTime.parse('2026-09-16T10:00:00Z'); final best=bestComparableBuybackOffer([offer(price:700,checkedAt:now.subtract(const Duration(hours:25))),offer(price:620,checkedAt:now.subtract(const Duration(hours:2)))],condition:BuybackCondition.likeNew,now:now); expect(best?.price,620); });
+  test('tolerates small clock skew but rejects implausible future timestamps', () { final now=DateTime.parse('2026-09-16T10:00:00Z'); expect(offer(price:620,checkedAt:now.add(const Duration(minutes:4))).isFreshAt(now),isTrue); expect(offer(price:700,checkedAt:now.add(const Duration(minutes:6))).isFreshAt(now),isFalse); });
+  test('parses normalized adapter payload', () { final parsed=BuybackOffer.fromJson(payload()); expect(parsed.condition,BuybackCondition.likeNew); expect(parsed.price,620); expect(parsed.isEligibleForComparison,isTrue); });
+  test('rejects unsafe offer URLs while parsing provider payloads', () { for(final url in ['http://example.com/offer','https://user:secret@example.com/offer','https://localhost/offer','https://localhost./offer','https://api.localhost/offer','https://192.168.1.20/offer','https://[fd12:3456::1]/offer','https://example.com:8443/offer']) { final json=payload()..['offer_url']=url; expect(()=>BuybackOffer.fromJson(json),throwsFormatException,reason:url); } });
+  test('rejects non-buyback price kinds', () { final json=payload()..['price_kind']='asking_price'; expect(()=>BuybackOffer.fromJson(json),throwsFormatException); });
 }
