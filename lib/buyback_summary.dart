@@ -43,10 +43,13 @@ BuybackComparisonSummary? buildBuybackComparisonSummary(
   if (!purchasePrice.isFinite || purchasePrice < 0) return null;
   if (!privateMarketValue.isFinite || privateMarketValue < 0) return null;
 
+  // User-facing comparisons must never silently accept stale provider data.
+  // Callers can still inject [now] for deterministic tests/rechecks.
+  final comparisonTime = now ?? DateTime.now();
   final best = bestComparableBuybackOffer(
     offers,
     condition: condition,
-    now: now,
+    now: comparisonTime,
     maxAge: maxAge,
   );
   if (best == null) return null;
