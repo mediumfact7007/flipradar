@@ -5,8 +5,10 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
-String normalizeBuybackQuery(String query) =>
-    query.trim().replaceAll(RegExp(r'\s+'), ' ');
+String normalizeBuybackQuery(String query) => query
+    .replaceAll(RegExp(r'[\u200B-\u200D\u2060\uFEFF]'), '')
+    .trim()
+    .replaceAll(RegExp(r'\s+'), ' ');
 
 /// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
 /// provider look like multiple independent market signals.
