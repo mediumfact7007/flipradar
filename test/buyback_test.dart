@@ -101,6 +101,21 @@ void main() {
     expect(offer(price: 620, offerUrl: Uri.parse('https://[2606:4700:4700::1111]/offer')).isEligibleForComparison, isTrue);
   });
 
+  test('excludes disguised local offer hosts', () {
+    for (final url in [
+      'https://localhost./offer',
+      'https://api.localhost/offer',
+      'https://api.localhost./offer',
+      'https://partner.local./offer',
+    ]) {
+      expect(
+        offer(price: 620, offerUrl: Uri.parse(url)).isEligibleForComparison,
+        isFalse,
+        reason: url,
+      );
+    }
+  });
+
   test('excludes stale offers when a comparison time is supplied', () {
     final now = DateTime.parse('2026-09-16T10:00:00Z');
     final best = bestComparableBuybackOffer(
@@ -129,6 +144,8 @@ void main() {
       'http://example.com/offer',
       'https://user:secret@example.com/offer',
       'https://localhost/offer',
+      'https://localhost./offer',
+      'https://api.localhost/offer',
       'https://192.168.1.20/offer',
       'https://[fd12:3456::1]/offer',
     ]) {
