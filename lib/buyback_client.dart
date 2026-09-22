@@ -7,7 +7,7 @@ import 'source_registry.dart';
 
 // Shared/copied listing titles can contain invisible Unicode separators or
 // bidirectional formatting marks that make an otherwise exact provider search
-// miss. Remove those before sending it.
+// miss. Strip both classes before sending the provider query.
 String normalizeBuybackQuery(String query) => query
     .replaceAll(RegExp(r'[\u200B-\u200D\u202A-\u202E\u2060\u2066-\u2069\uFEFF]'), '')
     .trim()
