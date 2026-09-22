@@ -10,7 +10,19 @@ class BuybackSourceResult {
   final SourceListing listing;
   final BuybackOffer? offer;
 
+  /// Structural eligibility only. User-facing decisions should use
+  /// [hasFreshComparableOfferAt] so stale provider prices are never promoted.
   bool get hasComparableOffer => offer?.isEligibleForComparison == true;
+
+  bool hasFreshComparableOfferAt(
+    DateTime now, {
+    Duration maxAge = const Duration(hours: 24),
+  }) {
+    final candidate = offer;
+    return candidate != null &&
+        candidate.isEligibleForComparison &&
+        candidate.isFreshAt(now, maxAge: maxAge);
+  }
 }
 
 BuybackSourceResult parseBuybackSourceItem(
