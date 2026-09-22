@@ -58,6 +58,8 @@ class BuybackComparisonCard extends StatelessWidget {
           Text(_de ? 'Privat oder sofort verkaufen?' : 'Sell privately or instantly?', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(_de ? 'FlipRadar zeigt dir Erlös, Gewinn und den Preis für mehr Bequemlichkeit.' : 'FlipRadar shows proceeds, profit and the price of extra convenience.', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Text(_de ? 'Basis: Einkauf ${_money(summary.purchasePrice)}' : 'Basis: purchase ${_money(summary.purchasePrice)}', key: const ValueKey('buyback-purchase-basis'), style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Container(
             key: const ValueKey('buyback-recommendation'),
