@@ -26,9 +26,13 @@ extension BuybackConditionWire on BuybackCondition {
 }
 
 bool _hasPublicOfferHost(String host) {
-  final normalized = host.toLowerCase();
+  var normalized = host.toLowerCase();
+  while (normalized.endsWith('.')) {
+    normalized = normalized.substring(0, normalized.length - 1);
+  }
   if (normalized.isEmpty ||
       normalized == 'localhost' ||
+      normalized.endsWith('.localhost') ||
       normalized.endsWith('.local') ||
       normalized == '::1') {
     return false;
