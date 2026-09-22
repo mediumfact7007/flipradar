@@ -34,7 +34,21 @@ int _compareProviderQuotes(BuybackOffer a, BuybackOffer b) {
   if (confidence != 0) return confidence;
   final freshness = b.checkedAt.toUtc().compareTo(a.checkedAt.toUtc());
   if (freshness != 0) return freshness;
-  return b.price.compareTo(a.price);
+  final price = b.price.compareTo(a.price);
+  if (price != 0) return price;
+
+  // Keep equally strong provider results stable across backend response order.
+  // A deterministic list avoids cards apparently jumping between rechecks when
+  // nothing about the market actually changed.
+  final providerName = a.providerName
+      .trim()
+      .toLowerCase()
+      .compareTo(b.providerName.trim().toLowerCase());
+  if (providerName != 0) return providerName;
+  return a.providerId
+      .trim()
+      .toLowerCase()
+      .compareTo(b.providerId.trim().toLowerCase());
 }
 
 /// Isolated client for FlipRadar's buyback endpoint.
