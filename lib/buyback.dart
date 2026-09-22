@@ -145,7 +145,12 @@ class BuybackOffer {
     final checkedAt = DateTime.tryParse(json['checked_at'] as String? ?? '');
     final offerUrl = Uri.tryParse(json['offer_url'] as String? ?? '');
 
-    if (price == null || confidence == null || checkedAt == null || offerUrl == null) {
+    if (price == null ||
+        confidence == null ||
+        checkedAt == null ||
+        offerUrl == null ||
+        !offerUrl.hasScheme ||
+        offerUrl.host.isEmpty) {
       throw const FormatException('Incomplete buyback offer');
     }
 
