@@ -65,4 +65,13 @@ void main() {
     expect(result.single.price, 515);
     expect(result.single.checkedAt, DateTime.parse('2026-09-22T12:00:00Z'));
   });
+
+  test('ranks trustworthy provider matches before higher indicative prices', () {
+    final result = distinctBuybackOffers([
+      offer('high-price', 590, confidence: 0.91),
+      offer('trusted', 510, confidence: 0.99),
+    ]);
+
+    expect(result.map((item) => item.providerId), ['trusted', 'high-price']);
+  });
 }
