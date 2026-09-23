@@ -37,8 +37,6 @@ BuybackSourceResult parseBuybackSourceItem(
     final offer = BuybackOffer.fromJson(json);
     return BuybackSourceResult(listing: listing, offer: offer);
   } on FormatException {
-    // Keep a generic source result visible, but never promote incomplete or
-    // ambiguous buyback metadata into the trusted comparison calculation.
     return BuybackSourceResult(listing: listing);
   } on TypeError {
     return BuybackSourceResult(listing: listing);
@@ -50,8 +48,6 @@ List<BuybackOffer> comparableBuybackOffers(
   DateTime? now,
   Duration maxAge = const Duration(hours: 24),
 }) {
-  // Keep the collection path on exactly the same freshness/eligibility rule as
-  // single-result UI decisions so future quality gates cannot drift apart.
   final comparisonTime = now ?? DateTime.now();
   final fresh = results
       .where(
@@ -62,9 +58,12 @@ List<BuybackOffer> comparableBuybackOffers(
       )
       .map((result) => result.offer!);
 
-  // Generic source aggregation can contain several matches from the same
-  // provider. Apply the same provider-level trust/deduplication rule as the
-  // dedicated live client so one noisy provider never looks like multiple
-  // independent buyback signals in the decision UI.
-  return distinctBuybackOffers(fresh, now: comparisonTime);
+  // Preserve the caller's freshness window through provider deduplication.
+  // Otherwise a deliberately wider/narrower policy could silently fall back
+  // to the default 24 h while building the final decision list.
+  return distinctBuybackOffers(
+    fresh,
+    now: comparisonTime,
+    maxAge: maxAge,
+  );
 }
