@@ -27,6 +27,8 @@ assert.strictEqual(normalized.length, 1);
 assert.strictEqual(normalized[0].price, 620);
 
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ checked_at: '2026-09-14T09:30:00Z' })] }, { now }).length, 0);
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ checked_at: '2026-09-16T09:30:00' })] }, { now }).length, 0, 'provider timestamps without timezone must not affect freshness');
+assert.strictEqual(normalizeBuybackPayload({ items: [offer({ checked_at: '2026-09-16T11:30:00+02:00' })] }, { now }).length, 1, 'explicit timezone offsets are valid');
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ price: 0 })] }, { now }).length, 0);
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ price: 10001 })] }, { now }).length, 0, 'implausible feed prices must not distort deal ranking');
 assert.strictEqual(normalizeBuybackPayload({ items: [offer({ price_kind: 'asking_price' })] }, { now }).length, 0);
