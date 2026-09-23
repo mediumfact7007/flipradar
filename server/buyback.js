@@ -69,7 +69,7 @@ function normalizeBuybackPayload(payload, options) {
   for (const raw of rawItems) {
     const item = normalizeBuybackOffer(raw, options);
     if (!item) continue;
-    const key = `${item.provider_id}\u0000${item.product_id}\u0000${item.condition}`;
+    const key = `${item.provider_id.toLowerCase()}\u0000${item.product_id.toLowerCase()}\u0000${item.condition}`;
     const current = unique.get(key);
     if (!current || item.price > current.price || (item.price === current.price && item.checked_at > current.checked_at)) {
       unique.set(key, item);

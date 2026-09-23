@@ -56,4 +56,11 @@ assert.strictEqual(duplicates[0].provider_id, 'b', 'comparison should be ordered
 assert.strictEqual(duplicates[1].price, 625);
 assert.strictEqual(duplicates[1].checked_at, '2026-09-16T09:40:00.000Z', 'equal-price duplicate should keep freshest quote');
 
+const casingDuplicates = normalizeBuybackPayload({ items: [
+  offer({ provider_id: 'Provider-A', product_id: 'IPHONE-15-PRO-256', price: 610 }),
+  offer({ provider_id: 'provider-a', product_id: 'iphone-15-pro-256', price: 630 }),
+] }, { now });
+assert.strictEqual(casingDuplicates.length, 1, 'provider ID casing must not inflate the visible comparison');
+assert.strictEqual(casingDuplicates[0].price, 630);
+
 console.log('buyback tests passed');
