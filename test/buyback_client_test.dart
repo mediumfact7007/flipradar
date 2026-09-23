@@ -52,7 +52,8 @@ void main() {
   });
 
   test('keeps long shared titles searchable at a word boundary', () {
-    final title = 'Apple iPhone 15 Pro 256 GB ' + ('sehr guter Zustand ' * 12);
+    final suffix = List.filled(12, 'sehr guter Zustand ').join();
+    final title = 'Apple iPhone 15 Pro 256 GB $suffix';
     final limited = limitBuybackQuery(normalizeBuybackQuery(title));
 
     expect(limited, startsWith('Apple iPhone 15 Pro 256 GB'));
