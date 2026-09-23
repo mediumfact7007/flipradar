@@ -41,7 +41,9 @@ BuybackComparisonSummary? buildBuybackComparisonSummary(
   Duration maxAge = const Duration(hours: 24),
 }) {
   if (!purchasePrice.isFinite || purchasePrice < 0) return null;
-  if (!privateMarketValue.isFinite || privateMarketValue < 0) return null;
+  // A zero/negative private value means FlipRadar has no usable market anchor.
+  // Never turn that absence into a misleading "instant buyback wins" verdict.
+  if (!privateMarketValue.isFinite || privateMarketValue <= 0) return null;
 
   // User-facing comparisons must never silently accept stale provider data.
   // Callers can still inject [now] for deterministic tests/rechecks.
