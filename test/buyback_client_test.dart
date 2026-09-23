@@ -51,6 +51,15 @@ void main() {
     );
   });
 
+  test('keeps long shared titles searchable at a word boundary', () {
+    final title = 'Apple iPhone 15 Pro 256 GB ' + ('sehr guter Zustand ' * 12);
+    final limited = limitBuybackQuery(normalizeBuybackQuery(title));
+
+    expect(limited, startsWith('Apple iPhone 15 Pro 256 GB'));
+    expect(limited.length, lessThanOrEqualTo(180));
+    expect(limited, isNot(endsWith(' ')));
+  });
+
   test('keeps only the best quote from each buyback provider', () {
     final result = distinctBuybackOffers([
       offer('rebuy', 510),
