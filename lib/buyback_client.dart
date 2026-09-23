@@ -17,6 +17,18 @@ String normalizeBuybackQuery(String query) => query
     .trim()
     .replaceAll(RegExp(r'\s+'), ' ');
 
+/// Keeps long marketplace titles useful for provider search instead of
+/// dropping the whole buyback comparison. Prefer a word boundary so copied
+/// listing suffixes (shipping, condition notes, seller text) are discarded
+/// before the identifying product terms at the beginning of the title.
+String limitBuybackQuery(String query, {int maxLength = 180}) {
+  if (maxLength <= 0 || query.isEmpty) return '';
+  if (query.length <= maxLength) return query;
+  final prefix = query.substring(0, maxLength);
+  final boundary = prefix.lastIndexOf(' ');
+  return (boundary >= maxLength ~/ 2 ? prefix.substring(0, boundary) : prefix).trim();
+}
+
 /// Keeps one trustworthy quote per provider so a noisy adapter cannot make one
 /// provider look like multiple independent market signals.
 ///
@@ -73,8 +85,8 @@ class BuybackClient {
     DateTime? now,
     Duration maxAge = const Duration(hours: 24),
   }) async {
-    final q = normalizeBuybackQuery(query);
-    if (q.isEmpty || q.length > 180 || maxAge.isNegative) return const [];
+    final q = limitBuybackQuery(normalizeBuybackQuery(query));
+    if (q.isEmpty || maxAge.isNegative) return const [];
 
     final base = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
     final baseUri = Uri.tryParse(base);
