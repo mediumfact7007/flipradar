@@ -1,4 +1,5 @@
 import 'buyback.dart';
+import 'buyback_client.dart';
 import 'source_registry.dart';
 
 /// Lossless bridge between generic market-source payloads and the stricter
@@ -52,13 +53,18 @@ List<BuybackOffer> comparableBuybackOffers(
   // Keep the collection path on exactly the same freshness/eligibility rule as
   // single-result UI decisions so future quality gates cannot drift apart.
   final comparisonTime = now ?? DateTime.now();
-  return results
+  final fresh = results
       .where(
         (result) => result.hasFreshComparableOfferAt(
           comparisonTime,
           maxAge: maxAge,
         ),
       )
-      .map((result) => result.offer!)
-      .toList(growable: false);
+      .map((result) => result.offer!);
+
+  // Generic source aggregation can contain several matches from the same
+  // provider. Apply the same provider-level trust/deduplication rule as the
+  // dedicated live client so one noisy provider never looks like multiple
+  // independent buyback signals in the decision UI.
+  return distinctBuybackOffers(fresh, now: comparisonTime);
 }
