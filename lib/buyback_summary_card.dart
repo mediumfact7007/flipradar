@@ -26,6 +26,11 @@ class BuybackComparisonCard extends StatelessWidget {
     return _de ? 'Preis geprüft: $day.$month. · $hour:$minute Uhr' : 'Price checked: $month/$day · $hour:$minute local time';
   }
 
+  String get _matchQuality {
+    final percent = (summary.offer.matchConfidence * 100).round().clamp(0, 100);
+    return _de ? 'Produkt-Treffer: $percent %' : 'Product match: $percent%';
+  }
+
   bool get _hasSafeOfferUrl => summary.offer.isEligibleForComparison;
   Future<void> _openOffer() async {
     if (!_hasSafeOfferUrl) return;
@@ -81,6 +86,8 @@ class BuybackComparisonCard extends StatelessWidget {
           ],
           const SizedBox(height: 6),
           Text(_checkedAt(summary.offer.checkedAt), key: const ValueKey('buyback-checked-at'), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(_matchQuality, key: const ValueKey('buyback-match-quality'), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(_de ? 'Privatwert = aktueller FlipRadar-Marktwert. Ankauf = frisches, qualitätsgefiltertes Anbieterangebot.' : 'Private value = current FlipRadar market value. Buyback = fresh, quality-filtered provider offer.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           if (summary.offer.requiresInspection) ...[
