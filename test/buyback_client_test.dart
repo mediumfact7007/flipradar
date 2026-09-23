@@ -122,4 +122,14 @@ void main() {
 
     expect(result.map((item) => item.providerId), ['fresh']);
   });
+
+  test('respects a caller-defined freshness window when rechecking', () {
+    final result = distinctBuybackOffers(
+      [offer('older', 510, checkedAt: '2026-09-21T06:00:00Z')],
+      now: DateTime.parse('2026-09-22T12:00:00Z'),
+      maxAge: const Duration(hours: 36),
+    );
+
+    expect(result.map((item) => item.providerId), ['older']);
+  });
 }
