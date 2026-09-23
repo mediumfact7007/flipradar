@@ -69,9 +69,10 @@ class BuybackClient {
     String query, {
     required BuybackCondition condition,
     DateTime? now,
+    Duration maxAge = const Duration(hours: 24),
   }) async {
     final q = normalizeBuybackQuery(query);
-    if (q.isEmpty || q.length > 180) return const [];
+    if (q.isEmpty || q.length > 180 || maxAge.isNegative) return const [];
 
     final base = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
     final baseUri = Uri.tryParse(base);
@@ -100,7 +101,7 @@ class BuybackClient {
         try {
           final offer = BuybackOffer.fromJson(item);
           if (offer.condition != condition || !offer.isEligibleForComparison) continue;
-          if (!offer.isFreshAt(checkedNow)) continue;
+          if (!offer.isFreshAt(checkedNow, maxAge: maxAge)) continue;
           offers.add(offer);
         } on FormatException {
           // Invalid provider payloads are ignored rather than shown as trusted.
@@ -108,7 +109,11 @@ class BuybackClient {
           // Wrongly typed provider payloads are treated as unavailable data.
         }
       }
-      return distinctBuybackOffers(offers, now: checkedNow);
+      return distinctBuybackOffers(
+        offers,
+        now: checkedNow,
+        maxAge: maxAge,
+      );
     } catch (_) {
       // Buyback is optional: network/provider failure must never break the
       // primary deal check or the Kleinanzeigen share flow.
