@@ -17,6 +17,13 @@ Stand: 23. September 2026. Technische Produktgrenzen, keine Rechtsfreigabe.
 3. Preis, Währung, Variante, Zustand, Abrufzeit und Anbieter-Link gemeinsam validieren; fehlende Freigabe oder fehlender Preis ergibt leere Ergebnisse, keine Schätzung als Live-Angebot.
 4. Bei Widerruf, Vertragsänderung oder Sperre betroffene Quelle serverseitig abschalten; keine gespeicherten Fremddaten nach Ende der Nutzungsrechte weiter ausspielen.
 
+Das Buyback-Backend erzwingt diese Freigabe zusätzlich technisch: Neben der
+HTTPS-Adapteradresse müssen die freigegebenen Anbieter-IDs, die ausdrückliche
+Bestätigung für Feed-Abruf und Preisdarstellung sowie ein zukünftiges Ende des
+Prüfzeitraums konfiguriert sein. Andere Anbieter-IDs aus demselben Feed werden
+verworfen. Diese Schalter dokumentieren nur die bewusste Aktivierung; sie ersetzen
+keinen Vertrag und keine juristische Prüfung.
+
 ## Veröffentlichungsgate Deutschland/EU
 
 - Anbieterkennzeichnung und Kontakt nach [§ 5 DDG](https://www.gesetze-im-internet.de/ddg/__5.html) mit den tatsächlichen Betreiberangaben bereitstellen; keine Platzhalter veröffentlichen.

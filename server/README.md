@@ -50,12 +50,20 @@ the server:
 BUYBACK_SOURCE_URL=https://partner-adapter.example/quotes
 BUYBACK_SOURCE_TOKEN=...
 BUYBACK_SOURCE_TIMEOUT_MS=6000
+BUYBACK_SOURCE_POLICY_ACK=approved-feed-and-price-display-v1
+BUYBACK_SOURCE_PROVIDER_IDS=zoxs
+BUYBACK_SOURCE_APPROVAL_VALID_UNTIL=2027-12-31T23:59:59Z
 ```
 
 The adapter must return the normalized fields documented in
 `docs/BUYBACK_INTEGRATION.md`, including a current timestamp, exact product and
 condition identity, EUR price, confidence and HTTPS offer URL. Affiliate or
 deep-link access alone is not permission to scrape or republish prices.
+The backend fails closed unless the exact policy acknowledgement, a comma-separated
+allowlist of contractually covered provider IDs and a future approval expiry are
+set. Feed rows for other provider IDs are discarded even if the adapter returns
+them. Renew or disable the approval before the configured expiry; never use these
+flags as a substitute for the underlying written rights.
 
 After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
 

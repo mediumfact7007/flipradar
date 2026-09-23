@@ -9,6 +9,29 @@ const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
   : 6000;
 const BUYBACK_SOURCE_URL = String(process.env.BUYBACK_SOURCE_URL || '').trim();
 const BUYBACK_SOURCE_TOKEN = String(process.env.BUYBACK_SOURCE_TOKEN || '').trim();
+const BUYBACK_SOURCE_POLICY_ACK = String(process.env.BUYBACK_SOURCE_POLICY_ACK || '').trim();
+const BUYBACK_SOURCE_PROVIDER_IDS = String(process.env.BUYBACK_SOURCE_PROVIDER_IDS || '').trim();
+const BUYBACK_SOURCE_APPROVAL_VALID_UNTIL = String(process.env.BUYBACK_SOURCE_APPROVAL_VALID_UNTIL || '').trim();
+const REQUIRED_POLICY_ACK = 'approved-feed-and-price-display-v1';
+
+function approvedProviderIds() {
+  const values = BUYBACK_SOURCE_PROVIDER_IDS
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (!values.length || values.some((value) => !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(value))) {
+    return new Set();
+  }
+  return new Set(values);
+}
+
+function hasCurrentApproval(now = Date.now()) {
+  if (BUYBACK_SOURCE_POLICY_ACK !== REQUIRED_POLICY_ACK) return false;
+  if (!approvedProviderIds().size) return false;
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(BUYBACK_SOURCE_APPROVAL_VALID_UNTIL)) return false;
+  const validUntil = Date.parse(BUYBACK_SOURCE_APPROVAL_VALID_UNTIL);
+  return Number.isFinite(validUntil) && validUntil > now;
+}
 
 function hasPublicSourceHost(hostname) {
   const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
@@ -34,8 +57,8 @@ function hasPublicSourceHost(hostname) {
     (a === 203 && b === 0 && c === 113) || a >= 224);
 }
 
-function configured() {
-  if (!BUYBACK_SOURCE_URL) return false;
+function configured(now = Date.now()) {
+  if (!BUYBACK_SOURCE_URL || !hasCurrentApproval(now)) return false;
   try {
     const url = new URL(BUYBACK_SOURCE_URL);
     return url.protocol === 'https:' && !url.username && !url.password && hasPublicSourceHost(url.hostname);
@@ -45,7 +68,7 @@ function configured() {
 }
 
 async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = Date.now() } = {}) {
-  if (!configured()) return { configured: false, items: [], best: null };
+  if (!configured(now)) return { configured: false, items: [], best: null };
 
   const normalizedQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 160);
   if (normalizedQuery.length < 3) return { configured: true, items: [], best: null };
@@ -71,7 +94,11 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     }
     const payload = await response.json();
     const rawItems = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-    const items = normalizeBuybackPayload(rawItems.filter((item) => matchesBuybackQuery(normalizedQuery, item)), { now });
+    const allowedProviders = approvedProviderIds();
+    const items = normalizeBuybackPayload(rawItems.filter((item) => {
+      const providerId = String(item?.provider_id || '').trim().toLowerCase();
+      return allowedProviders.has(providerId) && matchesBuybackQuery(normalizedQuery, item);
+    }), { now });
     return {
       configured: true,
       items,
@@ -85,13 +112,16 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
 }
 
 function sourceStatus() {
+  const isConfigured = configured();
   return {
-    configured: configured(),
-    mode: configured() ? 'partner_adapter' : 'disabled',
+    configured: isConfigured,
+    mode: isConfigured ? 'approved_partner_adapter' : 'disabled',
     data_kind: 'indicative_buyback',
     max_age_hours: 24,
     minimum_match_confidence: 0.9,
+    rights_gate: isConfigured ? 'approved' : 'not_approved_or_expired',
+    approved_provider_count: isConfigured ? approvedProviderIds().size : 0,
   };
 }
 
-module.exports = { configured, fetchBuybackOffers, sourceStatus };
+module.exports = { configured, fetchBuybackOffers, sourceStatus, hasCurrentApproval };
