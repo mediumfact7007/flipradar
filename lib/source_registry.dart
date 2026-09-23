@@ -344,10 +344,9 @@ class SourceRegistry {
       const PriceSource(
         id: 'rebuy',
         name: 'rebuy',
-        subtitle: 'Sofort-Ankauf / Refurbished',
-        searchUrlTemplate: 'https://www.rebuy.de/kaufen/suchen?q={query}',
+        subtitle: 'Sofort-Ankauf · externe Preisprüfung',
+        searchUrlTemplate: 'https://www.rebuy.de/verkaufen',
         role: 'buyback',
-        trustedForDecision: true,
         colorHex: '1B9E77',
       ),
       const PriceSource(

@@ -89,6 +89,8 @@ void main() {
     expect(find.text('Ankaufquelle vorübergehend nicht erreichbar'), findsOneWidget);
     expect(find.textContaining('geschätzten Ersatzpreis'), findsOneWidget);
     expect(find.byKey(const ValueKey('v157-buyback-retry')), findsOneWidget);
+    expect(find.byKey(const ValueKey('buyback-provider-links-card')), findsOneWidget);
+    expect(find.byKey(const ValueKey('buyback-provider-zoxs')), findsOneWidget);
     monetization.dispose();
   });
 }

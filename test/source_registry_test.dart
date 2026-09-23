@@ -83,4 +83,12 @@ void main() {
     expect(geizhals.canFetchInApp, isFalse);
   });
 
+  test('rebuy buyback shortcut opens the selling flow and is not price evidence', () {
+    final rebuy = SourceRegistry.builtIns().singleWhere((s) => s.id == 'rebuy');
+    expect(rebuy.searchUrl('iPhone 15 Pro'), 'https://www.rebuy.de/verkaufen');
+    expect(rebuy.searchUrl('iPhone 15 Pro'), isNot(contains('/kaufen/')));
+    expect(rebuy.canFetchInApp, isFalse);
+    expect(rebuy.trustedForDecision, isFalse);
+  });
+
 }

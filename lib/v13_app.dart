@@ -16,6 +16,7 @@ import 'buyback_client.dart';
 import 'buyback_summary.dart';
 import 'buyback_summary_card.dart';
 import 'buyback_offers_card.dart';
+import 'buyback_provider_links_card.dart';
 import 'deal_alert_toggle.dart';
 import 'deal_alert_result_card.dart';
 
@@ -1958,6 +1959,11 @@ class _V13CheckPageState extends State<V13CheckPage> {
                     ],
                   ])),
                 ]),
+              ),
+              const SizedBox(height: 7),
+              BuybackProviderLinksCard(
+                query: query.text,
+                english: widget.english,
               ),
             ],
             if (buybackOffers.isNotEmpty && !buybackLoading) ...[
