@@ -79,11 +79,7 @@ jobs:
 
       - name: Check backend and listing resolver
         run: |
-          node --check server/index.js
-          node --check server/market_quality.js
-          node --check server/listing_resolver.js
-          node server/market_quality_test.js
-          node server/listing_resolver_test.js
+          npm --prefix server run check
 
       - name: Smoke test sandbox and resolver boundary
         shell: bash

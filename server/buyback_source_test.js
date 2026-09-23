@@ -120,6 +120,27 @@ function loadSource(env = {}) {
   assert.strictEqual(result.items.length, 1);
   assert.strictEqual(result.best.provider_id, 'clevertronic');
   assert.strictEqual(result.best.price, 615);
+  const mixed = await loaded.source.fetchBuybackOffers('Apple iPhone 15 Pro 256 GB', 'like_new', {
+    now,
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        const good = {
+          provider_id: 'clevertronic', provider_name: 'Clevertronic', product_id: 'iphone-15-pro-256',
+          matched_title: 'Apple iPhone 15 Pro 256 GB', condition: 'like_new', price: 615,
+          currency: 'EUR', offer_url: 'https://partner.example/offer/good',
+          checked_at: '2026-09-20T07:55:00Z', price_kind: 'indicative_buyback',
+          match_confidence: 0.98,
+        };
+        return { items: [good, {
+          ...good, provider_id: 'wrong-variant', product_id: 'iphone-15-pro-max-256',
+          matched_title: 'Apple iPhone 15 Pro Max 256 GB', price: 900, match_confidence: 1,
+        }] };
+      },
+    }),
+  });
+  assert.strictEqual(mixed.items.length, 1, 'higher priced wrong model must not enter the comparison');
+  assert.strictEqual(mixed.best.provider_id, 'clevertronic');
   loaded.restore();
 
   console.log('buyback source tests passed');

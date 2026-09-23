@@ -1,0 +1,56 @@
+'use strict';
+
+const VARIANTS = new Set(['pro', 'max', 'plus', 'ultra', 'mini', 'air', 'oled', 'lite', 'fe']);
+const NOISE = new Set(['apple', 'samsung', 'google', 'mit', 'und', 'ohne', 'ovp', 'neu', 'gebraucht', 'top', 'zustand', 'versand', 'abholung', 'verkauf', 'original', 'inkl', 'in', 'der', 'das', 'die', 'the', 'with', 'for', 'new', 'used', 'black', 'white', 'schwarz', 'weiss']);
+const FAMILIES = new Set(['iphone', 'ipad', 'galaxy', 'pixel', 'switch', 'macbook', 'playstation', 'ps5', 'ps4']);
+
+function tokens(value) {
+  const normalized = String(value || '').normalize('NFKD').toLowerCase()
+    .replace(/(\d+)\s*(tb|gb)\b/g, (_, size, unit) => `${Number(size) * (unit === 'tb' ? 1024 : 1)}gb`)
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+  return normalized ? normalized.split(/\s+/) : [];
+}
+
+function storage(parts) {
+  return parts.filter((part) => /^\d+gb$/.test(part));
+}
+
+// A partner's confidence is a claim about its own lookup, not evidence that
+// the returned product matches the user's search. Check visible identity too.
+function matchesBuybackQuery(query, offer) {
+  const searched = tokens(query);
+  const title = tokens(offer.matched_title);
+  if (!searched.length || !title.length) return false;
+
+  // Numeric EAN/GTIN searches need an explicit matching identifier. A title
+  // or an unrelated internal product ID cannot establish barcode identity.
+  if (/^\d{8,14}$/.test(String(query).trim())) {
+    return [offer.ean, offer.gtin, offer.product_id]
+      .some((value) => String(value || '').trim() === String(query).trim());
+  }
+
+  const family = searched.find((part) => FAMILIES.has(part));
+  if (family) {
+    if (!title.includes(family)) return false;
+    const model = searched.slice(searched.indexOf(family) + 1, searched.indexOf(family) + 5)
+      .find((part) => /^(?:[a-z]?\d+[a-z]?|m[1-9])$/.test(part));
+    if (model && !title.includes(model)) return false;
+    if (!model && !['switch', 'ps5', 'ps4'].includes(family)) return false;
+    const requestedVariants = searched.filter((part) => VARIANTS.has(part));
+    const offeredVariants = title.filter((part) => VARIANTS.has(part));
+    if (requestedVariants.some((part) => !offeredVariants.includes(part)) ||
+        offeredVariants.some((part) => !requestedVariants.includes(part))) return false;
+    const requestedStorage = storage(searched);
+    const offeredStorage = storage(title);
+    if (requestedStorage.length && !requestedStorage.some((part) => offeredStorage.includes(part))) return false;
+    if (!requestedStorage.length && offeredStorage.length && !['switch', 'ps5', 'ps4'].includes(family)) return false;
+  }
+
+  const meaningful = [...new Set(searched.filter((part) => part.length > 1 && !NOISE.has(part)))];
+  if (meaningful.length < 2) return false;
+  // Listing titles contain seller prose; tolerate it while requiring the
+  // actual product terms (including generation and storage) to be present.
+  return meaningful.filter((part) => title.includes(part)).length / meaningful.length >= 0.75;
+}
+
+module.exports = { matchesBuybackQuery };

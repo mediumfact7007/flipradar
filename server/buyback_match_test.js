@@ -1,0 +1,22 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const { matchesBuybackQuery: matches } = require('./buyback_match');
+const offer = (matched_title, extra = {}) => ({ matched_title, product_id: 'internal-123', ...extra });
+
+assert.equal(matches('Apple iPhone 15 Pro 256 GB mit OVP', offer('Apple iPhone 15 Pro 256GB')), true);
+assert.equal(matches('Apple iPhone 15 Pro 256 GB', offer('iPhone 15 Pro Max 256GB')), false);
+assert.equal(matches('Apple iPhone 15 Pro 256 GB', offer('iPhone 15 Pro 128GB')), false);
+assert.equal(matches('Apple iPhone 15 Pro 256 GB', offer('iPhone 14 Pro 256GB')), false);
+assert.equal(matches('Apple iPhone 15', offer('Apple iPhone 15 128GB')), false, 'unspecified storage must not claim an exact phone variant');
+assert.equal(matches('Samsung Galaxy S24 Ultra 512 GB', offer('Samsung Galaxy S24 Ultra 512GB')), true);
+assert.equal(matches('Samsung Galaxy S24 Ultra 512 GB', offer('Galaxy S24 Plus 512GB')), false);
+assert.equal(matches('Nintendo Switch OLED weiß', offer('Nintendo Switch OLED Konsole')), true);
+assert.equal(matches('Nintendo Switch OLED', offer('Nintendo Switch Lite')), false);
+assert.equal(matches('Bosch GSR 12V 15', offer('Bosch GSR 18V 21')), false);
+assert.equal(matches('Bosch GSR 12V 15', offer('Bosch GSR 12V 15 Akku Bohrschrauber')), true);
+assert.equal(matches('4006381333931', offer('iPhone 15 Pro', { ean: '4006381333931' })), true);
+assert.equal(matches('4006381333931', offer('iPhone 15 Pro')), false);
+assert.equal(matches('iPhone', offer('iPhone 15 Pro 256GB')), false);
+
+console.log('buyback_match_test: ok');

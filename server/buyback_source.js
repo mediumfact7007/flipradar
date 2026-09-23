@@ -1,6 +1,7 @@
 'use strict';
 
 const { CONDITIONS, normalizeBuybackPayload, bestBuybackOffer } = require('./buyback');
+const { matchesBuybackQuery } = require('./buyback_match');
 
 const configuredTimeoutMs = Number(process.env.BUYBACK_SOURCE_TIMEOUT_MS || 6000);
 const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
@@ -10,10 +11,10 @@ const BUYBACK_SOURCE_URL = String(process.env.BUYBACK_SOURCE_URL || '').trim();
 const BUYBACK_SOURCE_TOKEN = String(process.env.BUYBACK_SOURCE_TOKEN || '').trim();
 
 function hasPublicSourceHost(hostname) {
-  const host = String(hostname || '').toLowerCase();
+  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
   if (!host || host === 'localhost' || host.endsWith('.local') || host === '::' || host === '::1') return false;
   if (host.includes(':')) {
-    return !host.startsWith('fc') && !host.startsWith('fd') &&
+    return !host.startsWith('::ffff:') && !host.startsWith('fc') && !host.startsWith('fd') &&
       !host.startsWith('fe8') && !host.startsWith('fe9') &&
       !host.startsWith('fea') && !host.startsWith('feb');
   }
@@ -69,7 +70,8 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
       return { configured: true, items: [], best: null, unavailable: true };
     }
     const payload = await response.json();
-    const items = normalizeBuybackPayload(payload, { now });
+    const rawItems = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
+    const items = normalizeBuybackPayload(rawItems.filter((item) => matchesBuybackQuery(normalizedQuery, item)), { now });
     return {
       configured: true,
       items,

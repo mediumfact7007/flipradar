@@ -6,6 +6,6 @@
   "engines": {"node": ">=20"},
   "scripts": {
     "start": "node index.js",
-    "check": "node --check index.js && node buyback_source_test.js"
+    "check": "node --check index.js && node buyback_test.js && node buyback_match_test.js && node buyback_source_test.js && node market_quality_test.js && node listing_resolver_test.js"
   }
 }

@@ -1539,6 +1539,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     if (q.isEmpty) return;
     final preserveSnapshotFallback = widget.existingSnapshot != null && token == 0;
     final myToken = ++token;
+    ++buybackToken; // Invalidate quotes still loading for the previous query.
     widget.onHistory(q);
     setState(() {
       listings = [];
@@ -1555,6 +1556,8 @@ class _V13CheckPageState extends State<V13CheckPage> {
     final direct = widget.sources.where((s) => s.enabled && s.canFetchInApp).toList();
     pending.addAll(direct.map((e) => e.id));
     if (mounted) setState(() {});
+    final selectedCondition = buybackCondition;
+    if (selectedCondition != null) unawaited(_loadBuyback(selectedCondition));
     if (direct.isEmpty) {
       if (!listingResolving) WidgetsBinding.instance.addPostFrameCallback((_) => buyFocus.requestFocus());
       return;

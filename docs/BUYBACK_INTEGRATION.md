@@ -55,7 +55,9 @@ Required fields: provider, matched product, normalized condition, price/currency
 - Product identity must include relevant variants where available (storage, model generation, network/version, color only where price-relevant).
 - Only compare offers with compatible normalized conditions.
 - Low-confidence product matches must not participate in `best buyback` calculations.
+- The server checks provider titles against query model, variant and storage before accepting provider-reported match confidence. Barcode-only searches require the provider to return a matching EAN/GTIN or product ID; ambiguous or broad searches yield no comparable price.
 - Missing data is shown as unavailable, never estimated as if it were a live provider quote.
+- A new search invalidates an in-flight buyback request and rechecks the selected condition for the new product, so a late response cannot be attached to another deal.
 - Provider credentials, partner tokens and feed secrets stay server-side.
 
 ## Provider integration priority
