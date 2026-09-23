@@ -81,6 +81,8 @@ The result should eventually expose:
 - `Instant buyback`: highest eligible current indicative offer and estimated margin versus the user's purchase price.
 - `Compare offers`: provider list, condition, checked time and important inspection caveat.
 
+The provider list and offer links can be opened without a private-market valuation. Only the private-versus-instant profit recommendation needs a reliable private-market value. The selected buyback condition is rechecked after a new product search.
+
 The primary deal verdict should remain understandable even if no buyback provider is available.
 
 ## Free / Pro direction

@@ -15,6 +15,7 @@ import 'buyback.dart';
 import 'buyback_client.dart';
 import 'buyback_summary.dart';
 import 'buyback_summary_card.dart';
+import 'buyback_offers_card.dart';
 import 'deal_alert_toggle.dart';
 import 'deal_alert_result_card.dart';
 
@@ -1884,7 +1885,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
             onBought: d == V13Decision.waiting || savedBought ? null : _bought,
             onNegotiate: d == V13Decision.negotiate ? _copyOffer : null,
           ),
-          if (expectedSale != null) ...[
+          if (query.text.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             DropdownButtonFormField<BuybackCondition>(
               key: const ValueKey('v151-buyback-condition'),
@@ -1933,6 +1934,14 @@ class _V13CheckPageState extends State<V13CheckPage> {
                     ),
                   ])),
                 ]),
+              ),
+            ],
+            if (buybackOffers.isNotEmpty && !buybackLoading) ...[
+              const SizedBox(height: 8),
+              BuybackOffersCard(
+                offers: buybackOffers,
+                purchasePrice: buyPrice > 0 ? buyPrice + extraCosts : 0,
+                english: widget.english,
               ),
             ],
             if (buybackSummary != null) ...[

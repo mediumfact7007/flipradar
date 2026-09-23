@@ -32,6 +32,9 @@ void main() {
     expect(find.byKey(const ValueKey('v155-live-market-empty')), findsOneWidget);
     expect(find.text('Noch keine verifizierten LIVE-Angebote'), findsOneWidget);
     expect(find.textContaining('Sandbox- oder Referenzwerte'), findsOneWidget);
+    final buybackCondition = find.byKey(const ValueKey('v151-buyback-condition'));
+    await tester.scrollUntilVisible(buybackCondition, 300, scrollable: find.byType(Scrollable).first);
+    expect(buybackCondition, findsOneWidget, reason: 'buyback search must work without a private-market valuation');
     monetization.dispose();
   });
 
