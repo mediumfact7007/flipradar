@@ -16,12 +16,18 @@ function text(value, max = 240) {
   return String(value || '').trim().slice(0, max);
 }
 
+function hasExplicitTimeZone(value) {
+  const normalized = text(value, 80);
+  return normalized.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(normalized);
+}
+
 function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
   if (!raw || typeof raw !== 'object') return null;
   const condition = text(raw.condition, 32);
   const price = Number(raw.price);
   const confidence = Number(raw.match_confidence);
-  const checkedAt = Date.parse(raw.checked_at);
+  const checkedAtRaw = text(raw.checked_at, 80);
+  const checkedAt = Date.parse(checkedAtRaw);
   const offerUrl = text(raw.offer_url, 1000);
   let parsedUrl;
   try { parsedUrl = new URL(offerUrl); } catch (_) { return null; }
@@ -31,7 +37,7 @@ function normalizeBuybackOffer(raw, { now = Date.now() } = {}) {
   if (text(raw.currency, 8) !== 'EUR') return null;
   if (text(raw.price_kind, 40) !== 'indicative_buyback') return null;
   if (!Number.isFinite(confidence) || confidence < 0.9 || confidence > 1) return null;
-  if (!Number.isFinite(checkedAt) || checkedAt > now + 5 * 60 * 1000 || now - checkedAt > MAX_AGE_MS) return null;
+  if (!hasExplicitTimeZone(checkedAtRaw) || !Number.isFinite(checkedAt) || checkedAt > now + 5 * 60 * 1000 || now - checkedAt > MAX_AGE_MS) return null;
   if (parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password) return null;
   if (raw.condition_uncertain === true) return null;
 
