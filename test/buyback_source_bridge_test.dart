@@ -11,10 +11,15 @@ const buybackSource = PriceSource(
   trustedForDecision: true,
 );
 
-Map<String, dynamic> payload(DateTime checkedAt, {double price = 620}) => {
+Map<String, dynamic> payload(
+  DateTime checkedAt, {
+  double price = 620,
+  String providerId = 'provider',
+  double confidence = 0.98,
+}) => {
       'title': 'Apple iPhone 15 Pro 256 GB',
-      'provider_id': 'provider',
-      'provider_name': 'Provider',
+      'provider_id': providerId,
+      'provider_name': providerId,
       'product_id': 'iphone-15-pro-256',
       'matched_title': 'Apple iPhone 15 Pro 256 GB',
       'condition': 'like_new',
@@ -24,7 +29,7 @@ Map<String, dynamic> payload(DateTime checkedAt, {double price = 620}) => {
       'checked_at': checkedAt.toIso8601String(),
       'price_kind': 'indicative_buyback',
       'requires_inspection': true,
-      'match_confidence': 0.98,
+      'match_confidence': confidence,
       'live': true,
     };
 
@@ -52,6 +57,37 @@ void main() {
           .map((offer) => offer.price),
       [620],
     );
+  });
+
+  test('bridge keeps one trustworthy quote per provider', () {
+    final now = DateTime.parse('2026-09-22T08:00:00Z');
+    final highPriceWeakMatch = parseBuybackSourceItem(
+      payload(now, price: 690, confidence: 0.91),
+      buybackSource,
+    );
+    final trustedMatch = parseBuybackSourceItem(
+      payload(now, price: 620, confidence: 0.99),
+      buybackSource,
+    );
+    final independentProvider = parseBuybackSourceItem(
+      payload(
+        now,
+        price: 610,
+        providerId: 'other-provider',
+        confidence: 0.98,
+      ),
+      buybackSource,
+    );
+
+    final offers = comparableBuybackOffers(
+      [highPriceWeakMatch, trustedMatch, independentProvider],
+      now: now,
+    );
+
+    expect(offers, hasLength(2));
+    expect(offers.first.providerId, 'provider');
+    expect(offers.first.price, 620);
+    expect(offers.last.providerId, 'other-provider');
   });
 
   test('malformed buyback payload remains visible but never comparable', () {
