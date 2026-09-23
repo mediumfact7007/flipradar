@@ -37,10 +37,10 @@ void main() {
     );
   });
 
-  test('removes bidi formatting marks without splitting words', () {
+  test('preserves word boundaries around bidi formatting marks', () {
     expect(
-      normalizeBuybackQuery('Apple\u202EiPhone 15\u2067 Pro\u2069 256 GB'),
-      'AppleiPhone 15 Pro 256 GB',
+      normalizeBuybackQuery('Apple\u202EiPhone 15\u2067Pro\u2069 256 GB'),
+      'Apple iPhone 15 Pro 256 GB',
     );
   });
 
