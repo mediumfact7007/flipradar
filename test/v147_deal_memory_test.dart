@@ -42,7 +42,7 @@ void main() {
     expect(restored.buybackPriceAtCheck, 285);
     expect(restored.buybackProviderAtCheck, 'ZOXS');
     expect(restored.buybackConditionAtCheck, 'used_good');
-    expect(restored.buybackCheckedAt, checked);
+    expect(restored.buybackCheckedAt, checked.toUtc());
 
     final legacy = V13Flip.fromJson({
       'id': 'old',
@@ -242,7 +242,13 @@ void main() {
 
     expect(requestedQuery, 'Apple iPhone 15 Pro 256 GB');
     expect(requestedCondition, BuybackCondition.usedGood);
-    expect(find.byKey(const ValueKey('buyback-recheck-card')), findsOneWidget);
+    final recheckCard = find.byKey(const ValueKey('buyback-recheck-card'));
+    await tester.scrollUntilVisible(
+      recheckCard,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(recheckCard, findsOneWidget);
     expect(find.textContaining('Vorher: reBuy · 300,00 €'), findsOneWidget);
     expect(find.textContaining('Jetzt: ZOXS · 330,00 €'), findsOneWidget);
 

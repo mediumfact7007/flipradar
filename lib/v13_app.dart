@@ -1884,7 +1884,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
             const SizedBox(height: 4),
             Text(t('Angebotspreis automatisch erkannt – kurz prüfen und bei Bedarf ändern.', 'Listing price detected automatically – quickly verify and edit if needed.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF707483))),
           ],
-          if (expectedSale == null || manualMode) ...[
+          if (expectedSale == null || manualMode || widget.existingSnapshot != null) ...[
             const SizedBox(height: 9),
             TextField(
               key: const ValueKey('v13-manual-sale-input'),
