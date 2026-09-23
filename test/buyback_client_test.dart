@@ -30,6 +30,13 @@ void main() {
     );
   });
 
+  test('preserves word boundaries for embedded control characters', () {
+    expect(
+      normalizeBuybackQuery('Apple\u0000iPhone\u001F15\u007FPro\u0085256 GB'),
+      'Apple iPhone 15 Pro 256 GB',
+    );
+  });
+
   test('preserves word boundaries for invisible copy-paste separators', () {
     expect(
       normalizeBuybackQuery('Apple\u200BiPhone 15 Pro\u2060 256 GB\uFEFF'),
