@@ -21,20 +21,18 @@ String normalizeBuybackQuery(String query) => query
 /// Invalid or low-confidence quotes are discarded here as a second trust
 /// boundary, so future callers cannot accidentally bypass [BuybackOffer]'s
 /// comparison rules. When [now] is supplied, stale or implausibly future-dated
-/// quotes are rejected here as well. When a provider returns multiple matches,
-/// prefer the most confident match, then the freshest quote, and only then the
-/// higher price. Across providers, keep that same trust-first ordering so a
-/// less certain match is never shown ahead of a more reliable quote merely
-/// because its indicative price is higher.
+/// quotes are rejected here as well. [maxAge] lets callers keep one explicit
+/// freshness policy through filtering and provider deduplication.
 List<BuybackOffer> distinctBuybackOffers(
   Iterable<BuybackOffer> offers, {
   DateTime? now,
+  Duration maxAge = const Duration(hours: 24),
 }) {
   final checkedNow = now?.toUtc();
   final byProvider = <String, BuybackOffer>{};
   for (final offer in offers) {
     if (!offer.isEligibleForComparison) continue;
-    if (checkedNow != null && !offer.isFreshAt(checkedNow)) continue;
+    if (checkedNow != null && !offer.isFreshAt(checkedNow, maxAge: maxAge)) continue;
     final key = offer.providerId.trim().toLowerCase();
     if (key.isEmpty) continue;
     final current = byProvider[key];
@@ -56,26 +54,12 @@ int _compareProviderQuotes(BuybackOffer a, BuybackOffer b) {
   if (freshness != 0) return freshness;
   final price = b.price.compareTo(a.price);
   if (price != 0) return price;
-
-  // Keep equally strong provider results stable across backend response order.
-  // A deterministic list avoids cards apparently jumping between rechecks when
-  // nothing about the market actually changed.
-  final providerName = a.providerName
-      .trim()
-      .toLowerCase()
-      .compareTo(b.providerName.trim().toLowerCase());
+  final providerName = a.providerName.trim().toLowerCase().compareTo(b.providerName.trim().toLowerCase());
   if (providerName != 0) return providerName;
-  return a.providerId
-      .trim()
-      .toLowerCase()
-      .compareTo(b.providerId.trim().toLowerCase());
+  return a.providerId.trim().toLowerCase().compareTo(b.providerId.trim().toLowerCase());
 }
 
 /// Isolated client for FlipRadar's buyback endpoint.
-///
-/// It deliberately does not feed buyback prices into the normal resale-market
-/// decision pipeline. Callers only receive offers that pass the strict
-/// [BuybackOffer] validation and freshness checks.
 class BuybackClient {
   const BuybackClient({this.backendBase = SourceRegistry.defaultBackend});
 
@@ -96,10 +80,7 @@ class BuybackClient {
     }
 
     final endpoint = Uri.parse('$base/v1/buyback/search').replace(
-      queryParameters: {
-        'q': q,
-        'condition': condition.wireValue,
-      },
+      queryParameters: {'q': q, 'condition': condition.wireValue},
     );
 
     try {
