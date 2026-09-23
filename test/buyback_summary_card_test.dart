@@ -83,6 +83,20 @@ void main() {
     expect(find.text('Basis: Einkauf 500 €'), findsOneWidget);
   });
 
+  testWidgets('shows provider product match quality for trust', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BuybackComparisonCard(
+            summary: summaryWithUrl(Uri.parse('https://example.com/offer')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Produkt-Treffer: 98 %'), findsOneWidget);
+  });
+
   testWidgets('recommendation states the concrete private-sale profit advantage', (
     tester,
   ) async {
