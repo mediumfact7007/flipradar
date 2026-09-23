@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flipradar/main.dart';
 import 'package:flipradar/source_registry.dart';
 import 'package:flutter/material.dart';
@@ -23,9 +21,8 @@ void main() {
     );
   });
 
-  testWidgets('missing Kleinanzeigen share price is loaded into buy field', (tester) async {
+  testWidgets('Kleinanzeigen share opens link and asks for manual price', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
-    final resolver = Completer<SharedListingMeta?>();
     final input = normalizeV13Search(
       'Nintendo Switch OLED https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
     );
@@ -45,36 +42,24 @@ void main() {
           monetization: monetization,
           onHistory: (_) {},
           onAddFlip: (_) {},
-          listingResolver: (_) => resolver.future,
         ),
       ),
     );
 
-    await tester.pump();
-    expect(find.byKey(const ValueKey('v146-listing-resolving')), findsOneWidget);
-
-    resolver.complete(const SharedListingMeta(
-      source: 'kleinanzeigen',
-      title: 'Nintendo Switch OLED',
-      price: 219,
-      currency: 'EUR',
-      url: 'https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
-      kind: 'listing_asking_price',
-    ));
     await tester.pumpAndSettle();
 
     final field = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
-    expect(field.controller?.text, '219');
-    expect(find.byKey(const ValueKey('v146-listing-resolved')), findsOneWidget);
-    expect(find.textContaining('Kleinanzeigen-Link geladen'), findsOneWidget);
+    expect(field.controller?.text, isEmpty);
+    expect(find.byKey(const ValueKey('kleinanzeigen-manual-price')), findsOneWidget);
+    expect(find.text('Inserat öffnen'), findsOneWidget);
 
     monetization.dispose();
   });
 
-  testWidgets('resolver failure stays transparent and does not invent a price', (tester) async {
+  testWidgets('shared text can populate the price without contacting the site', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
     final input = normalizeV13Search(
-      'Nintendo Switch OLED https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
+      'Nintendo Switch OLED 219 € https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
     );
 
     await tester.pumpWidget(
@@ -91,15 +76,14 @@ void main() {
           monetization: monetization,
           onHistory: (_) {},
           onAddFlip: (_) {},
-          listingResolver: (_) async => null,
         ),
       ),
     );
 
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
-    expect(field.controller?.text, isEmpty);
-    expect(find.byKey(const ValueKey('v146-listing-failed')), findsOneWidget);
+    expect(field.controller?.text, '219');
+    expect(find.byKey(const ValueKey('kleinanzeigen-manual-price')), findsOneWidget);
 
     monetization.dispose();
   });

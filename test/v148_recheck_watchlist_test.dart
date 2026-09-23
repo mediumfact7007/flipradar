@@ -53,7 +53,7 @@ void main() {
     monetization.dispose();
   });
 
-  testWidgets('recheck refreshes the asking price and updates the same snapshot', (tester) async {
+  testWidgets('recheck uses entered asking price and updates the same snapshot', (tester) async {
     final monetization = V13Monetization(onProUnlocked: () {});
     final oldCheck = DateTime.now().subtract(const Duration(days: 2));
     final existing = _saved('saved-1', oldCheck);
@@ -78,20 +78,14 @@ void main() {
         onAddFlip: (_) => adds++,
         existingSnapshot: existing,
         onUpdateFlip: (value) => updated = value,
-        listingResolver: (_) async => const SharedListingMeta(
-          source: 'kleinanzeigen',
-          title: 'Nintendo Switch OLED',
-          price: 205,
-          currency: 'EUR',
-          url: 'https://www.kleinanzeigen.de/s-anzeige/nintendo-switch-oled/1234567890-279-1234',
-          kind: 'listing_asking_price',
-        ),
       ),
     ));
     await tester.pumpAndSettle();
 
     final buyField = tester.widget<TextField>(find.byKey(const ValueKey('v13-buy-input')));
-    expect(buyField.controller?.text, '205');
+    expect(buyField.controller?.text, '220');
+    await tester.enterText(find.byKey(const ValueKey('v13-buy-input')), '205');
+    await tester.pump();
 
     final saleFinder = find.byKey(const ValueKey('v13-manual-sale-input'));
     final saleField = tester.widget<TextField>(saleFinder);

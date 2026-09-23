@@ -22,7 +22,7 @@ def main() -> None:
 
     updated = ensure_single_after(
         updated,
-        "const { resolvePublicListing } = require('./listing_resolver');\n",
+        "const { filterMarketListings } = require('./market_quality');\n",
         BUYBACK_IMPORT,
         "buyback-import",
     )

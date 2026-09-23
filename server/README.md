@@ -7,6 +7,7 @@ This tiny Node.js service keeps marketplace credentials out of the mobile app an
 - **eBay DE:** official eBay Browse API, active listings only. These are current offers, **not verified sold prices**.
 - **Amazon DE:** Keepa Product API for ASIN / EAN / UPC lookups. Germany uses Keepa domain `3`. The adapter requests live offers.
 - **Kleinanzeigen, MediaMarkt, SATURN, idealo, rebuy, Back Market:** remain official website searches until an approved API/feed/partner adapter is available.
+- **Kleinanzeigen shared listings:** the app opens the original listing and asks the user to enter its price; the retired `/v1/listing/resolve` route returns HTTP 410 without requesting third-party pages.
 
 ## One-time deployment
 

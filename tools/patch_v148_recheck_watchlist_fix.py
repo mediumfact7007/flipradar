@@ -23,7 +23,6 @@ check_anchor = """class V13CheckPage extends StatefulWidget {
   final bool english;
   final V13SearchInput input;
   final String backendBase;
-  final Future<SharedListingMeta?> Function(String raw)? listingResolver;
   final double targetRoi;
   final double minProfit;
   final UserPlan plan;

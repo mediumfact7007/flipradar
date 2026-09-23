@@ -30,7 +30,6 @@ jobs:
           if ! grep -q "ValueKey('v0144-confidence-card')" lib/v13_app.dart; then python3 tools/patch_v144_confidence_ui.py; fi
           if ! grep -q "ValueKey('v145-open-flips')" lib/v13_app.dart; then python3 tools/patch_v145_streamline.py; fi
           if ! grep -q 'maxLines: 3' lib/v13_app.dart; then python3 tools/patch_v145_multiline_search.py; fi
-          if ! grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart; then python3 tools/patch_v146_kleinanzeigen_share_price.py; fi
           if ! grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart; then python3 tools/patch_v147_deal_memory.py; fi
           python3 tools/patch_v147_deal_memory_fix.py
           if ! grep -q "ValueKey('v151-buyback-condition')" lib/v13_app.dart; then python3 tools/patch_buyback_deal_ui.py; fi
@@ -53,10 +52,8 @@ jobs:
           grep -q 'void _retryFailed()' lib/v13_app.dart
           grep -q 'widget.onSearch(raw)' lib/v13_app.dart
           grep -q 'maxLines: 3' lib/v13_app.dart
-          grep -q 'class SharedListingMeta' lib/source_registry.dart
           grep -q 'static Uri? sharedListingUrl' lib/source_registry.dart
-          grep -q 'resolveSharedListing' lib/source_registry.dart
-          grep -q "ValueKey('v146-listing-resolved')" lib/v13_app.dart
+          grep -q "ValueKey('kleinanzeigen-manual-price')" lib/v13_app.dart
           grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart
           grep -q "status == 'Saved'" lib/v13_app.dart
           grep -q 'maxBuyAtCheck' lib/v13_app.dart
@@ -66,8 +63,10 @@ jobs:
           grep -q "ValueKey('v148-menu-" lib/v13_app.dart
           grep -q "ValueKey('v151-buyback-condition')" lib/v13_app.dart
           grep -q "ValueKey('v156-buyback-empty')" lib/v13_app.dart
-          grep -q "require('./listing_resolver')" server/index.js
           grep -q "url.pathname === '/v1/listing/resolve'" server/index.js
+          grep -q 'listing_import_disabled' server/index.js
+          ! grep -q 'resolvePublicListing\|resolveSharedListing' server/index.js lib/v13_app.dart lib/source_registry.dart
+          test ! -e server/listing_resolver.js
           grep -q '^EBAY_ENV=sandbox$' server/.env.example
           ! grep -q 'unawaited(monetization.prepareAds())' lib/v13_app.dart
 
@@ -77,11 +76,11 @@ jobs:
           ! grep -R -E 'EBAY_(SANDBOX_)?CLIENT_(ID|SECRET)' lib pubspec.yaml
           ! grep -R -E 'api(\.sandbox)?\.ebay\.com' lib
 
-      - name: Check backend and listing resolver
+      - name: Check backend
         run: |
           npm --prefix server run check
 
-      - name: Smoke test sandbox and resolver boundary
+      - name: Smoke test sandbox and disabled listing import
         shell: bash
         run: |
           PORT=8099 node server/index.js >/tmp/flipradar-server.log 2>&1 &
@@ -95,9 +94,9 @@ jobs:
           grep -q '"ebay_environment":"sandbox"' /tmp/health.json
           curl -fsS http://127.0.0.1:8099/v1/status >/tmp/status.json
           grep -q '"data_kind":"sandbox_mock_data"' /tmp/status.json
-          code=$(curl -sS -o /tmp/resolve.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/listing/resolve?url=https%3A%2F%2Fexample.com%2Fs-anzeige%2Ffake%2F123')
-          test "$code" = '400'
-          grep -q 'unsupported_listing_url' /tmp/resolve.json
+          code=$(curl -sS -o /tmp/resolve.json -w '%{http_code}' 'http://127.0.0.1:8099/v1/listing/resolve?url=https%3A%2F%2Fwww.kleinanzeigen.de%2Fs-anzeige%2Ffake%2F123')
+          test "$code" = '410'
+          grep -q 'listing_import_disabled' /tmp/resolve.json
           kill $SERVER_PID
           wait $SERVER_PID 2>/dev/null || true
 

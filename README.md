@@ -10,13 +10,15 @@ Installierbare Android-Testversion von FlipRadar.
 - Demo Deal Finder und testbare Marketplace-Integration
 - Marktqualitätsfilter gegen unpassende, defekte oder reine Reparatur-Angebote
 - Recheck-Bewertung für Preis-, Gewinn- und ROI-Änderungen
-- Kleinanzeigen-Share-Flow
+- Kleinanzeigen-Share-Flow mit manueller Preiseingabe und Original-Link
 - Meine Flips / lokales Test-Inventar
 - Profil und Spracheinstellungen
 
 ## Sicherheits- und Integrationsgrenzen
 - Marketplace-Sandbox und LIVE-Konfiguration bleiben getrennt.
 - Marketplace-Credentials gehören nicht in den Android-Client.
+- Kein automatisierter Abruf von Kleinanzeigen-Inseraten; der frühere Import-Endpunkt antwortet mit HTTP 410.
+- Quellenrechte und Veröffentlichungsgates: [docs/source-compliance.md](docs/source-compliance.md).
 - Billing wird lazy initialisiert, damit der App-Start nicht davon abhängt.
 - AdMob bleibt vom kritischen Startpfad isoliert.
 - Änderungen an Marktfiltern und Recheck-Logik werden mit Regressionstests abgesichert.

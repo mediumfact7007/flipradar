@@ -3,7 +3,6 @@
 const http = require('http');
 const { URL, URLSearchParams } = require('url');
 const { filterMarketListings } = require('./market_quality');
-const { resolvePublicListing } = require('./listing_resolver');
 const { fetchBuybackOffers, sourceStatus: buybackSourceStatus } = require('./buyback_source');
 
 const PORT = Number(process.env.PORT || 8080);
@@ -315,24 +314,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/listing/resolve') {
-      pruneRateBuckets();
-      if (!allowRequest(req)) {
-        return json(res, 429, { error: 'rate_limit' });
-      }
-      const listingUrl = String(url.searchParams.get('url') || '').trim();
-      if (!listingUrl) return json(res, 400, { error: 'url is required' });
-      try {
-        const result = await resolvePublicListing(listingUrl);
-        return json(res, 200, result);
-      } catch (error) {
-        const message = error?.name === 'AbortError'
-          ? 'upstream_timeout'
-          : error instanceof Error
-            ? error.message
-            : String(error);
-        const status = message === 'unsupported_listing_url' ? 400 : 502;
-        return json(res, status, { error: message });
-      }
+      // Retired: older clients may still call this route. Never fetch a
+      // Kleinanzeigen page without an explicit written integration agreement.
+      return json(res, 410, { error: 'listing_import_disabled', manual_entry: true });
     }
 
     if (req.method === 'GET' && url.pathname === '/v1/buyback/search') {
