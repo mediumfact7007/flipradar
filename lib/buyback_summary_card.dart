@@ -8,10 +8,11 @@ import 'buyback_summary.dart';
 /// The card deliberately consumes an already trusted summary instead of raw
 /// provider payloads, keeping market-quality filtering outside the widget.
 class BuybackComparisonCard extends StatelessWidget {
-  const BuybackComparisonCard({super.key, required this.summary, this.locale = 'de'});
+  const BuybackComparisonCard({super.key, required this.summary, this.locale = 'de', this.now});
 
   final BuybackComparisonSummary summary;
   final String locale;
+  final DateTime? now;
 
   bool get _de => locale.toLowerCase().startsWith('de');
   String _money(double value) => '${value.toStringAsFixed(0)} €';
@@ -23,7 +24,13 @@ class BuybackComparisonCard extends StatelessWidget {
     final month = local.month.toString().padLeft(2, '0');
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
-    return _de ? 'Preis geprüft: $day.$month. · $hour:$minute Uhr' : 'Price checked: $month/$day · $hour:$minute local time';
+    final age = (now ?? DateTime.now()).toUtc().difference(value.toUtc());
+    final ageText = age.isNegative || age.inMinutes < 1
+        ? (_de ? 'gerade eben' : 'just now')
+        : age.inMinutes < 60
+            ? (_de ? 'vor ${age.inMinutes} Min.' : '${age.inMinutes} min ago')
+            : (_de ? 'vor ${age.inHours} Std.' : '${age.inHours} h ago');
+    return _de ? 'Preis geprüft: $day.$month. · $hour:$minute Uhr · $ageText' : 'Price checked: $month/$day · $hour:$minute local time · $ageText';
   }
 
   String get _matchQuality {
