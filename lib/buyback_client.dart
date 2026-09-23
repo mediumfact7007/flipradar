@@ -5,11 +5,13 @@ import 'package:http/http.dart' as http;
 import 'buyback.dart';
 import 'source_registry.dart';
 
-// Shared/copied listing titles can contain invisible Unicode separators or
-// bidirectional formatting marks that make an otherwise exact provider search
-// miss. Treat both as boundaries: removing a bidi control outright can join
-// adjacent title words and silently reduce provider match quality.
+// Shared/copied listing titles can contain invisible Unicode separators,
+// bidirectional formatting marks, or ASCII/C1 control characters that make an
+// otherwise exact provider search miss. Treat them as boundaries: removing a
+// control outright can join adjacent title words and silently reduce provider
+// match quality.
 String normalizeBuybackQuery(String query) => query
+    .replaceAll(RegExp(r'[\u0000-\u001F\u007F-\u009F]'), ' ')
     .replaceAll(RegExp(r'[\u200B-\u200D\u2060\uFEFF]'), ' ')
     .replaceAll(RegExp(r'[\u202A-\u202E\u2066-\u2069]'), ' ')
     .trim()
