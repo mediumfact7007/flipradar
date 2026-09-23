@@ -354,6 +354,7 @@ const server = http.createServer(async (req, res) => {
           query: q,
           condition,
           configured: result.configured,
+          unavailable: result.unavailable === true,
           live: result.configured && result.items.length > 0,
           items: result.items,
           best: result.best,

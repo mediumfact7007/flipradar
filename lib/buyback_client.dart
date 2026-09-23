@@ -73,25 +73,59 @@ int _compareProviderQuotes(BuybackOffer a, BuybackOffer b) {
   return a.providerId.trim().toLowerCase().compareTo(b.providerId.trim().toLowerCase());
 }
 
+/// Result metadata keeps an unavailable partner separate from an enabled
+/// source that simply has no matching quote. Empty prices are never estimated.
+class BuybackSearchResult {
+  const BuybackSearchResult({
+    required this.offers,
+    required this.configured,
+    required this.live,
+    required this.unavailable,
+  });
+
+  final List<BuybackOffer> offers;
+  final bool configured;
+  final bool live;
+  final bool unavailable;
+}
+
 /// Isolated client for FlipRadar's buyback endpoint.
 class BuybackClient {
-  const BuybackClient({this.backendBase = SourceRegistry.defaultBackend});
+  const BuybackClient({
+    this.backendBase = SourceRegistry.defaultBackend,
+    this.client,
+  });
 
   final String backendBase;
+  final http.Client? client;
 
   Future<List<BuybackOffer>> search(
     String query, {
     required BuybackCondition condition,
     DateTime? now,
     Duration maxAge = const Duration(hours: 24),
+  }) async => (await searchDetailed(
+    query,
+    condition: condition,
+    now: now,
+    maxAge: maxAge,
+  )).offers;
+
+  Future<BuybackSearchResult> searchDetailed(
+    String query, {
+    required BuybackCondition condition,
+    DateTime? now,
+    Duration maxAge = const Duration(hours: 24),
   }) async {
     final q = limitBuybackQuery(normalizeBuybackQuery(query));
-    if (q.isEmpty || maxAge.isNegative) return const [];
+    if (q.isEmpty || maxAge.isNegative) {
+      return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: false);
+    }
 
     final base = backendBase.trim().replaceAll(RegExp(r'/+$'), '');
     final baseUri = Uri.tryParse(base);
     if (baseUri == null || baseUri.scheme != 'https' || baseUri.host.isEmpty) {
-      return const [];
+      return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: true);
     }
 
     final endpoint = Uri.parse('$base/v1/buyback/search').replace(
@@ -99,14 +133,24 @@ class BuybackClient {
     );
 
     try {
-      final response = await http.get(endpoint).timeout(const Duration(seconds: 8));
-      if (response.statusCode < 200 || response.statusCode >= 300) return const [];
-      if (response.bodyBytes.length > 512 * 1024) return const [];
+      final response = await (client?.get(endpoint) ?? http.get(endpoint)).timeout(const Duration(seconds: 8));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: true);
+      }
+      if (response.bodyBytes.length > 512 * 1024) {
+        return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: true);
+      }
 
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      if (decoded is! Map<String, dynamic>) return const [];
+      if (decoded is! Map<String, dynamic>) {
+        return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: true);
+      }
+      final configured = decoded['configured'] == true;
+      final unavailable = decoded['unavailable'] == true;
       final rawItems = decoded['items'];
-      if (rawItems is! List) return const [];
+      if (rawItems is! List) {
+        return BuybackSearchResult(offers: const [], configured: configured, live: false, unavailable: true);
+      }
 
       final checkedNow = (now ?? DateTime.now()).toUtc();
       final offers = <BuybackOffer>[];
@@ -123,15 +167,21 @@ class BuybackClient {
           // Wrongly typed provider payloads are treated as unavailable data.
         }
       }
-      return distinctBuybackOffers(
+      final distinct = distinctBuybackOffers(
         offers,
         now: checkedNow,
         maxAge: maxAge,
       );
+      return BuybackSearchResult(
+        offers: distinct,
+        configured: configured,
+        live: configured && decoded['live'] == true && distinct.isNotEmpty,
+        unavailable: unavailable,
+      );
     } catch (_) {
       // Buyback is optional: network/provider failure must never break the
       // primary deal check or the Kleinanzeigen share flow.
-      return const [];
+      return const BuybackSearchResult(offers: [], configured: false, live: false, unavailable: true);
     }
   }
 }

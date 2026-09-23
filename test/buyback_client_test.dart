@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flipradar/buyback.dart';
 import 'package:flipradar/buyback_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 BuybackOffer offer(
   String provider,
@@ -148,5 +152,69 @@ void main() {
     );
 
     expect(result.map((item) => item.providerId), ['older']);
+  });
+
+  test('preserves configured live-source status with validated offers', () async {
+    final client = BuybackClient(
+      backendBase: 'https://api.flipradar.example',
+      client: MockClient((request) async {
+        expect(request.url.path, '/v1/buyback/search');
+        expect(request.url.queryParameters['condition'], 'used_good');
+        return http.Response(
+          jsonEncode({
+            'configured': true,
+            'live': true,
+            'unavailable': false,
+            'items': [
+              {
+                'provider_id': 'rebuy',
+                'provider_name': 'reBuy',
+                'product_id': 'iphone-15-pro-256',
+                'matched_title': 'Apple iPhone 15 Pro 256 GB',
+                'condition': 'used_good',
+                'price': 510,
+                'currency': 'EUR',
+                'offer_url': 'https://example.com/rebuy',
+                'checked_at': '2026-09-22T12:00:00Z',
+                'price_kind': 'indicative_buyback',
+                'requires_inspection': true,
+                'match_confidence': 0.98,
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final result = await client.searchDetailed(
+      'Apple iPhone 15 Pro 256 GB',
+      condition: BuybackCondition.usedGood,
+      now: DateTime.parse('2026-09-22T12:00:00Z'),
+    );
+
+    expect(result.configured, isTrue);
+    expect(result.live, isTrue);
+    expect(result.unavailable, isFalse);
+    expect(result.offers.single.providerId, 'rebuy');
+  });
+
+  test('distinguishes disabled, empty and unavailable buyback sources', () async {
+    Future<BuybackSearchResult> resultFor(Map<String, Object> payload) => BuybackClient(
+      backendBase: 'https://api.flipradar.example',
+      client: MockClient((_) async => http.Response(jsonEncode(payload), 200)),
+    ).searchDetailed('Apple iPhone 15 Pro', condition: BuybackCondition.usedGood);
+
+    final disabled = await resultFor({'configured': false, 'live': false, 'items': <Object>[]});
+    final empty = await resultFor({'configured': true, 'live': false, 'items': <Object>[]});
+    final unavailable = await resultFor({'configured': true, 'live': false, 'unavailable': true, 'items': <Object>[]});
+
+    expect(disabled.configured, isFalse);
+    expect(disabled.unavailable, isFalse);
+    expect(empty.configured, isTrue);
+    expect(empty.unavailable, isFalse);
+    expect(unavailable.configured, isTrue);
+    expect(unavailable.unavailable, isTrue);
   });
 }

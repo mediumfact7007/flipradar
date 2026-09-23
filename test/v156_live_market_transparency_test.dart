@@ -86,8 +86,9 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(empty, findsOneWidget);
-    expect(find.text('Noch kein verifiziertes LIVE-Ankaufangebot'), findsOneWidget);
-    expect(find.textContaining('schätzt hier bewusst keinen Ankaufpreis'), findsOneWidget);
+    expect(find.text('Ankaufquelle vorübergehend nicht erreichbar'), findsOneWidget);
+    expect(find.textContaining('geschätzten Ersatzpreis'), findsOneWidget);
+    expect(find.byKey(const ValueKey('v157-buyback-retry')), findsOneWidget);
     monetization.dispose();
   });
 }

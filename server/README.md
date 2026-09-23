@@ -39,6 +39,23 @@ The current Android build workflow does not need eBay credentials because the mo
 
 `PORT` is normally provided automatically by the host.
 
+### Approved buyback partner feed
+
+The buyback endpoint is deliberately disabled until an approved partner feed
+or adapter is available. After provider approval, configure the adapter only on
+the server:
+
+```text
+BUYBACK_SOURCE_URL=https://partner-adapter.example/quotes
+BUYBACK_SOURCE_TOKEN=...
+BUYBACK_SOURCE_TIMEOUT_MS=6000
+```
+
+The adapter must return the normalized fields documented in
+`docs/BUYBACK_INTEGRATION.md`, including a current timestamp, exact product and
+condition identity, EUR price, confidence and HTTPS offer URL. Affiliate or
+deep-link access alone is not permission to scrape or republish prices.
+
 After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
 
 ## Endpoints
@@ -48,6 +65,7 @@ After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and 
 - `GET /v1/market/search?source=ebay_de&q=iPhone%2015%20Pro`
 - `GET /v1/market/search?source=amazon_de&q=<ASIN-or-EAN>`
 - `GET /v1/market/search?source=all&q=...`
+- `GET /v1/buyback/search?q=...&condition=used_good`
 
 The response format is normalized to objects containing source, title, price, shipping, currency, condition, URL and a live flag.
 

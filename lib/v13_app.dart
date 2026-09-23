@@ -1466,6 +1466,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
   bool listingResolveFailed = false;
   BuybackCondition? buybackCondition;
   List<BuybackOffer> buybackOffers = const [];
+  BuybackSearchResult? buybackResult;
   bool buybackLoading = false;
   int buybackToken = 0;
   int token = 0;
@@ -1552,6 +1553,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
       savedBought = false;
       savedWatch = false;
       buybackOffers = const [];
+      buybackResult = null;
       buybackLoading = false;
     });
     final direct = widget.sources.where((s) => s.enabled && s.canFetchInApp).toList();
@@ -1604,18 +1606,20 @@ class _V13CheckPageState extends State<V13CheckPage> {
     setState(() {
       buybackCondition = condition;
       buybackOffers = const [];
+      buybackResult = null;
       buybackLoading = true;
     });
     final base = widget.backendBase.trim().isEmpty
         ? SourceRegistry.defaultBackend
         : widget.backendBase;
-    final offers = await BuybackClient(backendBase: base).search(
+    final result = await BuybackClient(backendBase: base).searchDetailed(
       q,
       condition: condition,
     );
     if (!mounted || myToken != buybackToken) return;
     setState(() {
-      buybackOffers = offers;
+      buybackOffers = result.offers;
+      buybackResult = result;
       buybackLoading = false;
     });
   }
@@ -1926,12 +1930,32 @@ class _V13CheckPageState extends State<V13CheckPage> {
                   const Icon(Icons.info_outline_rounded, size: 17, color: Color(0xFF9A6700)),
                   const SizedBox(width: 7),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(t('Noch kein verifiziertes LIVE-Ankaufangebot', 'No verified LIVE buyback offer yet'), style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w900)),
+                    Text(
+                      buybackResult?.unavailable == true
+                          ? t('Ankaufquelle vorübergehend nicht erreichbar', 'Buyback source temporarily unavailable')
+                          : buybackResult?.configured == true
+                              ? t('Kein passendes LIVE-Ankaufangebot', 'No matching LIVE buyback offer')
+                              : t('Noch keine LIVE-Ankaufquelle freigeschaltet', 'No LIVE buyback source enabled yet'),
+                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w900),
+                    ),
                     const SizedBox(height: 2),
                     Text(
-                      t('Für diesen Artikel und Zustand liefert aktuell kein angebundenes Ankaufportal einen echten Preis. FlipRadar schätzt hier bewusst keinen Ankaufpreis.', 'No connected buyback provider currently returns a real price for this item and condition. FlipRadar deliberately does not estimate a buyback price here.'),
+                      buybackResult?.unavailable == true
+                          ? t('Die LIVE-Abfrage ist fehlgeschlagen. Deine normale Deal-Prüfung bleibt nutzbar; FlipRadar zeigt keinen geschätzten Ersatzpreis.', 'The LIVE request failed. Your normal deal check remains available; FlipRadar does not show an estimated substitute price.')
+                          : buybackResult?.configured == true
+                              ? t('Die angebundene Quelle liefert für diesen Artikel und Zustand aktuell keinen qualitätsgeprüften Preis. FlipRadar schätzt hier bewusst keinen Ankaufpreis.', 'The connected source currently has no quality-checked price for this item and condition. FlipRadar deliberately does not estimate a buyback price.')
+                              : t('Für echte Ankaufpreise fehlt noch ein genehmigter Anbieterfeed mit Preisfreigabe. FlipRadar zeigt bis dahin bewusst keinen geschätzten Ankaufpreis.', 'An approved provider feed with price-display permission is still required for real buyback prices. FlipRadar deliberately shows no estimated price until then.'),
                       style: const TextStyle(fontSize: 9.8, color: Color(0xFF6F6250)),
                     ),
+                    if (buybackResult?.unavailable == true) ...[
+                      const SizedBox(height: 5),
+                      TextButton.icon(
+                        key: const ValueKey('v157-buyback-retry'),
+                        onPressed: () => unawaited(_loadBuyback(buybackCondition!)),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: Text(t('Erneut prüfen', 'Retry')),
+                      ),
+                    ],
                   ])),
                 ]),
               ),
