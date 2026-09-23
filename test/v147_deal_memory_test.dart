@@ -28,6 +28,7 @@ void main() {
       buybackProviderAtCheck: 'ZOXS',
       buybackConditionAtCheck: 'used_good',
       buybackCheckedAt: checked,
+      buybackQuoteKindAtCheck: 'live_provider',
     );
 
     final restored = V13Flip.fromJson(flip.toJson());
@@ -43,6 +44,7 @@ void main() {
     expect(restored.buybackProviderAtCheck, 'ZOXS');
     expect(restored.buybackConditionAtCheck, 'used_good');
     expect(restored.buybackCheckedAt, checked.toUtc());
+    expect(restored.buybackQuoteKindAtCheck, 'live_provider');
 
     final legacy = V13Flip.fromJson({
       'id': 'old',
@@ -60,6 +62,7 @@ void main() {
     expect(legacy.maxBuyAtCheck, 0);
     expect(legacy.buybackPriceAtCheck, 0);
     expect(legacy.buybackProviderAtCheck, isEmpty);
+    expect(legacy.buybackQuoteKindAtCheck, isEmpty);
     expect(legacy.isOpen, isTrue);
   });
 
@@ -200,6 +203,7 @@ void main() {
       buybackProviderAtCheck: 'reBuy',
       buybackConditionAtCheck: 'used_good',
       buybackCheckedAt: checked,
+      buybackQuoteKindAtCheck: 'live_provider',
     );
 
     await tester.pumpWidget(MaterialApp(

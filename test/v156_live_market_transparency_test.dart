@@ -91,6 +91,14 @@ void main() {
     expect(find.byKey(const ValueKey('v157-buyback-retry')), findsOneWidget);
     expect(find.byKey(const ValueKey('buyback-provider-links-card')), findsOneWidget);
     expect(find.byKey(const ValueKey('buyback-provider-zoxs')), findsOneWidget);
+    final manualQuote = find.byKey(const ValueKey('manual-buyback-quote-card'));
+    await tester.scrollUntilVisible(
+      manualQuote,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(manualQuote, findsOneWidget);
+    expect(find.textContaining('kein von FlipRadar geprüfter LIVE-Preis'), findsOneWidget);
     monetization.dispose();
   });
 }

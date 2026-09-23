@@ -85,6 +85,13 @@ The provider list and offer links can be opened without a private-market valuati
 
 The primary deal verdict should remain understandable even if no buyback provider is available.
 
+If no approved feed is available, the user may open an official provider page
+and manually enter the quote shown there. FlipRadar may calculate the local
+margin from that user-entered value, but must label it as a manual user entry,
+must not call it LIVE or verified, and must preserve this provenance in saved
+deal snapshots. A later verified feed quote must not silently turn a previous
+manual value into historical LIVE evidence.
+
 ## Free / Pro direction
 
 Do not lock the basic usefulness of a deal check behind Pro. A possible later split, to validate with real usage data:

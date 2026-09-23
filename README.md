@@ -11,6 +11,7 @@ Installierbare Android-Testversion von FlipRadar.
 - Marktqualitätsfilter gegen unpassende, defekte oder reine Reparatur-Angebote
 - Recheck-Bewertung für Preis-, Gewinn- und ROI-Änderungen
 - Kleinanzeigen-Share-Flow mit manueller Preiseingabe und Original-Link
+- Manuell übernommene Ankaufpreise aus dem eigenen Anbieterbesuch werden lokal verglichen und klar von geprüften LIVE-Feeds getrennt
 - Meine Flips / lokales Test-Inventar
 - Profil und Spracheinstellungen
 
