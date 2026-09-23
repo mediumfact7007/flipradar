@@ -36,53 +36,43 @@ Map<String, dynamic> payload(
 void main() {
   test('bridge only promotes fresh comparable buyback offers', () {
     final now = DateTime.parse('2026-09-22T08:00:00Z');
-    final fresh = parseBuybackSourceItem(
-      payload(now.subtract(const Duration(hours: 2))),
-      buybackSource,
-    );
-    final stale = parseBuybackSourceItem(
-      payload(now.subtract(const Duration(hours: 25)), price: 700),
-      buybackSource,
-    );
-    final future = parseBuybackSourceItem(
-      payload(now.add(const Duration(minutes: 6)), price: 800),
-      buybackSource,
-    );
+    final fresh = parseBuybackSourceItem(payload(now.subtract(const Duration(hours: 2))), buybackSource);
+    final stale = parseBuybackSourceItem(payload(now.subtract(const Duration(hours: 25)), price: 700), buybackSource);
+    final future = parseBuybackSourceItem(payload(now.add(const Duration(minutes: 6)), price: 800), buybackSource);
 
     expect(fresh.hasFreshComparableOfferAt(now), isTrue);
     expect(stale.hasFreshComparableOfferAt(now), isFalse);
     expect(future.hasFreshComparableOfferAt(now), isFalse);
+    expect(comparableBuybackOffers([fresh, stale, future], now: now).map((offer) => offer.price), [620]);
+  });
+
+  test('bridge preserves a custom freshness window through deduplication', () {
+    final now = DateTime.parse('2026-09-22T08:00:00Z');
+    final older = parseBuybackSourceItem(
+      payload(now.subtract(const Duration(hours: 30))),
+      buybackSource,
+    );
+
     expect(
-      comparableBuybackOffers([fresh, stale, future], now: now)
-          .map((offer) => offer.price),
+      comparableBuybackOffers(
+        [older],
+        now: now,
+        maxAge: const Duration(hours: 36),
+      ).map((offer) => offer.price),
       [620],
     );
   });
 
   test('bridge keeps one trustworthy quote per provider', () {
     final now = DateTime.parse('2026-09-22T08:00:00Z');
-    final highPriceWeakMatch = parseBuybackSourceItem(
-      payload(now, price: 690, confidence: 0.91),
-      buybackSource,
-    );
-    final trustedMatch = parseBuybackSourceItem(
-      payload(now, price: 620, confidence: 0.99),
-      buybackSource,
-    );
+    final highPriceWeakMatch = parseBuybackSourceItem(payload(now, price: 690, confidence: 0.91), buybackSource);
+    final trustedMatch = parseBuybackSourceItem(payload(now, price: 620, confidence: 0.99), buybackSource);
     final independentProvider = parseBuybackSourceItem(
-      payload(
-        now,
-        price: 610,
-        providerId: 'other-provider',
-        confidence: 0.98,
-      ),
+      payload(now, price: 610, providerId: 'other-provider', confidence: 0.98),
       buybackSource,
     );
 
-    final offers = comparableBuybackOffers(
-      [highPriceWeakMatch, trustedMatch, independentProvider],
-      now: now,
-    );
+    final offers = comparableBuybackOffers([highPriceWeakMatch, trustedMatch, independentProvider], now: now);
 
     expect(offers, hasLength(2));
     expect(offers.first.providerId, 'provider');
