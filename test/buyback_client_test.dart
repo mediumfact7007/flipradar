@@ -30,14 +30,14 @@ void main() {
     );
   });
 
-  test('removes invisible copy-paste characters from buyback searches', () {
+  test('preserves word boundaries for invisible copy-paste separators', () {
     expect(
       normalizeBuybackQuery('Apple\u200BiPhone 15 Pro\u2060 256 GB\uFEFF'),
-      'AppleiPhone 15 Pro 256 GB',
+      'Apple iPhone 15 Pro 256 GB',
     );
   });
 
-  test('removes bidi formatting marks from shared listing searches', () {
+  test('removes bidi formatting marks without splitting words', () {
     expect(
       normalizeBuybackQuery('Apple\u202EiPhone 15\u2067 Pro\u2069 256 GB'),
       'AppleiPhone 15 Pro 256 GB',
