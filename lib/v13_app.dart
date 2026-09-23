@@ -17,6 +17,7 @@ import 'buyback_summary.dart';
 import 'buyback_summary_card.dart';
 import 'buyback_offers_card.dart';
 import 'buyback_provider_links_card.dart';
+import 'buyback_recheck_card.dart';
 import 'deal_alert_toggle.dart';
 import 'deal_alert_result_card.dart';
 
@@ -258,6 +259,10 @@ class V13Flip {
   final double profitAtCheck;
   final double roiAtCheck;
   final int confidenceScore;
+  final double buybackPriceAtCheck;
+  final String buybackProviderAtCheck;
+  final String buybackConditionAtCheck;
+  final DateTime? buybackCheckedAt;
 
   const V13Flip({
     required this.id,
@@ -280,6 +285,10 @@ class V13Flip {
     this.profitAtCheck = 0,
     this.roiAtCheck = 0,
     this.confidenceScore = 0,
+    this.buybackPriceAtCheck = 0,
+    this.buybackProviderAtCheck = '',
+    this.buybackConditionAtCheck = '',
+    this.buybackCheckedAt,
   }) : checkedAt = checkedAt ?? createdAt;
 
   bool get isSaved => status == 'Saved';
@@ -319,6 +328,10 @@ class V13Flip {
         profitAtCheck: profitAtCheck,
         roiAtCheck: roiAtCheck,
         confidenceScore: confidenceScore,
+        buybackPriceAtCheck: buybackPriceAtCheck,
+        buybackProviderAtCheck: buybackProviderAtCheck,
+        buybackConditionAtCheck: buybackConditionAtCheck,
+        buybackCheckedAt: buybackCheckedAt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -342,6 +355,10 @@ class V13Flip {
         'profitAtCheck': profitAtCheck,
         'roiAtCheck': roiAtCheck,
         'confidenceScore': confidenceScore,
+        'buybackPriceAtCheck': buybackPriceAtCheck,
+        'buybackProviderAtCheck': buybackProviderAtCheck,
+        'buybackConditionAtCheck': buybackConditionAtCheck,
+        'buybackCheckedAt': buybackCheckedAt?.toUtc().toIso8601String(),
       };
 
   factory V13Flip.fromJson(Map<String, dynamic> j) {
@@ -370,6 +387,10 @@ class V13Flip {
       profitAtCheck: (j['profitAtCheck'] as num?)?.toDouble() ?? 0,
       roiAtCheck: (j['roiAtCheck'] as num?)?.toDouble() ?? 0,
       confidenceScore: (j['confidenceScore'] as num?)?.toInt() ?? 0,
+      buybackPriceAtCheck: (j['buybackPriceAtCheck'] as num?)?.toDouble() ?? 0,
+      buybackProviderAtCheck: j['buybackProviderAtCheck']?.toString() ?? '',
+      buybackConditionAtCheck: j['buybackConditionAtCheck']?.toString() ?? '',
+      buybackCheckedAt: DateTime.tryParse(j['buybackCheckedAt']?.toString() ?? ''),
     );
   }
 }
@@ -1411,6 +1432,10 @@ class V13CheckPage extends StatefulWidget {
   final V13SearchInput input;
   final String backendBase;
   final Future<SharedListingMeta?> Function(String raw)? listingResolver;
+  final Future<BuybackSearchResult> Function(
+    String query,
+    BuybackCondition condition,
+  )? buybackSearch;
   final double targetRoi;
   final double minProfit;
   final UserPlan plan;
@@ -1429,6 +1454,7 @@ class V13CheckPage extends StatefulWidget {
     required this.input,
     this.backendBase = '',
     this.listingResolver,
+    this.buybackSearch,
     required this.targetRoi,
     required this.minProfit,
     required this.plan,
@@ -1481,6 +1507,9 @@ class _V13CheckPageState extends State<V13CheckPage> {
     query = TextEditingController(text: widget.input.query);
     final detected = widget.input.detectedPrice;
     final existing = widget.existingSnapshot;
+    buybackCondition = BuybackConditionWire.tryParse(
+      existing?.buybackConditionAtCheck ?? '',
+    );
     if (detected != null && detected > 0) {
       buy.text = detected == detected.roundToDouble()
           ? detected.toStringAsFixed(0)
@@ -1548,7 +1577,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
       listings = [];
       pending.clear();
       failed.clear();
-      manualCommitted = null;
+      manualCommitted = preserveSnapshotFallback &&
+              widget.existingSnapshot!.expectedAtBuy > 0
+          ? widget.existingSnapshot!.expectedAtBuy
+          : null;
       if (!preserveSnapshotFallback) manualSell.clear();
       manualMode = false;
       savedBought = false;
@@ -1610,13 +1642,14 @@ class _V13CheckPageState extends State<V13CheckPage> {
       buybackResult = null;
       buybackLoading = true;
     });
-    final base = widget.backendBase.trim().isEmpty
-        ? SourceRegistry.defaultBackend
-        : widget.backendBase;
-    final result = await BuybackClient(backendBase: base).searchDetailed(
-      q,
-      condition: condition,
-    );
+    final injected = widget.buybackSearch;
+    final result = injected != null
+        ? await injected(q, condition)
+        : await BuybackClient(
+            backendBase: widget.backendBase.trim().isEmpty
+                ? SourceRegistry.defaultBackend
+                : widget.backendBase,
+          ).searchDetailed(q, condition: condition);
     if (!mounted || myToken != buybackToken) return;
     setState(() {
       buybackOffers = result.offers;
@@ -1978,6 +2011,18 @@ class _V13CheckPageState extends State<V13CheckPage> {
               const SizedBox(height: 8),
               BuybackComparisonCard(summary: buybackSummary!, locale: widget.english ? 'en' : 'de'),
             ],
+            if (widget.existingSnapshot?.isSaved == true &&
+                widget.existingSnapshot!.buybackPriceAtCheck > 0 &&
+                buybackSummary != null) ...[
+              const SizedBox(height: 8),
+              BuybackRecheckCard(
+                previousProvider: widget.existingSnapshot!.buybackProviderAtCheck,
+                previousPrice: widget.existingSnapshot!.buybackPriceAtCheck,
+                previousProfit: widget.existingSnapshot!.buybackPriceAtCheck - widget.existingSnapshot!.buy - widget.existingSnapshot!.costs,
+                current: buybackSummary!,
+                english: widget.english,
+              ),
+            ],
           ],
           if (widget.existingSnapshot?.isSaved == true && expectedSale != null && (widget.existingSnapshot!.maxBuyAtCheck > 0 || widget.existingSnapshot!.profitAtCheck != 0 || widget.existingSnapshot!.roiAtCheck != 0)) ...[
             const SizedBox(height: 8),
@@ -2080,6 +2125,7 @@ class _V13CheckPageState extends State<V13CheckPage> {
     final now = DateTime.now();
     final existing = widget.existingSnapshot;
     final rawUrl = _v147SourceUrl(widget.input.raw);
+    final buybackOffer = buybackSummary?.offer;
     final createdAt = status == 'Bought' && existing?.isSaved == true
         ? now
         : (existing?.createdAt ?? now);
@@ -2100,6 +2146,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
       profitAtCheck: profit,
       roiAtCheck: roi,
       confidenceScore: marketConfidence.score,
+      buybackPriceAtCheck: buybackOffer?.price ?? 0,
+      buybackProviderAtCheck: buybackOffer?.providerName ?? '',
+      buybackConditionAtCheck: buybackCondition?.wireValue ?? '',
+      buybackCheckedAt: buybackOffer?.checkedAt,
     );
   }
 

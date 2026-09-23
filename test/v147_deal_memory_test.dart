@@ -1,4 +1,6 @@
 import 'package:flipradar/main.dart';
+import 'package:flipradar/buyback.dart';
+import 'package:flipradar/buyback_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,6 +24,10 @@ void main() {
       profitAtCheck: 120,
       roiAtCheck: 54.5,
       confidenceScore: 78,
+      buybackPriceAtCheck: 285,
+      buybackProviderAtCheck: 'ZOXS',
+      buybackConditionAtCheck: 'used_good',
+      buybackCheckedAt: checked,
     );
 
     final restored = V13Flip.fromJson(flip.toJson());
@@ -33,6 +39,10 @@ void main() {
     expect(restored.roiAtCheck, 54.5);
     expect(restored.confidenceScore, 78);
     expect(restored.checkedAt, checked);
+    expect(restored.buybackPriceAtCheck, 285);
+    expect(restored.buybackProviderAtCheck, 'ZOXS');
+    expect(restored.buybackConditionAtCheck, 'used_good');
+    expect(restored.buybackCheckedAt, checked);
 
     final legacy = V13Flip.fromJson({
       'id': 'old',
@@ -48,6 +58,8 @@ void main() {
     expect(legacy.checkedAt, checked);
     expect(legacy.sourceUrl, isEmpty);
     expect(legacy.maxBuyAtCheck, 0);
+    expect(legacy.buybackPriceAtCheck, 0);
+    expect(legacy.buybackProviderAtCheck, isEmpty);
     expect(legacy.isOpen, isTrue);
   });
 
@@ -159,6 +171,80 @@ void main() {
     expect(updated!.isOpen, isTrue);
     expect(updated!.checkedAt, oldCheck);
     expect(updated!.createdAt.isAfter(oldCheck), isTrue);
+
+    monetization.dispose();
+  });
+
+  testWidgets('saved buyback condition is refreshed and compared automatically', (tester) async {
+    final monetization = V13Monetization(onProUnlocked: () {});
+    BuybackCondition? requestedCondition;
+    String? requestedQuery;
+    final checked = DateTime.now().subtract(const Duration(hours: 2));
+    final saved = V13Flip(
+      id: 'saved-buyback-1',
+      name: 'Apple iPhone 15 Pro 256 GB',
+      category: 'Smartphone',
+      buy: 250,
+      expectedAtBuy: 390,
+      costs: 0,
+      sourceCount: 0,
+      confidence: 'Mittel',
+      status: 'Saved',
+      createdAt: checked,
+      checkedAt: checked,
+      buybackPriceAtCheck: 300,
+      buybackProviderAtCheck: 'reBuy',
+      buybackConditionAtCheck: 'used_good',
+      buybackCheckedAt: checked,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: V13CheckPage(
+        english: false,
+        input: normalizeV13Search(saved.name),
+        targetRoi: 35,
+        minProfit: 20,
+        plan: UserPlan.pro,
+        taxMode: V13TaxMode.privateSeller,
+        sources: const [],
+        flips: [saved],
+        monetization: monetization,
+        existingSnapshot: saved,
+        onHistory: (_) {},
+        onAddFlip: (_) {},
+        buybackSearch: (query, condition) async {
+          requestedQuery = query;
+          requestedCondition = condition;
+          return BuybackSearchResult(
+            configured: true,
+            live: true,
+            unavailable: false,
+            offers: [
+              BuybackOffer(
+                providerId: 'zoxs',
+                providerName: 'ZOXS',
+                productId: 'iphone-15-pro-256',
+                matchedTitle: 'Apple iPhone 15 Pro 256 GB',
+                condition: condition,
+                price: 330,
+                currency: 'EUR',
+                offerUrl: Uri.parse('https://www.zoxs.de/offer/123'),
+                checkedAt: DateTime.now().toUtc(),
+                requiresInspection: true,
+                matchConfidence: .98,
+              ),
+            ],
+          );
+        },
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(requestedQuery, 'Apple iPhone 15 Pro 256 GB');
+    expect(requestedCondition, BuybackCondition.usedGood);
+    expect(find.byKey(const ValueKey('buyback-recheck-card')), findsOneWidget);
+    expect(find.textContaining('Vorher: reBuy · 300,00 €'), findsOneWidget);
+    expect(find.textContaining('Jetzt: ZOXS · 330,00 €'), findsOneWidget);
 
     monetization.dispose();
   });
