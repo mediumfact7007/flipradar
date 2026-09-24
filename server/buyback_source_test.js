@@ -10,8 +10,7 @@ function loadSource(env = {}) {
     BUYBACK_SOURCE_TOKEN: process.env.BUYBACK_SOURCE_TOKEN,
     BUYBACK_SOURCE_TIMEOUT_MS: process.env.BUYBACK_SOURCE_TIMEOUT_MS,
     BUYBACK_SOURCE_POLICY_ACK: process.env.BUYBACK_SOURCE_POLICY_ACK,
-    BUYBACK_SOURCE_PROVIDER_IDS: process.env.BUYBACK_SOURCE_PROVIDER_IDS,
-    BUYBACK_SOURCE_APPROVAL_VALID_UNTIL: process.env.BUYBACK_SOURCE_APPROVAL_VALID_UNTIL,
+    BUYBACK_SOURCE_APPROVALS_JSON: process.env.BUYBACK_SOURCE_APPROVALS_JSON,
   };
   if (env.url === undefined) delete process.env.BUYBACK_SOURCE_URL;
   else process.env.BUYBACK_SOURCE_URL = env.url;
@@ -21,10 +20,8 @@ function loadSource(env = {}) {
   else process.env.BUYBACK_SOURCE_TIMEOUT_MS = String(env.timeout);
   if (env.policyAck === undefined) delete process.env.BUYBACK_SOURCE_POLICY_ACK;
   else process.env.BUYBACK_SOURCE_POLICY_ACK = env.policyAck;
-  if (env.providerIds === undefined) delete process.env.BUYBACK_SOURCE_PROVIDER_IDS;
-  else process.env.BUYBACK_SOURCE_PROVIDER_IDS = env.providerIds;
-  if (env.validUntil === undefined) delete process.env.BUYBACK_SOURCE_APPROVAL_VALID_UNTIL;
-  else process.env.BUYBACK_SOURCE_APPROVAL_VALID_UNTIL = env.validUntil;
+  if (env.approvals === undefined) delete process.env.BUYBACK_SOURCE_APPROVALS_JSON;
+  else process.env.BUYBACK_SOURCE_APPROVALS_JSON = env.approvals;
   delete require.cache[MODULE];
   const source = require('./buyback_source');
   return {
@@ -43,8 +40,16 @@ function approvedEnv(overrides = {}) {
   return {
     url: 'https://partner.example/quotes',
     policyAck: 'approved-feed-and-price-display-v1',
-    providerIds: 'clevertronic',
-    validUntil: '2099-12-31T23:59:59Z',
+    approvals: JSON.stringify([{
+      provider_id: 'clevertronic',
+      approval_reference: 'partner-contract-2026-01',
+      reviewed_at: '2026-09-01T10:00:00Z',
+      valid_until: '2099-12-31T23:59:59Z',
+      feed_access: true,
+      price_display: true,
+      offer_links: true,
+      provider_identity_display: true,
+    }]),
     ...overrides,
   };
 }
@@ -72,12 +77,53 @@ function approvedEnv(overrides = {}) {
   assert.strictEqual(loaded.source.configured(), false, 'affiliate access is not price-display approval');
   loaded.restore();
 
-  loaded = loadSource(approvedEnv({ providerIds: '' }));
-  assert.strictEqual(loaded.source.configured(), false, 'approved provider ids are required');
+  loaded = loadSource(approvedEnv({ approvals: '[]' }));
+  assert.strictEqual(loaded.source.configured(), false, 'provider approvals are required');
   loaded.restore();
 
-  loaded = loadSource(approvedEnv({ validUntil: '2020-01-01T00:00:00Z' }));
+  loaded = loadSource(approvedEnv({ approvals: '{broken-json' }));
+  assert.strictEqual(loaded.source.configured(), false, 'malformed approval metadata must fail closed');
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify([{
+    provider_id: 'clevertronic', approval_reference: 'expired-contract',
+    reviewed_at: '2019-01-01T00:00:00Z', valid_until: '2020-01-01T00:00:00Z',
+    feed_access: true, price_display: true, offer_links: true,
+    provider_identity_display: true,
+  }]) }));
   assert.strictEqual(loaded.source.configured(), false, 'expired approval must fail closed');
+  loaded.restore();
+
+  for (const missingRight of ['feed_access', 'price_display', 'offer_links', 'provider_identity_display']) {
+    const approval = {
+      provider_id: 'clevertronic', approval_reference: 'limited-contract',
+      reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+      feed_access: true, price_display: true, offer_links: true,
+      provider_identity_display: true,
+    };
+    approval[missingRight] = false;
+    loaded = loadSource(approvedEnv({ approvals: JSON.stringify([approval]) }));
+    assert.strictEqual(loaded.source.configured(), false, `${missingRight} must be explicitly approved`);
+    loaded.restore();
+  }
+
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify([{
+    provider_id: 'clevertronic', approval_reference: 'future-review',
+    reviewed_at: '2099-01-01T00:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+    feed_access: true, price_display: true, offer_links: true,
+    provider_identity_display: true,
+  }]) }));
+  assert.strictEqual(loaded.source.configured(), false, 'a future review timestamp must fail closed');
+  loaded.restore();
+
+  const duplicateApproval = {
+    provider_id: 'clevertronic', approval_reference: 'duplicate-contract',
+    reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+    feed_access: true, price_display: true, offer_links: true,
+    provider_identity_display: true,
+  };
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify([duplicateApproval, duplicateApproval]) }));
+  assert.strictEqual(loaded.source.configured(), false, 'duplicate provider approvals must fail closed');
   loaded.restore();
 
   loaded = loadSource({ url: 'https://user:password@partner.example/quotes' });
@@ -179,7 +225,20 @@ function approvedEnv(overrides = {}) {
   assert.strictEqual(mixed.best.provider_id, 'clevertronic');
   loaded.restore();
 
-  loaded = loadSource(approvedEnv({ providerIds: 'clevertronic, zoxs' }));
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify([
+    {
+      provider_id: 'clevertronic', approval_reference: 'clevertronic-contract',
+      reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+      feed_access: true, price_display: true, offer_links: true,
+      provider_identity_display: true,
+    },
+    {
+      provider_id: 'zoxs', approval_reference: 'zoxs-contract',
+      reviewed_at: '2026-09-02T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+      feed_access: true, price_display: true, offer_links: true,
+      provider_identity_display: true,
+    },
+  ]) }));
   const approvalFiltered = await loaded.source.fetchBuybackOffers('Apple iPhone 15 Pro 256 GB', 'like_new', {
     now,
     fetchImpl: async () => ({
@@ -208,8 +267,27 @@ function approvedEnv(overrides = {}) {
     max_age_hours: 24,
     minimum_match_confidence: 0.9,
     rights_gate: 'approved',
+    approval_model: 'per_provider_v1',
     approved_provider_count: 2,
   });
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify([
+    {
+      provider_id: 'clevertronic', approval_reference: 'expired-clevertronic-contract',
+      reviewed_at: '2019-01-01T00:00:00Z', valid_until: '2020-01-01T00:00:00Z',
+      feed_access: true, price_display: true, offer_links: true,
+      provider_identity_display: true,
+    },
+    {
+      provider_id: 'zoxs', approval_reference: 'current-zoxs-contract',
+      reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+      feed_access: true, price_display: true, offer_links: true,
+      provider_identity_display: true,
+    },
+  ]) }));
+  assert.strictEqual(loaded.source.configured(), true, 'one expired provider must not disable another current approval');
+  assert.strictEqual(loaded.source.sourceStatus().approved_provider_count, 1);
   loaded.restore();
 
   console.log('buyback source tests passed');

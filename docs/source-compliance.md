@@ -18,11 +18,13 @@ Stand: 23. September 2026. Technische Produktgrenzen, keine Rechtsfreigabe.
 4. Bei Widerruf, Vertragsänderung oder Sperre betroffene Quelle serverseitig abschalten; keine gespeicherten Fremddaten nach Ende der Nutzungsrechte weiter ausspielen.
 
 Das Buyback-Backend erzwingt diese Freigabe zusätzlich technisch: Neben der
-HTTPS-Adapteradresse müssen die freigegebenen Anbieter-IDs, die ausdrückliche
-Bestätigung für Feed-Abruf und Preisdarstellung sowie ein zukünftiges Ende des
-Prüfzeitraums konfiguriert sein. Andere Anbieter-IDs aus demselben Feed werden
-verworfen. Diese Schalter dokumentieren nur die bewusste Aktivierung; sie ersetzen
-keinen Vertrag und keine juristische Prüfung.
+HTTPS-Adapteradresse braucht jeder Anbieter einen eigenen aktuellen
+Freigabedatensatz. Dieser bestätigt Feed-Abruf, Preisanzeige, Angebotslinks und
+Anbieter-/Markendarstellung getrennt und enthält interne Referenz, Prüfdatum und
+Ablaufdatum. Abgelaufene, unvollständige oder nicht im Datensatz enthaltene
+Anbieter-IDs aus demselben Feed werden verworfen. Die Konfiguration bleibt
+serverseitig und dokumentiert nur die bewusste Aktivierung; sie ersetzt keinen
+Vertrag und keine juristische Prüfung.
 
 ## Veröffentlichungsgate Deutschland/EU
 

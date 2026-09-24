@@ -10,27 +10,57 @@ const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
 const BUYBACK_SOURCE_URL = String(process.env.BUYBACK_SOURCE_URL || '').trim();
 const BUYBACK_SOURCE_TOKEN = String(process.env.BUYBACK_SOURCE_TOKEN || '').trim();
 const BUYBACK_SOURCE_POLICY_ACK = String(process.env.BUYBACK_SOURCE_POLICY_ACK || '').trim();
-const BUYBACK_SOURCE_PROVIDER_IDS = String(process.env.BUYBACK_SOURCE_PROVIDER_IDS || '').trim();
-const BUYBACK_SOURCE_APPROVAL_VALID_UNTIL = String(process.env.BUYBACK_SOURCE_APPROVAL_VALID_UNTIL || '').trim();
+const BUYBACK_SOURCE_APPROVALS_JSON = String(process.env.BUYBACK_SOURCE_APPROVALS_JSON || '').trim();
 const REQUIRED_POLICY_ACK = 'approved-feed-and-price-display-v1';
+const PROVIDER_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,63}$/;
 
-function approvedProviderIds() {
-  const values = BUYBACK_SOURCE_PROVIDER_IDS
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-  if (!values.length || values.some((value) => !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(value))) {
-    return new Set();
+function explicitTimestamp(value) {
+  const raw = String(value || '').trim();
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)) return null;
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function currentProviderApprovals(now = Date.now()) {
+  if (!BUYBACK_SOURCE_APPROVALS_JSON) return new Map();
+  let rows;
+  try {
+    rows = JSON.parse(BUYBACK_SOURCE_APPROVALS_JSON);
+  } catch (_) {
+    return new Map();
   }
-  return new Set(values);
+  if (!Array.isArray(rows) || !rows.length) return new Map();
+
+  const approvals = new Map();
+  const seenProviderIds = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return new Map();
+    const providerId = String(row.provider_id || '').trim().toLowerCase();
+    const reference = String(row.approval_reference || '').trim();
+    const reviewedAt = explicitTimestamp(row.reviewed_at);
+    const validUntil = explicitTimestamp(row.valid_until);
+    if (!PROVIDER_ID_PATTERN.test(providerId) || seenProviderIds.has(providerId) ||
+        !reference || reference.length > 160 || reviewedAt === null ||
+        validUntil === null) {
+      return new Map();
+    }
+    seenProviderIds.add(providerId);
+    if (reviewedAt > now || validUntil <= now ||
+        row.feed_access !== true || row.price_display !== true ||
+        row.offer_links !== true || row.provider_identity_display !== true) continue;
+    approvals.set(providerId, {
+      providerId,
+      approvalReference: reference,
+      reviewedAt,
+      validUntil,
+    });
+  }
+  return approvals;
 }
 
 function hasCurrentApproval(now = Date.now()) {
   if (BUYBACK_SOURCE_POLICY_ACK !== REQUIRED_POLICY_ACK) return false;
-  if (!approvedProviderIds().size) return false;
-  if (!/(?:Z|[+-]\d{2}:?\d{2})$/.test(BUYBACK_SOURCE_APPROVAL_VALID_UNTIL)) return false;
-  const validUntil = Date.parse(BUYBACK_SOURCE_APPROVAL_VALID_UNTIL);
-  return Number.isFinite(validUntil) && validUntil > now;
+  return currentProviderApprovals(now).size > 0;
 }
 
 function hasPublicSourceHost(hostname) {
@@ -94,7 +124,7 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     }
     const payload = await response.json();
     const rawItems = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-    const allowedProviders = approvedProviderIds();
+    const allowedProviders = currentProviderApprovals(now);
     const items = normalizeBuybackPayload(rawItems.filter((item) => {
       const providerId = String(item?.provider_id || '').trim().toLowerCase();
       return allowedProviders.has(providerId) && matchesBuybackQuery(normalizedQuery, item);
@@ -111,8 +141,9 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
   }
 }
 
-function sourceStatus() {
-  const isConfigured = configured();
+function sourceStatus(now = Date.now()) {
+  const approvals = currentProviderApprovals(now);
+  const isConfigured = configured(now);
   return {
     configured: isConfigured,
     mode: isConfigured ? 'approved_partner_adapter' : 'disabled',
@@ -120,7 +151,8 @@ function sourceStatus() {
     max_age_hours: 24,
     minimum_match_confidence: 0.9,
     rights_gate: isConfigured ? 'approved' : 'not_approved_or_expired',
-    approved_provider_count: isConfigured ? approvedProviderIds().size : 0,
+    approval_model: 'per_provider_v1',
+    approved_provider_count: isConfigured ? approvals.size : 0,
   };
 }
 

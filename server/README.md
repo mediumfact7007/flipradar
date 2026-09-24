@@ -51,19 +51,21 @@ BUYBACK_SOURCE_URL=https://partner-adapter.example/quotes
 BUYBACK_SOURCE_TOKEN=...
 BUYBACK_SOURCE_TIMEOUT_MS=6000
 BUYBACK_SOURCE_POLICY_ACK=approved-feed-and-price-display-v1
-BUYBACK_SOURCE_PROVIDER_IDS=zoxs
-BUYBACK_SOURCE_APPROVAL_VALID_UNTIL=2027-12-31T23:59:59Z
+BUYBACK_SOURCE_APPROVALS_JSON=[{"provider_id":"zoxs","approval_reference":"internal-contract-reference","reviewed_at":"2026-09-24T00:00:00Z","valid_until":"2027-12-31T23:59:59Z","feed_access":true,"price_display":true,"offer_links":true,"provider_identity_display":true}]
 ```
 
 The adapter must return the normalized fields documented in
 `docs/BUYBACK_INTEGRATION.md`, including a current timestamp, exact product and
 condition identity, EUR price, confidence and HTTPS offer URL. Affiliate or
 deep-link access alone is not permission to scrape or republish prices.
-The backend fails closed unless the exact policy acknowledgement, a comma-separated
-allowlist of contractually covered provider IDs and a future approval expiry are
-set. Feed rows for other provider IDs are discarded even if the adapter returns
-them. Renew or disable the approval before the configured expiry; never use these
-flags as a substitute for the underlying written rights.
+The backend fails closed unless the exact policy acknowledgement and at least one
+current per-provider approval record are present. Each record separately confirms
+feed access, price display, offer links and provider-identity display, with an
+internal approval reference plus reviewed/expiry timestamps. Feed rows for other,
+expired or partially approved providers are discarded even if the adapter returns
+them. Renew or disable each record before its configured expiry; never use these
+flags as a substitute for the underlying written rights. Keep this JSON and all
+credentials in deployment configuration, not in the APK or repository.
 
 After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
 

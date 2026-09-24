@@ -26,7 +26,7 @@ None of the public pages above documents an unauthenticated public API that Flip
 
 ## Provider-access checklist
 
-Before wiring a provider into LIVE mode, record: feed/API owner, approval date, allowed use/republication scope, identifier fields, condition mapping, price semantics (fixed vs indicative), freshness/update field, deep-link/tracking rules, rate limits, and credential storage requirements. If any of these are unclear, keep the source disabled in LIVE mode.
+Before wiring a provider into LIVE mode, record: feed/API owner, approval date, allowed use/republication scope, identifier fields, condition mapping, price semantics (fixed vs indicative), freshness/update field, deep-link/tracking rules, rate limits, and credential storage requirements. If any of these are unclear, keep the source disabled in LIVE mode. The server configuration then needs one per-provider approval record confirming feed access, price display, offer links and provider-identity display, with review/expiry timestamps and an internal agreement reference.
 
 ## Definition of the next data milestone
 
