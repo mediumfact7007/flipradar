@@ -7,12 +7,19 @@ const configuredTimeoutMs = Number(process.env.BUYBACK_SOURCE_TIMEOUT_MS || 6000
 const BUYBACK_SOURCE_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs)
   ? Math.min(15000, Math.max(1000, configuredTimeoutMs))
   : 6000;
+const configuredCacheTtlMs = Number(process.env.BUYBACK_SOURCE_CACHE_TTL_MS || 60000);
+const BUYBACK_SOURCE_CACHE_TTL_MS = Number.isFinite(configuredCacheTtlMs)
+  ? Math.min(300000, Math.max(0, configuredCacheTtlMs))
+  : 60000;
+const BUYBACK_SOURCE_CACHE_MAX = 200;
 const BUYBACK_SOURCE_URL = String(process.env.BUYBACK_SOURCE_URL || '').trim();
 const BUYBACK_SOURCE_TOKEN = String(process.env.BUYBACK_SOURCE_TOKEN || '').trim();
 const BUYBACK_SOURCE_POLICY_ACK = String(process.env.BUYBACK_SOURCE_POLICY_ACK || '').trim();
 const BUYBACK_SOURCE_APPROVALS_JSON = String(process.env.BUYBACK_SOURCE_APPROVALS_JSON || '').trim();
 const REQUIRED_POLICY_ACK = 'approved-feed-and-price-display-v1';
 const PROVIDER_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,63}$/;
+const resultCache = new Map();
+const inFlightRequests = new Map();
 
 function explicitTimestamp(value) {
   const raw = String(value || '').trim();
@@ -97,6 +104,41 @@ function configured(now = Date.now()) {
   }
 }
 
+function cacheKey(query, condition) {
+  return `${condition}:${query.toLowerCase()}`;
+}
+
+function cachedResult(key, now) {
+  const entry = resultCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= now) {
+    resultCache.delete(key);
+    return null;
+  }
+  return entry.result;
+}
+
+function cacheResult(key, result, now) {
+  if (BUYBACK_SOURCE_CACHE_TTL_MS <= 0 || result.unavailable === true) return;
+  let expiresAt = now + BUYBACK_SOURCE_CACHE_TTL_MS;
+  const approvals = currentProviderApprovals(now);
+  for (const item of result.items) {
+    const checkedAt = Date.parse(String(item.checked_at || ''));
+    if (Number.isFinite(checkedAt)) {
+      expiresAt = Math.min(expiresAt, checkedAt + 24 * 60 * 60 * 1000);
+    }
+    const approval = approvals.get(String(item.provider_id || '').trim().toLowerCase());
+    if (approval) expiresAt = Math.min(expiresAt, approval.validUntil);
+  }
+  if (expiresAt <= now) return;
+  if (resultCache.size >= BUYBACK_SOURCE_CACHE_MAX && !resultCache.has(key)) {
+    const oldest = resultCache.keys().next().value;
+    if (oldest) resultCache.delete(oldest);
+  }
+  resultCache.delete(key);
+  resultCache.set(key, { expiresAt, result });
+}
+
 async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = Date.now() } = {}) {
   if (!configured(now)) return { configured: false, items: [], best: null };
 
@@ -107,6 +149,30 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
     return { configured: true, items: [], best: null };
   }
 
+  const key = cacheKey(normalizedQuery, normalizedCondition);
+  if (BUYBACK_SOURCE_CACHE_TTL_MS > 0) {
+    const cached = cachedResult(key, now);
+    if (cached) return cached;
+    const pending = inFlightRequests.get(key);
+    if (pending) return pending;
+  }
+
+  const request = requestBuybackOffers(normalizedQuery, normalizedCondition, {
+    fetchImpl,
+    now,
+  });
+  if (BUYBACK_SOURCE_CACHE_TTL_MS <= 0) return request;
+  inFlightRequests.set(key, request);
+  try {
+    const result = await request;
+    cacheResult(key, result, now);
+    return result;
+  } finally {
+    if (inFlightRequests.get(key) === request) inFlightRequests.delete(key);
+  }
+}
+
+async function requestBuybackOffers(normalizedQuery, normalizedCondition, { fetchImpl, now }) {
   const endpoint = new URL(BUYBACK_SOURCE_URL);
   endpoint.searchParams.set('q', normalizedQuery);
   if (normalizedCondition) endpoint.searchParams.set('condition', normalizedCondition);
@@ -149,6 +215,7 @@ function sourceStatus(now = Date.now()) {
     mode: isConfigured ? 'approved_partner_adapter' : 'disabled',
     data_kind: 'indicative_buyback',
     max_age_hours: 24,
+    cache_ttl_seconds: BUYBACK_SOURCE_CACHE_TTL_MS / 1000,
     minimum_match_confidence: 0.9,
     rights_gate: isConfigured ? 'approved' : 'not_approved_or_expired',
     approval_model: 'per_provider_v1',

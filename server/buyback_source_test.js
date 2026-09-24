@@ -9,6 +9,7 @@ function loadSource(env = {}) {
     BUYBACK_SOURCE_URL: process.env.BUYBACK_SOURCE_URL,
     BUYBACK_SOURCE_TOKEN: process.env.BUYBACK_SOURCE_TOKEN,
     BUYBACK_SOURCE_TIMEOUT_MS: process.env.BUYBACK_SOURCE_TIMEOUT_MS,
+    BUYBACK_SOURCE_CACHE_TTL_MS: process.env.BUYBACK_SOURCE_CACHE_TTL_MS,
     BUYBACK_SOURCE_POLICY_ACK: process.env.BUYBACK_SOURCE_POLICY_ACK,
     BUYBACK_SOURCE_APPROVALS_JSON: process.env.BUYBACK_SOURCE_APPROVALS_JSON,
   };
@@ -18,6 +19,8 @@ function loadSource(env = {}) {
   else process.env.BUYBACK_SOURCE_TOKEN = env.token;
   if (env.timeout === undefined) delete process.env.BUYBACK_SOURCE_TIMEOUT_MS;
   else process.env.BUYBACK_SOURCE_TIMEOUT_MS = String(env.timeout);
+  if (env.cacheTtl === undefined) delete process.env.BUYBACK_SOURCE_CACHE_TTL_MS;
+  else process.env.BUYBACK_SOURCE_CACHE_TTL_MS = String(env.cacheTtl);
   if (env.policyAck === undefined) delete process.env.BUYBACK_SOURCE_POLICY_ACK;
   else process.env.BUYBACK_SOURCE_POLICY_ACK = env.policyAck;
   if (env.approvals === undefined) delete process.env.BUYBACK_SOURCE_APPROVALS_JSON;
@@ -39,6 +42,7 @@ function loadSource(env = {}) {
 function approvedEnv(overrides = {}) {
   return {
     url: 'https://partner.example/quotes',
+    cacheTtl: 0,
     policyAck: 'approved-feed-and-price-display-v1',
     approvals: JSON.stringify([{
       provider_id: 'clevertronic',
@@ -265,6 +269,7 @@ function approvedEnv(overrides = {}) {
     mode: 'approved_partner_adapter',
     data_kind: 'indicative_buyback',
     max_age_hours: 24,
+    cache_ttl_seconds: 0,
     minimum_match_confidence: 0.9,
     rights_gate: 'approved',
     approval_model: 'per_provider_v1',
@@ -288,6 +293,117 @@ function approvedEnv(overrides = {}) {
   ]) }));
   assert.strictEqual(loaded.source.configured(), true, 'one expired provider must not disable another current approval');
   assert.strictEqual(loaded.source.sourceStatus().approved_provider_count, 1);
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({ cacheTtl: 60000 }));
+  let cachedFetchCalls = 0;
+  const cachedNow = Date.parse('2026-09-20T08:00:00Z');
+  const cachedResponse = () => ({
+    ok: true,
+    async json() {
+      return { items: [{
+        provider_id: 'clevertronic', provider_name: 'Clevertronic',
+        product_id: 'iphone-15-pro-256', matched_title: 'Apple iPhone 15 Pro 256 GB',
+        condition: 'like_new', price: 615, currency: 'EUR',
+        offer_url: 'https://partner.example/offer/cached',
+        checked_at: '2026-09-20T07:55:00Z', price_kind: 'indicative_buyback',
+        requires_inspection: true, match_confidence: 0.98,
+      }] };
+    },
+  });
+  const cachedFetch = async () => {
+    cachedFetchCalls += 1;
+    return cachedResponse();
+  };
+  const firstCached = await loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow, fetchImpl: cachedFetch },
+  );
+  const secondCached = await loaded.source.fetchBuybackOffers(
+    ' apple iphone 15 pro 256 gb ', 'like_new',
+    { now: cachedNow + 30000, fetchImpl: cachedFetch },
+  );
+  assert.strictEqual(cachedFetchCalls, 1, 'equivalent product/condition rechecks should reuse the short cache');
+  assert.deepStrictEqual(secondCached, firstCached);
+  await loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow + 60001, fetchImpl: cachedFetch },
+  );
+  assert.strictEqual(cachedFetchCalls, 2, 'expired cache entries must refresh from the partner');
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({
+    cacheTtl: 60000,
+    approvals: JSON.stringify([
+      {
+        provider_id: 'clevertronic', approval_reference: 'short-clevertronic-contract',
+        reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2026-09-20T08:00:30Z',
+        feed_access: true, price_display: true, offer_links: true,
+        provider_identity_display: true,
+      },
+      {
+        provider_id: 'zoxs', approval_reference: 'current-zoxs-contract',
+        reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
+        feed_access: true, price_display: true, offer_links: true,
+        provider_identity_display: true,
+      },
+    ]),
+  }));
+  let approvalExpiryFetchCalls = 0;
+  const approvalExpiryFetch = async () => {
+    approvalExpiryFetchCalls += 1;
+    return cachedResponse();
+  };
+  const beforeApprovalExpiry = await loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow, fetchImpl: approvalExpiryFetch },
+  );
+  assert.strictEqual(beforeApprovalExpiry.items.length, 1);
+  const afterApprovalExpiry = await loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow + 31000, fetchImpl: approvalExpiryFetch },
+  );
+  assert.strictEqual(approvalExpiryFetchCalls, 2, 'cache must not outlive the quoted provider rights');
+  assert.strictEqual(afterApprovalExpiry.items.length, 0, 'an expired provider must disappear even while another approval remains current');
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({ cacheTtl: 60000 }));
+  let concurrentFetchCalls = 0;
+  let releaseConcurrentFetch;
+  const concurrentFetch = async () => {
+    concurrentFetchCalls += 1;
+    await new Promise((resolve) => { releaseConcurrentFetch = resolve; });
+    return cachedResponse();
+  };
+  const concurrentFirst = loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow, fetchImpl: concurrentFetch },
+  );
+  const concurrentSecond = loaded.source.fetchBuybackOffers(
+    'Apple iPhone 15 Pro 256 GB', 'like_new',
+    { now: cachedNow, fetchImpl: concurrentFetch },
+  );
+  assert.strictEqual(concurrentFetchCalls, 1, 'simultaneous identical requests must share one partner call');
+  releaseConcurrentFetch();
+  const concurrentResults = await Promise.all([concurrentFirst, concurrentSecond]);
+  assert.deepStrictEqual(concurrentResults[1], concurrentResults[0]);
+  loaded.restore();
+
+  loaded = loadSource(approvedEnv({ cacheTtl: 60000 }));
+  let outageFetchCalls = 0;
+  const unavailableFetch = async () => {
+    outageFetchCalls += 1;
+    throw new Error('partner offline');
+  };
+  await loaded.source.fetchBuybackOffers('Apple iPhone 15 Pro 256 GB', 'like_new', {
+    now: cachedNow,
+    fetchImpl: unavailableFetch,
+  });
+  await loaded.source.fetchBuybackOffers('Apple iPhone 15 Pro 256 GB', 'like_new', {
+    now: cachedNow + 1,
+    fetchImpl: unavailableFetch,
+  });
+  assert.strictEqual(outageFetchCalls, 2, 'provider outages must never be cached as a valid empty result');
   loaded.restore();
 
   console.log('buyback source tests passed');

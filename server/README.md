@@ -50,6 +50,7 @@ the server:
 BUYBACK_SOURCE_URL=https://partner-adapter.example/quotes
 BUYBACK_SOURCE_TOKEN=...
 BUYBACK_SOURCE_TIMEOUT_MS=6000
+BUYBACK_SOURCE_CACHE_TTL_MS=60000
 BUYBACK_SOURCE_POLICY_ACK=approved-feed-and-price-display-v1
 BUYBACK_SOURCE_APPROVALS_JSON=[{"provider_id":"zoxs","approval_reference":"internal-contract-reference","reviewed_at":"2026-09-24T00:00:00Z","valid_until":"2027-12-31T23:59:59Z","feed_access":true,"price_display":true,"offer_links":true,"provider_identity_display":true}]
 ```
@@ -66,6 +67,11 @@ expired or partially approved providers are discarded even if the adapter return
 them. Renew or disable each record before its configured expiry; never use these
 flags as a substitute for the underlying written rights. Keep this JSON and all
 credentials in deployment configuration, not in the APK or repository.
+
+Identical product/condition requests are coalesced and cached briefly on the
+server (60 seconds by default, never more than five minutes). Unavailable
+responses are not cached, and a cache entry can never outlive the 24-hour quote
+freshness boundary. Set a shorter TTL if the partner agreement requires it.
 
 After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
 
