@@ -2,9 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'v13_app.dart';
 
-export 'v07.dart';
-export 'v09_app.dart';
-export 'v10_app.dart';
+export 'scanner_page.dart';
 export 'v13_app.dart';
 
 void main() {

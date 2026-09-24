@@ -20,21 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply compatible V0.14 patches
-        shell: bash
-        run: |
-          if ! grep -q "import 'source_status.dart';" lib/v13_app.dart; then python3 tools/patch_v140_live_source_status.py; fi
-          if ! grep -q 'e.live && roles.contains(e.role)' lib/v13_app.dart; then python3 tools/patch_v142_nonlive_market_guard.py; fi
-          if ! grep -q 'List<double> v13CleanMarketValues' lib/v13_app.dart; then python3 tools/patch_v143_market_quality.py; fi
-          if ! grep -q 'class V13MarketConfidence' lib/v13_app.dart; then python3 tools/patch_v144_confidence_model.py; fi
-          if ! grep -q "ValueKey('v0144-confidence-card')" lib/v13_app.dart; then python3 tools/patch_v144_confidence_ui.py; fi
-          if ! grep -q "ValueKey('v145-open-flips')" lib/v13_app.dart; then python3 tools/patch_v145_streamline.py; fi
-          if ! grep -q 'maxLines: 3' lib/v13_app.dart; then python3 tools/patch_v145_multiline_search.py; fi
-          if ! grep -q "ValueKey('v147-remember-deal')" lib/v13_app.dart; then python3 tools/patch_v147_deal_memory.py; fi
-          python3 tools/patch_v147_deal_memory_fix.py
-          if ! grep -q "ValueKey('v151-buyback-condition')" lib/v13_app.dart; then python3 tools/patch_buyback_deal_ui.py; fi
-          if ! grep -q "ValueKey('v156-buyback-empty')" lib/v13_app.dart; then python3 tools/patch_buyback_empty_state.py; fi
-
       - name: Verify V0.14.8 boundaries
         shell: bash
         run: |
@@ -204,13 +189,3 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Persist validated V0.14.8 source
-        shell: bash
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/v13_app.dart pubspec.yaml
-          if ! git diff --cached --quiet; then
-            git commit -m 'Finalize Flipwert V0.14.8 recheck watchlist [skip ci]'
-            git push origin main
-          fi

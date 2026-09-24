@@ -29,7 +29,7 @@ import 'recheck_delta.dart';
 import 'recheck_delta_card.dart';
 import 'source_registry.dart';
 import 'source_status.dart';
-import 'v07.dart' show ScannerPage, UserPlan;
+import 'scanner_page.dart';
 
 const _v13Primary = Color(0xFF4E50D8);
 const _v13Ink = Color(0xFF20213F);
