@@ -53,6 +53,8 @@ function approvedEnv(overrides = {}) {
       price_display: true,
       offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     }]),
     ...overrides,
   };
@@ -77,6 +79,16 @@ function approvedEnv(overrides = {}) {
   assert.strictEqual(loaded.source.sourceStatus().rights_gate, 'not_approved_or_expired');
   loaded.restore();
 
+  loaded = loadSource(approvedEnv({ url: 'https://unapproved-feed.example/quotes' }));
+  assert.strictEqual(loaded.source.configured(), false, 'approval must be bound to the configured feed host');
+  loaded.restore();
+
+  const wildcardHostApproval = JSON.parse(approvedEnv().approvals);
+  wildcardHostApproval[0].feed_hosts = ['*.partner.example'];
+  loaded = loadSource(approvedEnv({ approvals: JSON.stringify(wildcardHostApproval) }));
+  assert.strictEqual(loaded.source.configured(), false, 'host approvals must be exact, not wildcard patterns');
+  loaded.restore();
+
   loaded = loadSource(approvedEnv({ policyAck: 'affiliate-link-only' }));
   assert.strictEqual(loaded.source.configured(), false, 'affiliate access is not price-display approval');
   loaded.restore();
@@ -94,6 +106,8 @@ function approvedEnv(overrides = {}) {
     reviewed_at: '2019-01-01T00:00:00Z', valid_until: '2020-01-01T00:00:00Z',
     feed_access: true, price_display: true, offer_links: true,
     provider_identity_display: true,
+    feed_hosts: ['partner.example'],
+    offer_hosts: ['partner.example'],
   }]) }));
   assert.strictEqual(loaded.source.configured(), false, 'expired approval must fail closed');
   loaded.restore();
@@ -104,6 +118,8 @@ function approvedEnv(overrides = {}) {
       reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
       feed_access: true, price_display: true, offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     };
     approval[missingRight] = false;
     loaded = loadSource(approvedEnv({ approvals: JSON.stringify([approval]) }));
@@ -116,6 +132,8 @@ function approvedEnv(overrides = {}) {
     reviewed_at: '2099-01-01T00:00:00Z', valid_until: '2099-12-31T23:59:59Z',
     feed_access: true, price_display: true, offer_links: true,
     provider_identity_display: true,
+    feed_hosts: ['partner.example'],
+    offer_hosts: ['partner.example'],
   }]) }));
   assert.strictEqual(loaded.source.configured(), false, 'a future review timestamp must fail closed');
   loaded.restore();
@@ -125,6 +143,8 @@ function approvedEnv(overrides = {}) {
     reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
     feed_access: true, price_display: true, offer_links: true,
     provider_identity_display: true,
+    feed_hosts: ['partner.example'],
+    offer_hosts: ['partner.example'],
   };
   loaded = loadSource(approvedEnv({ approvals: JSON.stringify([duplicateApproval, duplicateApproval]) }));
   assert.strictEqual(loaded.source.configured(), false, 'duplicate provider approvals must fail closed');
@@ -229,11 +249,13 @@ function approvedEnv(overrides = {}) {
           matched_title: 'Apple iPhone 15 Pro Max 256 GB', price: 900, match_confidence: 1,
         }, {
           ...good, condition: 'used_good', price: 850,
+        }, {
+          ...good, offer_url: 'https://unapproved-offer.example/offer/redirected', price: 999,
         }] };
       },
     }),
   });
-  assert.strictEqual(mixed.items.length, 1, 'higher priced wrong model must not enter the comparison');
+  assert.strictEqual(mixed.items.length, 1, 'wrong variants, conditions and offer hosts must not enter the comparison');
   assert.strictEqual(mixed.items[0].condition, 'like_new', 'only the explicitly requested condition may reach the app');
   assert.strictEqual(mixed.best.provider_id, 'clevertronic');
   loaded.restore();
@@ -244,12 +266,16 @@ function approvedEnv(overrides = {}) {
       reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
       feed_access: true, price_display: true, offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     },
     {
       provider_id: 'zoxs', approval_reference: 'zoxs-contract',
       reviewed_at: '2026-09-02T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
       feed_access: true, price_display: true, offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     },
   ]) }));
   const approvalFiltered = await loaded.source.fetchBuybackOffers('Apple iPhone 15 Pro 256 GB', 'like_new', {
@@ -281,7 +307,7 @@ function approvedEnv(overrides = {}) {
     cache_ttl_seconds: 0,
     minimum_match_confidence: 0.9,
     rights_gate: 'approved',
-    approval_model: 'per_provider_v1',
+    approval_model: 'per_provider_hosts_v2',
     approved_provider_count: 2,
   });
   loaded.restore();
@@ -292,12 +318,16 @@ function approvedEnv(overrides = {}) {
       reviewed_at: '2019-01-01T00:00:00Z', valid_until: '2020-01-01T00:00:00Z',
       feed_access: true, price_display: true, offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     },
     {
       provider_id: 'zoxs', approval_reference: 'current-zoxs-contract',
       reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
       feed_access: true, price_display: true, offer_links: true,
       provider_identity_display: true,
+      feed_hosts: ['partner.example'],
+      offer_hosts: ['partner.example'],
     },
   ]) }));
   assert.strictEqual(loaded.source.configured(), true, 'one expired provider must not disable another current approval');
@@ -349,12 +379,16 @@ function approvedEnv(overrides = {}) {
         reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2026-09-20T08:00:30Z',
         feed_access: true, price_display: true, offer_links: true,
         provider_identity_display: true,
+        feed_hosts: ['partner.example'],
+        offer_hosts: ['partner.example'],
       },
       {
         provider_id: 'zoxs', approval_reference: 'current-zoxs-contract',
         reviewed_at: '2026-09-01T10:00:00Z', valid_until: '2099-12-31T23:59:59Z',
         feed_access: true, price_display: true, offer_links: true,
         provider_identity_display: true,
+        feed_hosts: ['partner.example'],
+        offer_hosts: ['partner.example'],
       },
     ]),
   }));

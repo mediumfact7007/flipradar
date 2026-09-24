@@ -62,6 +62,9 @@ Required fields: provider, matched product, normalized condition, price/currency
 - Missing data is shown as unavailable, never estimated as if it were a live provider quote.
 - A new search invalidates an in-flight buyback request and rechecks the selected condition for the new product, so a late response cannot be attached to another deal.
 - Provider credentials, partner tokens and feed secrets stay server-side.
+- Every provider approval is bound to explicit feed hosts and offer-link hosts.
+  A valid provider ID alone cannot authorize data from another feed or redirect
+  users to an unapproved destination.
 - Repeated identical product/condition requests are coalesced and may use a
   short server-side cache within the partner's rate limits. An outage is never
   cached as a valid empty result, and cached quotes never outlive the normal

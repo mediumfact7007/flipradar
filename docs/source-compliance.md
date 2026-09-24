@@ -20,9 +20,11 @@ Stand: 23. September 2026. Technische Produktgrenzen, keine Rechtsfreigabe.
 Das Buyback-Backend erzwingt diese Freigabe zusätzlich technisch: Neben der
 HTTPS-Adapteradresse braucht jeder Anbieter einen eigenen aktuellen
 Freigabedatensatz. Dieser bestätigt Feed-Abruf, Preisanzeige, Angebotslinks und
-Anbieter-/Markendarstellung getrennt und enthält interne Referenz, Prüfdatum und
-Ablaufdatum. Abgelaufene, unvollständige oder nicht im Datensatz enthaltene
-Anbieter-IDs aus demselben Feed werden verworfen. Die Konfiguration bleibt
+Anbieter-/Markendarstellung getrennt und enthält interne Referenz, Prüfdatum,
+Ablaufdatum sowie ausdrücklich genehmigte Feed- und Angebotslink-Hosts.
+Freigaben gelten nur für den hinterlegten Feed-Host; abweichende Angebotslinks,
+abgelaufene, unvollständige oder nicht im Datensatz enthaltene Anbieter-IDs aus
+demselben Feed werden verworfen. Die Konfiguration bleibt
 serverseitig und dokumentiert nur die bewusste Aktivierung; sie ersetzt keinen
 Vertrag und keine juristische Prüfung.
 
