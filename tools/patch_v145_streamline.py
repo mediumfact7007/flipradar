@@ -7,7 +7,7 @@ pub = pub_path.read_text()
 
 pub = pub.replace('version: 0.14.4+27', 'version: 0.14.5+28', 1)
 
-# 1) Restore share-to-FlipRadar safely after the first frame, never during first-frame startup.
+# 1) Restore share-to-Flipwert safely after the first frame, never during first-frame startup.
 old = """  @override\n  void initState() {\n    super.initState();\n    // Safe-start build: optional share listener is not part of first-frame startup.\n  }\n"""
 new = """  @override\n  void initState() {\n    super.initState();\n    // Keep first-frame startup clean, then restore the native share listener.\n    WidgetsBinding.instance.addPostFrameCallback((_) {\n      if (!mounted) return;\n      if (Platform.isAndroid || Platform.isIOS) _listenShares();\n    });\n  }\n"""
 if old in app:

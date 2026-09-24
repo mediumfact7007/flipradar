@@ -1,4 +1,4 @@
-/// Local, provider-independent alert preferences for saved FlipRadar deals.
+/// Local, provider-independent alert preferences for saved Flipwert deals.
 ///
 /// This deliberately contains no push/notification integration yet. It gives
 /// the app a stable product model for alert opt-in and meaningful thresholds

@@ -1,8 +1,8 @@
-// FlipRadar V0.4 - minimal Cloudflare Worker backend for eBay DE.
+// Flipwert V0.4 - minimal Cloudflare Worker backend for eBay DE.
 // Configure secrets with:
 //   wrangler secret put EBAY_CLIENT_ID
 //   wrangler secret put EBAY_CLIENT_SECRET
-// Then deploy and paste the Worker URL into FlipRadar > Setup > eBay DE Backend.
+// Then deploy and paste the Worker URL into Flipwert > Setup > eBay DE Backend.
 
 let cachedToken = null;
 let tokenExpiresAt = 0;
@@ -177,7 +177,7 @@ export default {
           kleinanzeigen: 'portal-search-only',
         });
       }
-      return json({ name: 'FlipRadar API', version: '0.4', ok: true });
+      return json({ name: 'Flipwert API', version: '0.4', ok: true });
     } catch (e) {
       return json({ error: String(e?.message || e) }, 500);
     }

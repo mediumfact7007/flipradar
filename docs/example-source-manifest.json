@@ -2,7 +2,7 @@
   "version": 2,
   "id": "example-shop",
   "name": "Example Shop",
-  "subtitle": "Live prices in FlipRadar",
+  "subtitle": "Live prices in Flipwert",
   "search_url": "https://example.com/search?q={query}",
   "adapter_url": "https://adapter.example.com/search?q={query}",
   "role": "retail",

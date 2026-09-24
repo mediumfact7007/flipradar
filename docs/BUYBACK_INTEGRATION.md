@@ -1,8 +1,8 @@
-# FlipRadar Buyback Comparison v1
+# Flipwert Buyback Comparison v1
 
 ## Product goal
 
-FlipRadar should compare two different exit paths after a deal check:
+Flipwert should compare two different exit paths after a deal check:
 
 1. **Private-market resale** — expected resale value based on trustworthy market evidence.
 2. **Instant buyback** — current indicative purchase offers from buyback portals for the matched product and condition.
@@ -11,7 +11,7 @@ This turns a deal result into an actionable choice: higher expected margin with 
 
 ## Normalized condition model
 
-Providers use different condition vocabularies. FlipRadar must not compare provider prices until the provider-specific state has been mapped to a common condition.
+Providers use different condition vocabularies. Flipwert must not compare provider prices until the provider-specific state has been mapped to a common condition.
 
 Canonical states:
 
@@ -70,7 +70,7 @@ Use, in order:
 
 1. official API or documented partner API;
 2. official affiliate/partner/product feed that permits price-comparison use;
-3. explicit provider cooperation / FlipRadar adapter;
+3. explicit provider cooperation / Flipwert adapter;
 4. official search/deep link as a fallback without claiming an in-app live price.
 
 Do not make fragile scraping a core dependency without an explicit technical/legal review.
@@ -90,7 +90,7 @@ The provider list and offer links can be opened without a private-market valuati
 The primary deal verdict should remain understandable even if no buyback provider is available.
 
 If no approved feed is available, the user may open an official provider page
-and manually enter the quote shown there. FlipRadar may calculate the local
+and manually enter the quote shown there. Flipwert may calculate the local
 margin from that user-entered value, but must label it as a manual user entry,
 must not call it LIVE or verified, and must preserve this provenance in saved
 deal snapshots. A later verified feed quote must not silently turn a previous

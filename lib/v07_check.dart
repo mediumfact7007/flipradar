@@ -271,7 +271,7 @@ class _CheckPageState extends State<CheckPage> {
         sell: sell,
         costs: parse(costs),
         status: 'Bought',
-        source: 'FlipRadar',
+        source: 'Flipwert',
         createdAt: DateTime.now(),
       ),
     );
@@ -496,10 +496,10 @@ class _CheckPageState extends State<CheckPage> {
                     t(
                       parse(manualSell) > 0
                           ? 'Die Entscheidung nutzt deinen eigenen Verkaufspreis.'
-                          : 'Aktive Wiederverkaufsangebote sind keine echten Verkäufe. Deshalb zieht FlipRadar 10 % Sicherheitsabstand vom Angebots-Median ab.',
+                          : 'Aktive Wiederverkaufsangebote sind keine echten Verkäufe. Deshalb zieht Flipwert 10 % Sicherheitsabstand vom Angebots-Median ab.',
                       parse(manualSell) > 0
                           ? 'The decision uses your own sale price.'
-                          : 'Active resale listings are not sold prices. FlipRadar therefore applies a 10% safety discount to the asking-price median.',
+                          : 'Active resale listings are not sold prices. Flipwert therefore applies a 10% safety discount to the asking-price median.',
                     ),
                     style: const TextStyle(fontSize: 11.5, color: Color(0xFF747987), height: 1.4),
                   ),
@@ -933,7 +933,7 @@ class _NegotiationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(t('Versuch ${euro(offer)}', 'Try ${euro(offer)}'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-                Text(t('FlipRadar formuliert dir eine kurze Anfrage.', 'FlipRadar prepares a short offer message.'), style: const TextStyle(fontSize: 11.5, color: Color(0xFF775B2A))),
+                Text(t('Flipwert formuliert dir eine kurze Anfrage.', 'Flipwert prepares a short offer message.'), style: const TextStyle(fontSize: 11.5, color: Color(0xFF775B2A))),
               ],
             ),
           ),

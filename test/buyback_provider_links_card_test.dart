@@ -1,4 +1,4 @@
-import 'package:flipradar/buyback_provider_links_card.dart';
+import 'package:flipwert/buyback_provider_links_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

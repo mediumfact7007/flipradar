@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Expanded(
               child: Text(
-                'FlipRadar',
+                'Flipwert',
                 style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900, letterSpacing: -0.7),
               ),
             ),
@@ -159,7 +159,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  t('Online gefunden? Teilen → FlipRadar', 'Found online? Share → FlipRadar'),
+                  t('Online gefunden? Teilen → Flipwert', 'Found online? Share → Flipwert'),
                   style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF315F83)),
                 ),
               ),

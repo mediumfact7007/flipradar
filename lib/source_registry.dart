@@ -33,8 +33,8 @@ class SourceListing {
       sourceId: source.id,
       sourceName: source.name,
       // Third-party manifests must never be able to promote themselves into
-      // FlipRadar's automatic BUY/SKIP calculation. Unverified sources remain
-      // visible as references until FlipRadar explicitly trusts them.
+      // Flipwert's automatic BUY/SKIP calculation. Unverified sources remain
+      // visible as references until Flipwert explicitly trusts them.
       role: source.trustedForDecision ? source.role : 'reference',
       title: json['title']?.toString().trim().isNotEmpty == true
           ? json['title'].toString().trim()
@@ -195,14 +195,14 @@ class PriceSource {
   }
 
   static void _validateSearchTemplate(String template) {
-    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipradar'));
+    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipwert'));
     if (uri == null || uri.host.isEmpty || (uri.scheme != 'https' && uri.scheme != 'http')) {
       throw const FormatException('search_url must be an HTTP(S) URL.');
     }
   }
 
   static void _validateAdapterTemplate(String template) {
-    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipradar'));
+    final uri = Uri.tryParse(template.replaceAll('{query}', 'flipwert'));
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty || _isPrivateHost(uri.host)) {
       throw const FormatException('adapter_url must use public HTTPS.');
     }
@@ -226,7 +226,7 @@ class PriceSource {
 class SourceRegistry {
   static const _customKey = 'custom_sources_v05';
   static const _enabledKey = 'enabled_sources_v05';
-  static const defaultBackend = 'https://flipradar-api-production-ec00.up.railway.app';
+  static const defaultBackend = 'https://flipwert-api-production-ec00.up.railway.app';
 
   static String _backendAdapter(String backendBase, String source) {
     final manual = backendBase.trim().replaceAll(RegExp(r'/+$'), '');

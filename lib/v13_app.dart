@@ -469,8 +469,8 @@ class V13StoreProduct {
 }
 
 class V13Monetization extends ChangeNotifier {
-  static const monthlyId = 'flipradar_pro_monthly';
-  static const yearlyId = 'flipradar_pro_yearly';
+  static const monthlyId = 'flipwert_pro_monthly';
+  static const yearlyId = 'flipwert_pro_yearly';
   static const androidBanner = 'ca-app-pub-3940256099942544/6300978111';
   static const androidRewarded = 'ca-app-pub-3940256099942544/5224354917';
   static const iosBanner = 'ca-app-pub-3940256099942544/2934735716';
@@ -659,14 +659,14 @@ class V13Monetization extends ChangeNotifier {
   }
 }
 
-class FlipRadarV13App extends StatefulWidget {
-  const FlipRadarV13App({super.key});
+class FlipwertApp extends StatefulWidget {
+  const FlipwertApp({super.key});
 
   @override
-  State<FlipRadarV13App> createState() => _FlipRadarV13AppState();
+  State<FlipwertApp> createState() => _FlipwertAppState();
 }
 
-class _FlipRadarV13AppState extends State<FlipRadarV13App> {
+class _FlipwertAppState extends State<FlipwertApp> {
   bool loading = true;
   bool english = false;
   String backend = '';
@@ -694,7 +694,7 @@ class _FlipRadarV13AppState extends State<FlipRadarV13App> {
       if (!mounted) return;
       setState(() {
         // A corrupt/incompatible preference from an older prototype must never
-        // prevent FlipRadar from opening. Start with sane local defaults.
+        // prevent Flipwert from opening. Start with sane local defaults.
         english = false;
         backend = '';
         targetRoi = 35;
@@ -802,7 +802,7 @@ class _FlipRadarV13AppState extends State<FlipRadarV13App> {
     );
 
     return MaterialApp(
-      title: 'FlipRadar',
+      title: 'Flipwert',
       debugShowCheckedModeBanner: false,
       theme: theme,
       home: loading
@@ -1179,7 +1179,7 @@ class _V13HomeState extends State<V13Home> {
       children: [
         Row(
           children: [
-            const Expanded(child: Text('FlipRadar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -.6))),
+            const Expanded(child: Text('Flipwert', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -.6))),
             if (widget.plan != UserPlan.free)
               const Padding(
                 padding: EdgeInsets.only(right: 6),
@@ -1296,7 +1296,7 @@ class _V13HomeState extends State<V13Home> {
   String _inputHint(V13SearchInput input) {
     switch (input.kind) {
       case V13InputKind.url:
-        return t('Link erkannt → FlipRadar sucht nach „${input.query}“', 'Link detected → searching for “${input.query}”');
+        return t('Link erkannt → Flipwert sucht nach „${input.query}“', 'Link detected → searching for “${input.query}”');
       case V13InputKind.ean:
         return t('EAN erkannt', 'EAN detected');
       case V13InputKind.asin:
@@ -1964,10 +1964,10 @@ class _V13CheckPageState extends State<V13CheckPage> {
                     const SizedBox(height: 2),
                     Text(
                       buybackResult?.unavailable == true
-                          ? t('Die LIVE-Abfrage ist fehlgeschlagen. Deine normale Deal-Prüfung bleibt nutzbar; FlipRadar zeigt keinen geschätzten Ersatzpreis.', 'The LIVE request failed. Your normal deal check remains available; FlipRadar does not show an estimated substitute price.')
+                          ? t('Die LIVE-Abfrage ist fehlgeschlagen. Deine normale Deal-Prüfung bleibt nutzbar; Flipwert zeigt keinen geschätzten Ersatzpreis.', 'The LIVE request failed. Your normal deal check remains available; Flipwert does not show an estimated substitute price.')
                           : buybackResult?.configured == true
-                              ? t('Die angebundene Quelle liefert für diesen Artikel und Zustand aktuell keinen qualitätsgeprüften Preis. FlipRadar schätzt hier bewusst keinen Ankaufpreis.', 'The connected source currently has no quality-checked price for this item and condition. FlipRadar deliberately does not estimate a buyback price.')
-                              : t('Für echte Ankaufpreise fehlt noch ein genehmigter Anbieterfeed mit Preisfreigabe. FlipRadar zeigt bis dahin bewusst keinen geschätzten Ankaufpreis.', 'An approved provider feed with price-display permission is still required for real buyback prices. FlipRadar deliberately shows no estimated price until then.'),
+                              ? t('Die angebundene Quelle liefert für diesen Artikel und Zustand aktuell keinen qualitätsgeprüften Preis. Flipwert schätzt hier bewusst keinen Ankaufpreis.', 'The connected source currently has no quality-checked price for this item and condition. Flipwert deliberately does not estimate a buyback price.')
+                              : t('Für echte Ankaufpreise fehlt noch ein genehmigter Anbieterfeed mit Preisfreigabe. Flipwert zeigt bis dahin bewusst keinen geschätzten Ankaufpreis.', 'An approved provider feed with price-display permission is still required for real buyback prices. Flipwert deliberately shows no estimated price until then.'),
                       style: const TextStyle(fontSize: 9.8, color: Color(0xFF6F6250)),
                     ),
                     if (buybackResult?.unavailable == true) ...[
@@ -2813,7 +2813,7 @@ class _V13FlipsPageState extends State<V13FlipsPage> {
       children: [
         const Text('Meine Flips', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
         const SizedBox(height: 4),
-        Text(t('Gekauft → verkauft → daraus lernt FlipRadar.', 'Bought → sold → FlipRadar learns from it.'), style: const TextStyle(fontSize: 12.5, color: Color(0xFF777B88))),
+        Text(t('Gekauft → verkauft → daraus lernt Flipwert.', 'Bought → sold → Flipwert learns from it.'), style: const TextStyle(fontSize: 12.5, color: Color(0xFF777B88))),
         const SizedBox(height: 15),
         Container(
           padding: const EdgeInsets.all(15),
@@ -3132,7 +3132,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(t('Einstellungen', 'Settings'), style: const TextStyle(fontWeight: FontWeight.w900))),
         body: ListView(padding: const EdgeInsets.fromLTRB(18, 5, 18, 28), children: [
-          _V13Section(title: t('Wann ist ein Flip gut?', 'When is a flip good?'), subtitle: t('Einmal einstellen – danach rechnet FlipRadar automatisch.', 'Set once – FlipRadar calculates automatically after that.')),
+          _V13Section(title: t('Wann ist ein Flip gut?', 'When is a flip good?'), subtitle: t('Einmal einstellen – danach rechnet Flipwert automatisch.', 'Set once – Flipwert calculates automatically after that.')),
           const SizedBox(height: 9),
           Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: Column(children: [
             Row(children: [Text(t('Mindest-ROI', 'Minimum ROI'), style: const TextStyle(fontWeight: FontWeight.w900)), const Spacer(), Text('${roi.toStringAsFixed(0)} %', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: _v13Primary))]),
@@ -3142,7 +3142,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
             Slider(value: minProfit, min: 0, max: 100, divisions: 20, onChanged: (v) => setState(() => minProfit = v), onChangeEnd: widget.onMinProfit),
           ])),
           const SizedBox(height: 18),
-          _V13Section(title: 'FlipRadar PRO'),
+          _V13Section(title: 'Flipwert PRO'),
           const SizedBox(height: 8),
           _V13ProCard(english: english, active: widget.plan != UserPlan.free, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => V13Paywall(english: english, monetization: widget.monetization)))),
           const SizedBox(height: 18),
@@ -3154,7 +3154,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           const SizedBox(height: 8),
           DropdownButtonFormField<V13TaxMode>(initialValue: widget.taxMode, decoration: InputDecoration(labelText: t('Steuerprofil', 'Tax profile')), items: V13TaxMode.values.map((e) => DropdownMenuItem(value: e, child: Text(v13TaxLabel(e, english)))).toList(), onChanged: (v) { if (v != null) widget.onTaxMode(v); }),
           const SizedBox(height: 5),
-          Text(t('Das Profil dient der Einordnung. FlipRadar zieht aktuell keine Steuer automatisch vom Gewinn ab.', 'The profile is contextual. FlipRadar does not currently deduct taxes automatically.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF7B7F8C))),
+          Text(t('Das Profil dient der Einordnung. Flipwert zieht aktuell keine Steuer automatisch vom Gewinn ab.', 'The profile is contextual. Flipwert does not currently deduct taxes automatically.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF7B7F8C))),
           const SizedBox(height: 18),
           _V13Section(title: t('Sprache & Datenschutz', 'Language & privacy')),
           const SizedBox(height: 8),
@@ -3163,7 +3163,7 @@ class _V13SettingsPageState extends State<V13SettingsPage> {
           OutlinedButton.icon(onPressed: widget.monetization.showPrivacyOptions, icon: const Icon(Icons.privacy_tip_outlined), label: Text(t('Werbe-Datenschutz verwalten', 'Manage ad privacy'))),
           const SizedBox(height: 15),
           ExpansionTile(tilePadding: EdgeInsets.zero, leading: const Icon(Icons.build_outlined), title: Text(t('Für Profis & Entwickler', 'For pros & developers'), style: const TextStyle(fontWeight: FontWeight.w900)), subtitle: Text(t('Im Alltag nicht nötig', 'Not needed day to day'), style: const TextStyle(fontSize: 11.5)), children: [
-            TextFormField(initialValue: widget.backend, decoration: InputDecoration(labelText: t('Eigener FlipRadar-Server', 'Custom FlipRadar server'), hintText: SourceRegistry.defaultBackend), onFieldSubmitted: widget.onBackend),
+            TextFormField(initialValue: widget.backend, decoration: InputDecoration(labelText: t('Eigener Flipwert-Server', 'Custom Flipwert server'), hintText: SourceRegistry.defaultBackend), onFieldSubmitted: widget.onBackend),
             const SizedBox(height: 9),
             Text(t('SAFE RECOVERY 2: Test-AdMob wird nur nach einer Werbe-/Datenschutz-Aktion geladen. Banner bleiben in dieser Version deaktiviert.', 'SAFE RECOVERY 2: Test AdMob loads only after an ad/privacy action. Banner ads remain disabled in this build.'), style: const TextStyle(fontSize: 10.5, color: Color(0xFF737786))),
             const SizedBox(height: 9),
@@ -3190,7 +3190,7 @@ class _V13ProCard extends StatelessWidget {
   Widget build(BuildContext context) => Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(21),
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(21), child: Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(gradient: const LinearGradient(colors: [_v13Ink, Color(0xFF5657DB)]), borderRadius: BorderRadius.circular(21)), child: Row(children: [const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 29), const SizedBox(width: 11), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(active ? (english ? 'PRO active' : 'PRO aktiv') : 'FlipRadar PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)), Text(english ? 'No ads · Deep Check · personal learning' : 'Werbefrei · Deep Check · persönliches Lernen', style: const TextStyle(color: Color(0xFFD4D5EA), fontSize: 10.8))])), const Icon(Icons.chevron_right_rounded, color: Colors.white)]))),
+        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(21), child: Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(gradient: const LinearGradient(colors: [_v13Ink, Color(0xFF5657DB)]), borderRadius: BorderRadius.circular(21)), child: Row(children: [const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 29), const SizedBox(width: 11), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(active ? (english ? 'PRO active' : 'PRO aktiv') : 'Flipwert PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)), Text(english ? 'No ads · Deep Check · personal learning' : 'Werbefrei · Deep Check · persönliches Lernen', style: const TextStyle(color: Color(0xFFD4D5EA), fontSize: 10.8))])), const Icon(Icons.chevron_right_rounded, color: Colors.white)]))),
       );
 }
 
@@ -3239,7 +3239,7 @@ class _V13SourcesPageState extends State<V13SourcesPage> {
   }
 
   String _summary() {
-    if (checkingStatus) return t('FlipRadar-Server wird geprüft …', 'Checking FlipRadar server …');
+    if (checkingStatus) return t('Flipwert-Server wird geprüft …', 'Checking Flipwert server …');
     final status = runtimeStatus;
     if (status == null || !status.reachable) {
       return t(
@@ -3339,7 +3339,7 @@ class _V13PaywallState extends State<V13Paywall> {
       body: ListView(padding: const EdgeInsets.fromLTRB(20, 0, 20, 30), children: [
         const Icon(Icons.workspace_premium_rounded, size: 48, color: _v13Primary),
         const SizedBox(height: 10),
-        Text('FlipRadar PRO', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 28)),
+        Text('Flipwert PRO', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 28)),
         const SizedBox(height: 6),
         Text(t('Mehr Sicherheit, weniger Handarbeit – ohne Werbung.', 'More confidence, less manual work – without ads.'), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF707483))),
         const SizedBox(height: 20),

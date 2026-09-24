@@ -69,7 +69,7 @@ class BuybackComparisonCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(_de ? 'Privat oder sofort verkaufen?' : 'Sell privately or instantly?', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text(_de ? 'FlipRadar zeigt dir Erlös, Gewinn und den Preis für mehr Bequemlichkeit.' : 'FlipRadar shows proceeds, profit and the price of extra convenience.', style: theme.textTheme.bodySmall),
+          Text(_de ? 'Flipwert zeigt dir Erlös, Gewinn und den Preis für mehr Bequemlichkeit.' : 'Flipwert shows proceeds, profit and the price of extra convenience.', style: theme.textTheme.bodySmall),
           const SizedBox(height: 4),
           Text(_de ? 'Basis: Einkauf ${_money(summary.purchasePrice)}' : 'Basis: purchase ${_money(summary.purchasePrice)}', key: const ValueKey('buyback-purchase-basis'), style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
@@ -96,7 +96,7 @@ class BuybackComparisonCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(_matchQuality, key: const ValueKey('buyback-match-quality'), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text(_de ? 'Privatwert = aktueller FlipRadar-Marktwert. Ankauf = frisches, qualitätsgefiltertes Anbieterangebot.' : 'Private value = current FlipRadar market value. Buyback = fresh, quality-filtered provider offer.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(_de ? 'Privatwert = aktueller Flipwert-Marktwert. Ankauf = frisches, qualitätsgefiltertes Anbieterangebot.' : 'Private value = current Flipwert market value. Buyback = fresh, quality-filtered provider offer.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           if (summary.offer.requiresInspection) ...[
             const SizedBox(height: 6),
             Text(_de ? '* Vorläufiger Ankaufspreis: Der Anbieter kann ihn nach Prüfung ändern.' : '* Provisional buyback price: the provider may change it after inspection.', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),

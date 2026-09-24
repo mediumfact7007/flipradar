@@ -1,6 +1,6 @@
-import 'package:flipradar/deal_alert.dart';
-import 'package:flipradar/deal_alert_result_card.dart';
-import 'package:flipradar/deal_alert_store.dart';
+import 'package:flipwert/deal_alert.dart';
+import 'package:flipwert/deal_alert_result_card.dart';
+import 'package:flipwert/deal_alert_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

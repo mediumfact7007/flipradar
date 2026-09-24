@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/main.dart';
+import 'package:flipwert/main.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -43,10 +43,10 @@ void main() {
     );
   });
 
-  testWidgets('FlipRadar final starts with action-first home', (tester) async {
-    await tester.pumpWidget(const FlipRadarFinalApp());
+  testWidgets('Flipwert final starts with action-first home', (tester) async {
+    await tester.pumpWidget(const FlipwertFinalApp());
     await tester.pumpAndSettle();
-    expect(find.text('FlipRadar'), findsOneWidget);
+    expect(find.text('Flipwert'), findsOneWidget);
     expect(find.text('Lohnt sich der Deal?'), findsOneWidget);
     expect(find.text('BARCODE SCANNEN'), findsOneWidget);
   });

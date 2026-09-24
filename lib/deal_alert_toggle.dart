@@ -151,7 +151,7 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
           ),
           if (enabled)
             Text(
-              t('Aktuell lokal in FlipRadar – keine Push-Nachricht.', 'Currently local in FlipRadar — no push notification.'),
+              t('Aktuell lokal in Flipwert – keine Push-Nachricht.', 'Currently local in Flipwert — no push notification.'),
               style: const TextStyle(fontSize: 9.2, color: Color(0xFF8B8E9A)),
             ),
         ])),

@@ -1,5 +1,5 @@
-import 'package:flipradar/recheck_delta.dart';
-import 'package:flipradar/recheck_delta_card.dart';
+import 'package:flipwert/recheck_delta.dart';
+import 'package:flipwert/recheck_delta_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

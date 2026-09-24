@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/buyback.dart';
+import 'package:flipwert/buyback.dart';
 
 BuybackOffer offer({required double price, BuybackCondition condition = BuybackCondition.likeNew, double confidence = 0.98, bool uncertain = false, DateTime? checkedAt, Uri? offerUrl}) => BuybackOffer(providerId: 'provider-$price', providerName: 'Provider', productId: 'iphone-15-pro-256', matchedTitle: 'Apple iPhone 15 Pro 256 GB', condition: condition, price: price, currency: 'EUR', offerUrl: offerUrl ?? Uri.parse('https://example.com/offer'), checkedAt: checkedAt ?? DateTime.parse('2026-09-16T08:30:00+02:00'), requiresInspection: true, matchConfidence: confidence, conditionUncertain: uncertain);
 

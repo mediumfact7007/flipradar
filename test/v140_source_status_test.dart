@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/source_registry.dart';
-import 'package:flipradar/source_status.dart';
+import 'package:flipwert/source_registry.dart';
+import 'package:flipwert/source_status.dart';
 
 void main() {
   test('parses configured and browser-only source status', () {
@@ -29,13 +29,13 @@ void main() {
     expect(status.sources['kleinanzeigen']?.mode, 'official_search_link');
   });
 
-  test('derives status endpoint from the configured FlipRadar adapter', () {
+  test('derives status endpoint from the configured Flipwert adapter', () {
     final sources = SourceRegistry.builtIns();
     final endpoint = MarketStatusClient.endpointFor(sources);
 
     expect(endpoint, isNotNull);
     expect(endpoint!.scheme, 'https');
-    expect(endpoint.host, 'flipradar-api-production-ec00.up.railway.app');
+    expect(endpoint.host, 'flipwert-api-production-ec00.up.railway.app');
     expect(endpoint.path, '/v1/status');
     expect(endpoint.query, isEmpty);
   });

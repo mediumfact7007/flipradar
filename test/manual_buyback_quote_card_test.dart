@@ -1,4 +1,4 @@
-import 'package:flipradar/manual_buyback_quote_card.dart';
+import 'package:flipwert/manual_buyback_quote_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

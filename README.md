@@ -1,6 +1,6 @@
-# FlipRadar V0.14.8
+# Flipwert V0.14.8
 
-Installierbare Android-Testversion von FlipRadar.
+Installierbare Android-Testversion von Flipwert.
 
 ## Enthalten
 - Deutsch und Englisch

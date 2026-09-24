@@ -1,4 +1,4 @@
-# FlipRadar V0.6 — UX, retention and monetization strategy
+# Flipwert V0.6 — UX, retention and monetization strategy
 
 ## Product rule
 
@@ -13,7 +13,7 @@ The core job is sacred: **scan/search -> compare -> decide**. Ads or paywalls mu
 - Recent searches support one-tap repeat checks.
 - Watchlist stores the user's target buy price so a deal can be rechecked without rebuilding the calculation.
 - Advanced backend/API configuration is hidden under an Advanced section.
-- Every source says either `Direkt live in FlipRadar` or `Offizielle Website-Suche`; never imply simulated data is live.
+- Every source says either `Direkt live in Flipwert` or `Offizielle Website-Suche`; never imply simulated data is live.
 
 ## Retention loops
 

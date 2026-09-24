@@ -70,7 +70,7 @@ new = r'''class _V13SourcesPageState extends State<V13SourcesPage> {
   }
 
   String _summary() {
-    if (checkingStatus) return t('FlipRadar-Server wird geprüft …', 'Checking FlipRadar server …');
+    if (checkingStatus) return t('Flipwert-Server wird geprüft …', 'Checking Flipwert server …');
     final status = runtimeStatus;
     if (status == null || !status.reachable) {
       return t(

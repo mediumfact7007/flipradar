@@ -1,6 +1,6 @@
-# FlipRadar API v0.6
+# Flipwert API v0.6
 
-This tiny Node.js service keeps marketplace credentials out of the mobile app and normalizes live price results for FlipRadar.
+This tiny Node.js service keeps marketplace credentials out of the mobile app and normalizes live price results for Flipwert.
 
 ## What is live
 
@@ -28,7 +28,7 @@ KEEPA_API_KEY=...
 
 `EBAY_CLIENT_ID` is the eBay **App ID / Client ID** and `EBAY_CLIENT_SECRET` is the **Cert ID / Client Secret**. The eBay **Dev ID is not used** by this OAuth client-credentials flow.
 
-FlipRadar treats every value other than the exact string `production` as Sandbox. Only switch to:
+Flipwert treats every value other than the exact string `production` as Sandbox. Only switch to:
 
 ```text
 EBAY_ENV=production
@@ -73,7 +73,7 @@ server (60 seconds by default, never more than five minutes). Unavailable
 responses are not cached, and a cache entry can never outlive the 24-hour quote
 freshness boundary. Set a shorter TTL if the partner agreement requires it.
 
-After deployment, open FlipRadar -> **Mehr -> Erweitert: FlipRadar-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
+After deployment, open Flipwert -> **Mehr -> Erweitert: Flipwert-Server** and enter the HTTPS base URL, for example `https://your-service.example`.
 
 ## Endpoints
 
@@ -90,7 +90,7 @@ The response format is normalized to objects containing source, title, price, sh
 
 Simple shops do not need backend code. They can be added from the app with a search template containing `{query}`.
 
-Partners that want in-app prices can publish a FlipRadar source manifest with an HTTPS `adapter_url`. Their adapter should return either an `items` array or a JSON array with entries like:
+Partners that want in-app prices can publish a Flipwert source manifest with an HTTPS `adapter_url`. Their adapter should return either an `items` array or a JSON array with entries like:
 
 ```json
 {

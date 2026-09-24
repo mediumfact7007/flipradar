@@ -6,7 +6,7 @@ import 'deal_alert.dart';
 
 /// Small local persistence layer for deal-alert opt-ins.
 ///
-/// Keeping this provider-independent lets FlipRadar ship useful alert settings
+/// Keeping this provider-independent lets Flipwert ship useful alert settings
 /// before any push service is introduced. Corrupt entries are ignored rather
 /// than breaking the watchlist or deal-check flow.
 class DealAlertStore {

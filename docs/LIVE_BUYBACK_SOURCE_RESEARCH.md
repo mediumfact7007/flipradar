@@ -4,17 +4,17 @@ Verified 2026-09-23. Goal: connect at least one permitted, real buyback-price so
 
 ## Confirmed partner paths
 
-- **Clevertronic**: official partner-program page explicitly targets comparison sites and pays for successful Ankauf referrals. The official page routes publishers to AWIN. This remains a strong contact/integration candidate because FlipRadar is a comparison product. Clevertronic also publicly documents an existing CHECK24 handset-buyback partnership, which confirms that comparison-platform cooperation is a supported business model.
+- **Clevertronic**: official partner-program page explicitly targets comparison sites and pays for successful Ankauf referrals. The official page routes publishers to AWIN. This remains a strong contact/integration candidate because Flipwert is a comparison product. Clevertronic also publicly documents an existing CHECK24 handset-buyback partnership, which confirms that comparison-platform cooperation is a supported business model.
   - https://www.clevertronic.de/partnerprogramm
   - https://www.clevertronic.de/presse/check24
-- **ZOXS**: official partner page offers separate Ankauf and Verkauf affiliate programs via ADCELL, tracking links, and explicitly states that partners receive access to an **Angebotsfeed** after signup. This is now the clearest documented feed path and should be the first source investigated after publisher approval. The public page does not document the feed schema or license terms, so FlipRadar must inspect those only after approved access before consuming or republishing price fields.
+- **ZOXS**: official partner page offers separate Ankauf and Verkauf affiliate programs via ADCELL, tracking links, and explicitly states that partners receive access to an **Angebotsfeed** after signup. This is now the clearest documented feed path and should be the first source investigated after publisher approval. The public page does not document the feed schema or license terms, so Flipwert must inspect those only after approved access before consuming or republishing price fields.
   - https://www.zoxs.de/partnerprogramm6.html
 - **mySWOOOP**: ADCELL program supports Ankauf referrals and exposes advertising assets/deep links; any product/price feed must only be used after publisher approval and according to its feed terms.
   - https://www.adcell.de/partnerprogramme/myswooop
 
 ## Important limitation
 
-None of the public pages above documents an unauthenticated public API that FlipRadar may safely call for live device buyback quotes. Affiliate/deep-link permission does **not** imply permission to scrape quote pages or republish prices. ZOXS now publicly confirms an affiliate Angebotsfeed exists, but public documentation does not establish that it contains Ankauf prices or permits price republication. Therefore FlipRadar must not add a scraper or label these providers LIVE until an approved feed/API/partner endpoint and its permitted fields are verified.
+None of the public pages above documents an unauthenticated public API that Flipwert may safely call for live device buyback quotes. Affiliate/deep-link permission does **not** imply permission to scrape quote pages or republish prices. ZOXS now publicly confirms an affiliate Angebotsfeed exists, but public documentation does not establish that it contains Ankauf prices or permits price republication. Therefore Flipwert must not add a scraper or label these providers LIVE until an approved feed/API/partner endpoint and its permitted fields are verified.
 
 ## Integration order
 

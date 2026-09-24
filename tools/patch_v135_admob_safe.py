@@ -20,8 +20,8 @@ if "package:google_mobile_ads/google_mobile_ads.dart" not in app:
 
 if "static const androidBanner" not in app:
     app = app.replace(
-        "  static const yearlyId = 'flipradar_pro_yearly';\n",
-        "  static const yearlyId = 'flipradar_pro_yearly';\n"
+        "  static const yearlyId = 'flipwert_pro_yearly';\n",
+        "  static const yearlyId = 'flipwert_pro_yearly';\n"
         "  static const androidBanner = 'ca-app-pub-3940256099942544/6300978111';\n"
         "  static const androidRewarded = 'ca-app-pub-3940256099942544/5224354917';\n"
         "  static const iosBanner = 'ca-app-pub-3940256099942544/2934735716';\n"
@@ -155,7 +155,7 @@ assert 'ca-app-pub-3940256099942544/5224354917' in app
 assert 'class V13BannerAd extends StatelessWidget' in app
 assert 'Widget build(BuildContext context) => const SizedBox.shrink();' in app
 assert 'unawaited(monetization.prepareAds())' not in app
-startup_slice = app[app.index('class _FlipRadarV13AppState'):app.index('class V13Home extends StatefulWidget')]
+startup_slice = app[app.index('class _FlipwertAppState'):app.index('class V13Home extends StatefulWidget')]
 assert 'prepareAds()' not in startup_slice
 assert 'MobileAds.instance.initialize()' not in startup_slice
 

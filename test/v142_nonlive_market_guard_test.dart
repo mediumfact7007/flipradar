@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/source_status.dart';
+import 'package:flipwert/source_status.dart';
 
 void main() {
   test('eBay Sandbox is configured but never reported as LIVE', () {

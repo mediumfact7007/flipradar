@@ -107,8 +107,8 @@ class _ManualBuybackQuoteCardState extends State<ManualBuybackQuoteCard> {
           const SizedBox(height: 4),
           Text(
             t(
-              'Trage nur einen Preis ein, den du selbst beim Anbieter für „${widget.conditionLabel}“ gesehen hast. Diese Angabe wird lokal verglichen und ist kein von FlipRadar geprüfter LIVE-Preis.',
-              'Only enter a price you saw yourself at the provider for “${widget.conditionLabel}”. It is compared locally and is not a LIVE price verified by FlipRadar.',
+              'Trage nur einen Preis ein, den du selbst beim Anbieter für „${widget.conditionLabel}“ gesehen hast. Diese Angabe wird lokal verglichen und ist kein von Flipwert geprüfter LIVE-Preis.',
+              'Only enter a price you saw yourself at the provider for “${widget.conditionLabel}”. It is compared locally and is not a LIVE price verified by Flipwert.',
             ),
             style: Theme.of(context).textTheme.bodySmall,
           ),

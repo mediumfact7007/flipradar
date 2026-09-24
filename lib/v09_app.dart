@@ -167,14 +167,14 @@ String extractSharedQuery(String raw) {
   return _limitSharedQuery(source);
 }
 
-class FlipRadarFinalApp extends StatefulWidget {
-  const FlipRadarFinalApp({super.key});
+class FlipwertFinalApp extends StatefulWidget {
+  const FlipwertFinalApp({super.key});
 
   @override
-  State<FlipRadarFinalApp> createState() => _FlipRadarFinalAppState();
+  State<FlipwertFinalApp> createState() => _FlipwertFinalAppState();
 }
 
-class _FlipRadarFinalAppState extends State<FlipRadarFinalApp> {
+class _FlipwertFinalAppState extends State<FlipwertFinalApp> {
   bool loading = true;
   bool english = false;
   String backend = '';
@@ -369,7 +369,7 @@ class _FlipRadarFinalAppState extends State<FlipRadarFinalApp> {
     );
 
     return MaterialApp(
-      title: 'FlipRadar',
+      title: 'Flipwert',
       debugShowCheckedModeBanner: false,
       theme: theme,
       home: loading
@@ -998,7 +998,7 @@ class _FinalCheckPageState extends State<FinalCheckPage> {
       sell: sell,
       costs: extraCosts,
       status: 'Bought',
-      source: 'FlipRadar',
+      source: 'Flipwert',
       createdAt: DateTime.now(),
     );
     widget.onAddFlip(item);
@@ -1217,7 +1217,7 @@ class _FinalCheckPageState extends State<FinalCheckPage> {
                   child: Text(
                     usesManualSell
                         ? t('Die Entscheidung nutzt deinen eigenen Verkaufspreis.', 'The decision uses your own sale price.')
-                        : t('Aktive Angebote sind keine bestätigten Verkäufe. Deshalb rechnet FlipRadar mit 10 % Sicherheitsabstand.', 'Active listings are not confirmed sales. FlipRadar therefore applies a 10% safety margin.'),
+                        : t('Aktive Angebote sind keine bestätigten Verkäufe. Deshalb rechnet Flipwert mit 10 % Sicherheitsabstand.', 'Active listings are not confirmed sales. Flipwert therefore applies a 10% safety margin.'),
                     style: const TextStyle(fontSize: 11.5, color: Color(0xFF747987), height: 1.4),
                   ),
                 ),

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flipradar/buyback.dart';
-import 'package:flipradar/buyback_client.dart';
+import 'package:flipwert/buyback.dart';
+import 'package:flipwert/buyback_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -156,7 +156,7 @@ void main() {
 
   test('preserves configured live-source status with validated offers', () async {
     final client = BuybackClient(
-      backendBase: 'https://api.flipradar.example',
+      backendBase: 'https://api.flipwert.example',
       client: MockClient((request) async {
         expect(request.url.path, '/v1/buyback/search');
         expect(request.url.queryParameters['condition'], 'used_good');
@@ -202,7 +202,7 @@ void main() {
 
   test('distinguishes disabled, empty and unavailable buyback sources', () async {
     Future<BuybackSearchResult> resultFor(Map<String, Object> payload) => BuybackClient(
-      backendBase: 'https://api.flipradar.example',
+      backendBase: 'https://api.flipwert.example',
       client: MockClient((_) async => http.Response(jsonEncode(payload), 200)),
     ).searchDetailed('Apple iPhone 15 Pro', condition: BuybackCondition.usedGood);
 

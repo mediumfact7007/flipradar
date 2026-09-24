@@ -30,7 +30,7 @@ final buybackProviderDestinations = List<BuybackProviderDestination>.unmodifiabl
 
 /// Honest fallback while no approved provider price feed is configured.
 ///
-/// These destinations never become price evidence inside FlipRadar. The
+/// These destinations never become price evidence inside Flipwert. The
 /// product query is copied so the user can paste it into each provider's own
 /// condition flow and inspect the provider-controlled result directly.
 class BuybackProviderLinksCard extends StatelessWidget {
@@ -78,8 +78,8 @@ class BuybackProviderLinksCard extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             t(
-              'Ohne LIVE-Feed öffnet FlipRadar die offiziellen Ankaufsseiten. Das Ergebnis bleibt extern und wird nicht als LIVE-Preis ausgegeben.',
-              'Without a LIVE feed, FlipRadar opens the official buyback sites. The result stays external and is not shown as a LIVE price.',
+              'Ohne LIVE-Feed öffnet Flipwert die offiziellen Ankaufsseiten. Das Ergebnis bleibt extern und wird nicht als LIVE-Preis ausgegeben.',
+              'Without a LIVE feed, Flipwert opens the official buyback sites. The result stays external and is not shown as a LIVE price.',
             ),
             style: theme.textTheme.bodySmall,
           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/main.dart';
+import 'package:flipwert/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -98,7 +98,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(manualQuote, findsOneWidget);
-    expect(find.textContaining('kein von FlipRadar geprüfter LIVE-Preis'), findsOneWidget);
+    expect(find.textContaining('kein von Flipwert geprüfter LIVE-Preis'), findsOneWidget);
     monetization.dispose();
   });
 }

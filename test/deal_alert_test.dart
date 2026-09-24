@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/deal_alert.dart';
+import 'package:flipwert/deal_alert.dart';
 
 void main() {
   test('defaults are useful but avoid tiny market noise', () {

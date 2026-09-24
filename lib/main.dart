@@ -9,5 +9,5 @@ export 'v13_app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const FlipRadarV13App());
+  runApp(const FlipwertApp());
 }

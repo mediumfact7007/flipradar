@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/main.dart';
+import 'package:flipwert/main.dart';
 
 void main() {
   test('removes a severe low accessory-price outlier', () {

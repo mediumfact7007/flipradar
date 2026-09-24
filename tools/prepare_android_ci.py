@@ -15,14 +15,14 @@ if pubspec.exists() and app_source.exists():
 app_gradle = Path('android/app/build.gradle.kts')
 if app_gradle.exists():
     text = app_gradle.read_text()
-    text = text.replace('namespace = "com.flipradar.flipradar"', 'namespace = "com.flipradar.app"')
-    text = text.replace('applicationId = "com.flipradar.flipradar"', 'applicationId = "com.flipradar.app"')
+    text = text.replace('namespace = "com.flipwert.flipwert"', 'namespace = "com.flipwert.app"')
+    text = text.replace('applicationId = "com.flipwert.flipwert"', 'applicationId = "com.flipwert.app"')
     app_gradle.write_text(text)
 
-old_activity = Path('android/app/src/main/kotlin/com/flipradar/flipradar/MainActivity.kt')
-new_activity = Path('android/app/src/main/kotlin/com/flipradar/app/MainActivity.kt')
+old_activity = Path('android/app/src/main/kotlin/com/flipwert/flipwert/MainActivity.kt')
+new_activity = Path('android/app/src/main/kotlin/com/flipwert/app/MainActivity.kt')
 if old_activity.exists():
-    text = old_activity.read_text().replace('package com.flipradar.flipradar', 'package com.flipradar.app')
+    text = old_activity.read_text().replace('package com.flipwert.flipwert', 'package com.flipwert.app')
     new_activity.parent.mkdir(parents=True, exist_ok=True)
     new_activity.write_text(text)
     old_activity.unlink()
@@ -30,11 +30,11 @@ if old_activity.exists():
 root_gradle = Path('android/build.gradle.kts')
 if root_gradle.exists():
     text = root_gradle.read_text()
-    marker = '// FlipRadar: align Java tasks with Flutter/Kotlin 17'
+    marker = '// Flipwert: align Java tasks with Flutter/Kotlin 17'
     if marker not in text:
         text += '''
 
-// FlipRadar: align Java tasks with Flutter/Kotlin 17
+// Flipwert: align Java tasks with Flutter/Kotlin 17
 subprojects {
     tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
         sourceCompatibility = "17"
@@ -53,7 +53,7 @@ if props.exists():
 
 manifest = Path('android/app/src/main/AndroidManifest.xml')
 if manifest.exists():
-    text = manifest.read_text().replace('android:label="flipradar"', 'android:label="FlipRadar"')
+    text = manifest.read_text().replace('android:label="flipwert"', 'android:label="Flipwert"')
     text = text.replace('android:launchMode="singleTop"', 'android:launchMode="singleTask"')
     root = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
     for permission in [

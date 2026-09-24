@@ -1,4 +1,4 @@
-import 'package:flipradar/buyback.dart';
+import 'package:flipwert/buyback.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> payload(String url) => {

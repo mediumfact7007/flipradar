@@ -303,7 +303,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/health') {
       return json(res, 200, {
         ok: true,
-        service: 'flipradar-api',
+        service: 'flipwert-api',
         version: '0.11.0',
         ebay_environment: EBAY_ENV,
       });
@@ -415,5 +415,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`FlipRadar API listening on :${PORT}`);
+  console.log(`Flipwert API listening on :${PORT}`);
 });

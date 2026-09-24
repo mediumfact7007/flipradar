@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/recheck_delta.dart';
+import 'package:flipwert/recheck_delta.dart';
 
 void main() {
   test('classifies a clearly improved saved deal', () {

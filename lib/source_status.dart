@@ -81,7 +81,7 @@ class MarketStatusClient {
   static Uri? endpointFor(List<PriceSource> sources) {
     for (final source in sources) {
       if (!source.builtIn || !source.canFetchInApp) continue;
-      final adapter = source.adapterUrl('flipradar-status');
+      final adapter = source.adapterUrl('flipwert-status');
       final uri = adapter == null ? null : Uri.tryParse(adapter);
       if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) continue;
       return Uri(

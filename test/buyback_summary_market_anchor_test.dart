@@ -1,5 +1,5 @@
-import 'package:flipradar/buyback.dart';
-import 'package:flipradar/buyback_summary.dart';
+import 'package:flipwert/buyback.dart';
+import 'package:flipwert/buyback_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,5 +1,5 @@
-import 'package:flipradar/buyback_source_bridge.dart';
-import 'package:flipradar/source_registry.dart';
+import 'package:flipwert/buyback_source_bridge.dart';
+import 'package:flipwert/source_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const buybackSource = PriceSource(

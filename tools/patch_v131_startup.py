@@ -1,6 +1,6 @@
 from pathlib import Path
 
-# FlipRadar V0.13.1: rescue startup path. Keep optional native integrations
+# Flipwert V0.13.1: rescue startup path. Keep optional native integrations
 # out of the critical first-launch path and make persisted-data loading fail-safe.
 
 pub = Path('pubspec.yaml')
@@ -16,13 +16,13 @@ if main.exists():
         text = "import 'dart:async';\n\n" + text
     old = """void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const FlipRadarV13App());
+  runApp(const FlipwertApp());
 }
 """
     new = """void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runZonedGuarded(
-    () => runApp(const FlipRadarV13App()),
+    () => runApp(const FlipwertApp()),
     (error, stack) {
       // Keep asynchronous Dart/plugin errors from tearing down the UI.
       // Production builds will forward these to crash reporting later.
@@ -56,7 +56,7 @@ if 'Future<void> _loadSafe() async {' not in text:
       if (!mounted) return;
       setState(() {
         // A corrupt/incompatible preference from an older prototype must never
-        // prevent FlipRadar from opening. Start with sane local defaults.
+        // prevent Flipwert from opening. Start with sane local defaults.
         english = false;
         backend = '';
         targetRoi = 35;

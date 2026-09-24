@@ -1,5 +1,5 @@
-import 'package:flipradar/main.dart';
-import 'package:flipradar/source_registry.dart';
+import 'package:flipwert/main.dart';
+import 'package:flipwert/source_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -15,7 +15,7 @@ void main() {
   });
 
   testWidgets('V0.10 starts directly with scan and search actions', (tester) async {
-    await tester.pumpWidget(const FlipRadarV10App());
+    await tester.pumpWidget(const FlipwertV10App());
     await tester.pumpAndSettle();
 
     expect(find.text('Lohnt sich das?'), findsOneWidget);

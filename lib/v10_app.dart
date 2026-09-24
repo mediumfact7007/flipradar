@@ -12,14 +12,14 @@ import 'source_registry.dart';
 import 'v07.dart';
 import 'v09_app.dart' show extractSharedQuery, parseMoneyInput;
 
-class FlipRadarV10App extends StatefulWidget {
-  const FlipRadarV10App({super.key});
+class FlipwertV10App extends StatefulWidget {
+  const FlipwertV10App({super.key});
 
   @override
-  State<FlipRadarV10App> createState() => _FlipRadarV10AppState();
+  State<FlipwertV10App> createState() => _FlipwertV10AppState();
 }
 
-class _FlipRadarV10AppState extends State<FlipRadarV10App> {
+class _FlipwertV10AppState extends State<FlipwertV10App> {
   bool loading = true;
   bool english = false;
   String backend = '';
@@ -169,7 +169,7 @@ class _FlipRadarV10AppState extends State<FlipRadarV10App> {
     );
 
     return MaterialApp(
-      title: 'FlipRadar',
+      title: 'Flipwert',
       debugShowCheckedModeBanner: false,
       theme: theme,
       home: loading
@@ -523,7 +523,7 @@ class _FastHomeState extends State<_FastHome> {
         Row(
           children: [
             const Expanded(
-              child: Text('FlipRadar', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.6)),
+              child: Text('Flipwert', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.6)),
             ),
             Badge(
               isLabelVisible: widget.savedCount > 0,
@@ -592,7 +592,7 @@ class _FastHomeState extends State<_FastHome> {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  t('Online-Angebot? Im Teilen-Menü → FlipRadar', 'Online listing? Share menu → FlipRadar'),
+                  t('Online-Angebot? Im Teilen-Menü → Flipwert', 'Online listing? Share menu → Flipwert'),
                   style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF4E50D8)),
                 ),
               ),
@@ -1008,7 +1008,7 @@ class _FastCheckPageState extends State<FastCheckPage> {
       sell: sell,
       costs: extraCosts,
       status: 'Bought',
-      source: 'FlipRadar',
+      source: 'Flipwert',
       createdAt: DateTime.now(),
     );
     widget.onAddFlip(item);
@@ -1245,8 +1245,8 @@ class _FastCheckPageState extends State<FastCheckPage> {
                 const SizedBox(height: 8),
                 Text(
                   t(
-                    'Aktive Angebote sind keine bestätigten Verkäufe. FlipRadar nutzt deshalb 10 % Sicherheitsabstand. Für echte Verkäufe nutze oben „eBay verkauft“.',
-                    'Active listings are not confirmed sales. FlipRadar applies a 10% safety margin. For real sales, use “eBay sold” above.',
+                    'Aktive Angebote sind keine bestätigten Verkäufe. Flipwert nutzt deshalb 10 % Sicherheitsabstand. Für echte Verkäufe nutze oben „eBay verkauft“.',
+                    'Active listings are not confirmed sales. Flipwert applies a 10% safety margin. For real sales, use “eBay sold” above.',
                   ),
                   style: const TextStyle(fontSize: 11, color: Color(0xFF777B88), height: 1.35),
                 ),

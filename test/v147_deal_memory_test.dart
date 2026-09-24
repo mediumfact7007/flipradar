@@ -1,6 +1,6 @@
-import 'package:flipradar/main.dart';
-import 'package:flipradar/buyback.dart';
-import 'package:flipradar/buyback_client.dart';
+import 'package:flipwert/main.dart';
+import 'package:flipwert/buyback.dart';
+import 'package:flipwert/buyback_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

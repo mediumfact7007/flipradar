@@ -1,8 +1,8 @@
 {
-  "name": "flipradar-api",
+  "name": "flipwert-api",
   "version": "0.9.0",
   "private": true,
-  "description": "FlipRadar server-side marketplace adapters",
+  "description": "Flipwert server-side marketplace adapters",
   "engines": {"node": ">=20"},
   "scripts": {
     "start": "node index.js",

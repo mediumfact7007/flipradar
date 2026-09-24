@@ -1,4 +1,4 @@
-# FlipRadar V0.4 live data sources
+# Flipwert V0.4 live data sources
 
 ## eBay DE — official Browse API
 
@@ -9,7 +9,7 @@ Required Worker secrets:
 - `EBAY_CLIENT_ID`
 - `EBAY_CLIENT_SECRET`
 
-After deployment, paste the Worker base URL into **FlipRadar > Setup > eBay DE Backend**.
+After deployment, paste the Worker base URL into **Flipwert > Setup > eBay DE Backend**.
 
 Important: Browse API data represents current/active listings. Do not label it as sold history. eBay's Marketplace Insights sales-history API is limited/restricted, so V0.4 keeps sold-history separate instead of fabricating it.
 

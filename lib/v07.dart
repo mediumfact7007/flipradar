@@ -97,14 +97,14 @@ class WatchItem {
       );
 }
 
-class FlipRadarApp extends StatefulWidget {
-  const FlipRadarApp({super.key});
+class FlipwertApp extends StatefulWidget {
+  const FlipwertApp({super.key});
 
   @override
-  State<FlipRadarApp> createState() => _FlipRadarAppState();
+  State<FlipwertApp> createState() => _FlipwertAppState();
 }
 
-class _FlipRadarAppState extends State<FlipRadarApp> {
+class _FlipwertAppState extends State<FlipwertApp> {
   bool loading = true;
   bool english = false;
   String backend = '';
@@ -242,7 +242,7 @@ class _FlipRadarAppState extends State<FlipRadarApp> {
     );
 
     return MaterialApp(
-      title: 'FlipRadar',
+      title: 'Flipwert',
       debugShowCheckedModeBanner: false,
       theme: theme,
       home: loading

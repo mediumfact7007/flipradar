@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flipradar/buyback.dart';
-import 'package:flipradar/buyback_offers_card.dart';
+import 'package:flipwert/buyback.dart';
+import 'package:flipwert/buyback_offers_card.dart';
 
 void main() {
   testWidgets('shows independent provider quotes and purchase margins without a private sale value', (tester) async {

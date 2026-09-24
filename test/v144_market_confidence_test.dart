@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flipradar/main.dart';
-import 'package:flipradar/source_registry.dart';
+import 'package:flipwert/main.dart';
+import 'package:flipwert/source_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SourceListing comp(

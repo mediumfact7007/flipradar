@@ -1,4 +1,4 @@
-# Datenquellen und Freigaben für FlipRadar
+# Datenquellen und Freigaben für Flipwert
 
 Stand: 23. September 2026. Technische Produktgrenzen, keine Rechtsfreigabe.
 

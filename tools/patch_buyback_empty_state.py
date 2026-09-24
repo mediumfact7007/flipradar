@@ -30,7 +30,7 @@ new = """            ] else if (buybackCondition != null && buybackOffers.isEmpt
                     Text(t('Noch kein verifiziertes LIVE-Ankaufangebot', 'No verified LIVE buyback offer yet'), style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 2),
                     Text(
-                      t('Für diesen Artikel und Zustand liefert aktuell kein angebundenes Ankaufportal einen echten Preis. FlipRadar schätzt hier bewusst keinen Ankaufpreis.', 'No connected buyback provider currently returns a real price for this item and condition. FlipRadar deliberately does not estimate a buyback price here.'),
+                      t('Für diesen Artikel und Zustand liefert aktuell kein angebundenes Ankaufportal einen echten Preis. Flipwert schätzt hier bewusst keinen Ankaufpreis.', 'No connected buyback provider currently returns a real price for this item and condition. Flipwert deliberately does not estimate a buyback price here.'),
                       style: const TextStyle(fontSize: 9.8, color: Color(0xFF6F6250)),
                     ),
                   ])),

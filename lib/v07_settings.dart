@@ -100,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 22),
           _SettingsSectionTitle(
             title: t('Preisquellen', 'Price sources'),
-            subtitle: t('Wo FlipRadar Preise prüft.', 'Where FlipRadar checks prices.'),
+            subtitle: t('Wo Flipwert Preise prüft.', 'Where Flipwert checks prices.'),
           ),
           const SizedBox(height: 9),
           Material(
@@ -225,7 +225,7 @@ class _PremiumCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(active ? (english ? 'PRO active' : 'PRO aktiv') : 'FlipRadar PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
+                Text(active ? (english ? 'PRO active' : 'PRO aktiv') : 'Flipwert PRO', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
                 const SizedBox(height: 3),
                 Text(english ? 'No ads · more checks · price alerts' : 'Keine Werbung · mehr Checks · Preisalarme', style: const TextStyle(color: Color(0xFFD3D3EE), fontSize: 12)),
               ],
@@ -371,7 +371,7 @@ class _SourcesPageState extends State<SourcesPage> {
             onPressed: () {
               final rawName = name.text.trim();
               final rawUrl = url.text.trim();
-              final testUri = Uri.tryParse(rawUrl.replaceAll('{query}', 'flipradar'));
+              final testUri = Uri.tryParse(rawUrl.replaceAll('{query}', 'flipwert'));
               final valid = rawName.isNotEmpty &&
                   rawUrl.contains('{query}') &&
                   testUri != null &&
@@ -410,7 +410,7 @@ class _SourcesPageState extends State<SourcesPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t('Partner-Link', 'Partner link')),
-        content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'https://…/flipradar-source.json')),
+        content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'https://…/flipwert-source.json')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(t('Abbrechen', 'Cancel'))),
           FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: Text(t('Importieren', 'Import'))),

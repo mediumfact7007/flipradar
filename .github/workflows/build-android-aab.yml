@@ -30,15 +30,15 @@ jobs:
       - name: Generate Android project
         shell: bash
         run: |
-          cp -r lib /tmp/flipradar_lib
-          cp pubspec.yaml /tmp/flipradar_pubspec.yaml
+          cp -r lib /tmp/flipwert_lib
+          cp pubspec.yaml /tmp/flipwert_pubspec.yaml
           rm -rf android
-          flutter create . --platforms=android --org com.flipradar --project-name flipradar --no-pub
+          flutter create . --platforms=android --org com.flipwert --project-name flipwert --no-pub
           rm -rf lib
-          cp -r /tmp/flipradar_lib lib
-          cp /tmp/flipradar_pubspec.yaml pubspec.yaml
+          cp -r /tmp/flipwert_lib lib
+          cp /tmp/flipwert_pubspec.yaml pubspec.yaml
           python3 tools/prepare_android_ci.py
-          grep -q 'applicationId = "com.flipradar.app"' android/app/build.gradle.kts
+          grep -q 'applicationId = "com.flipwert.app"' android/app/build.gradle.kts
           grep -q 'com.google.android.gms.ads.APPLICATION_ID' android/app/src/main/AndroidManifest.xml
 
       - name: Get packages
@@ -61,7 +61,7 @@ jobs:
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: FlipRadar-V0.14.8-PLAY-AAB
+          name: Flipwert-V0.14.8-PLAY-AAB
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 30

@@ -89,7 +89,7 @@ class BuybackSearchResult {
   final bool unavailable;
 }
 
-/// Isolated client for FlipRadar's buyback endpoint.
+/// Isolated client for Flipwert's buyback endpoint.
 class BuybackClient {
   const BuybackClient({
     this.backendBase = SourceRegistry.defaultBackend,

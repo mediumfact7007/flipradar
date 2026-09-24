@@ -1,4 +1,4 @@
-# FlipRadar monetization plan
+# Flipwert monetization plan
 
 ## Product principle
 

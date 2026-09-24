@@ -16,11 +16,11 @@ if "package:in_app_purchase/in_app_purchase.dart" not in app:
     )
 
 start = app.index('class V13Monetization extends ChangeNotifier {')
-end = app.index('class FlipRadarV13App extends StatefulWidget {', start)
+end = app.index('class FlipwertApp extends StatefulWidget {', start)
 
 billing_block = r'''class V13Monetization extends ChangeNotifier {
-  static const monthlyId = 'flipradar_pro_monthly';
-  static const yearlyId = 'flipradar_pro_yearly';
+  static const monthlyId = 'flipwert_pro_monthly';
+  static const yearlyId = 'flipwert_pro_yearly';
 
   final VoidCallback onProUnlocked;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
