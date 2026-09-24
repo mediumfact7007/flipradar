@@ -18,7 +18,7 @@ void main() {
     expect(app, contains('ca-app-pub-3940256099942544/5224354917'));
 
     // No automatic Dart-side ad initialization during normal app startup.
-    final appStateStart = app.indexOf('class _FlipwertAppState');
+    final appStateStart = app.indexOf('class _FlipwertV13AppState');
     final homeStart = app.indexOf('class V13Home extends StatefulWidget');
     final startupSlice = app.substring(appStateStart, homeStart);
     expect(startupSlice, isNot(contains('prepareAds()')));

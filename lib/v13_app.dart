@@ -659,14 +659,14 @@ class V13Monetization extends ChangeNotifier {
   }
 }
 
-class FlipwertApp extends StatefulWidget {
-  const FlipwertApp({super.key});
+class FlipwertV13App extends StatefulWidget {
+  const FlipwertV13App({super.key});
 
   @override
-  State<FlipwertApp> createState() => _FlipwertAppState();
+  State<FlipwertV13App> createState() => _FlipwertV13AppState();
 }
 
-class _FlipwertAppState extends State<FlipwertApp> {
+class _FlipwertV13AppState extends State<FlipwertV13App> {
   bool loading = true;
   bool english = false;
   String backend = '';

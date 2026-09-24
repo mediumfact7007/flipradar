@@ -13,7 +13,7 @@ void main() {
     expect(app, contains('unawaited(widget.monetization.init());'));
     expect(app, isNot(contains('  void _scheduleBillingInit() {')));
 
-    final appStateStart = app.indexOf('class _FlipwertAppState');
+    final appStateStart = app.indexOf('class _FlipwertV13AppState');
     final homeStart = app.indexOf('class V13Home extends StatefulWidget');
     final startupSlice = app.substring(appStateStart, homeStart);
     expect(startupSlice, isNot(contains('monetization.init()')));

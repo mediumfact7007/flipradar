@@ -155,7 +155,7 @@ assert 'ca-app-pub-3940256099942544/5224354917' in app
 assert 'class V13BannerAd extends StatelessWidget' in app
 assert 'Widget build(BuildContext context) => const SizedBox.shrink();' in app
 assert 'unawaited(monetization.prepareAds())' not in app
-startup_slice = app[app.index('class _FlipwertAppState'):app.index('class V13Home extends StatefulWidget')]
+startup_slice = app[app.index('class _FlipwertV13AppState'):app.index('class V13Home extends StatefulWidget')]
 assert 'prepareAds()' not in startup_slice
 assert 'MobileAds.instance.initialize()' not in startup_slice
 

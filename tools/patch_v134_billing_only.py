@@ -16,7 +16,7 @@ if "package:in_app_purchase/in_app_purchase.dart" not in app:
     )
 
 start = app.index('class V13Monetization extends ChangeNotifier {')
-end = app.index('class FlipwertApp extends StatefulWidget {', start)
+end = app.index('class FlipwertV13App extends StatefulWidget {', start)
 
 billing_block = r'''class V13Monetization extends ChangeNotifier {
   static const monthlyId = 'flipwert_pro_monthly';

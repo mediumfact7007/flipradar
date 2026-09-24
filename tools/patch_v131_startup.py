@@ -16,13 +16,13 @@ if main.exists():
         text = "import 'dart:async';\n\n" + text
     old = """void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const FlipwertApp());
+  runApp(const FlipwertV13App());
 }
 """
     new = """void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runZonedGuarded(
-    () => runApp(const FlipwertApp()),
+    () => runApp(const FlipwertV13App()),
     (error, stack) {
       // Keep asynchronous Dart/plugin errors from tearing down the UI.
       // Production builds will forward these to crash reporting later.

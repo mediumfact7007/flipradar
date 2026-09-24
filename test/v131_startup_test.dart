@@ -14,7 +14,7 @@ void main() {
       'history_v10': <String>['iPhone 15', '', 'iPhone 15'],
     });
 
-    await tester.pumpWidget(const FlipwertApp());
+    await tester.pumpWidget(const FlipwertV13App());
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Flipwert'), findsOneWidget);
