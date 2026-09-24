@@ -12,6 +12,10 @@ class DealAlertResultCard extends StatefulWidget {
   final double currentProfit;
   final double previousRoi;
   final double currentRoi;
+  final bool hasPrivateComparison;
+  final double? previousBuybackProfit;
+  final double? currentBuybackProfit;
+  final bool verifiedBuybackComparison;
   final DealAlertStore? store;
 
   const DealAlertResultCard({
@@ -22,6 +26,10 @@ class DealAlertResultCard extends StatefulWidget {
     required this.currentProfit,
     required this.previousRoi,
     required this.currentRoi,
+    this.hasPrivateComparison = true,
+    this.previousBuybackProfit,
+    this.currentBuybackProfit,
+    this.verifiedBuybackComparison = false,
     this.store,
   });
 
@@ -63,10 +71,13 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
     if (preference == null || !preference.enabled) return const SizedBox.shrink();
     final evaluation = evaluateDealAlert(
       preference: preference,
-      previousProfit: widget.previousProfit,
-      currentProfit: widget.currentProfit,
-      previousRoi: widget.previousRoi,
-      currentRoi: widget.currentRoi,
+      previousProfit: widget.hasPrivateComparison ? widget.previousProfit : double.nan,
+      currentProfit: widget.hasPrivateComparison ? widget.currentProfit : double.nan,
+      previousRoi: widget.hasPrivateComparison ? widget.previousRoi : double.nan,
+      currentRoi: widget.hasPrivateComparison ? widget.currentRoi : double.nan,
+      previousBuybackProfit: widget.previousBuybackProfit,
+      currentBuybackProfit: widget.currentBuybackProfit,
+      verifiedBuybackComparison: widget.verifiedBuybackComparison,
     );
     if (!evaluation.triggered) return const SizedBox.shrink();
 
@@ -80,11 +91,30 @@ class _DealAlertResultCardState extends State<DealAlertResultCard> {
     if (evaluation.roiThresholdReached) {
       reasons.add('ROI +${evaluation.roiIncrease.toStringAsFixed(0)} %-Pkt');
     }
-    final comparison =
-        '${t('Vorher', 'Before')}: ${t('Gewinn', 'Profit')} ${widget.previousProfit.toStringAsFixed(0)} € · ROI ${widget.previousRoi.toStringAsFixed(0)} %\n'
-        '${t('Jetzt', 'Now')}: ${t('Gewinn', 'Profit')} ${widget.currentProfit.toStringAsFixed(0)} € · ROI ${widget.currentRoi.toStringAsFixed(0)} %';
+    if (evaluation.buybackBecameProfitable) {
+      reasons.add(t('LIVE-Ankauf jetzt profitabel', 'LIVE buyback now profitable'));
+    }
+    if (evaluation.buybackProfitThresholdReached) {
+      reasons.add('${t('LIVE-Ankaufgewinn', 'LIVE buyback profit')} +${evaluation.buybackProfitIncrease.toStringAsFixed(0)} €');
+    }
+    final comparisonLines = <String>[];
+    if (widget.hasPrivateComparison) {
+      comparisonLines.add(
+        '${t('Privat vorher', 'Private before')}: ${t('Gewinn', 'Profit')} ${widget.previousProfit.toStringAsFixed(0)} € · ROI ${widget.previousRoi.toStringAsFixed(0)} %\n'
+        '${t('Privat jetzt', 'Private now')}: ${t('Gewinn', 'Profit')} ${widget.currentProfit.toStringAsFixed(0)} € · ROI ${widget.currentRoi.toStringAsFixed(0)} %',
+      );
+    }
+    if (widget.verifiedBuybackComparison && widget.previousBuybackProfit != null && widget.currentBuybackProfit != null) {
+      comparisonLines.add(
+        '${t('LIVE-Ankauf vorher', 'LIVE buyback before')}: ${widget.previousBuybackProfit!.toStringAsFixed(0)} € ${t('Gewinn', 'profit')}\n'
+        '${t('LIVE-Ankauf jetzt', 'LIVE buyback now')}: ${widget.currentBuybackProfit!.toStringAsFixed(0)} € ${t('Gewinn', 'profit')}',
+      );
+    }
+    final comparison = comparisonLines.join('\n');
     final threshold =
-        '${t('Dein Alarm', 'Your alert')}: +${preference.minProfitIncrease.toStringAsFixed(0)} € ${t('Gewinn', 'profit')} ${t('oder', 'or')} +${preference.minRoiIncrease.toStringAsFixed(0)} %-Pkt. ROI';
+        '${t('Dein Alarm', 'Your alert')}: +${preference.minProfitIncrease.toStringAsFixed(0)} € ${t('Privatgewinn', 'private profit')}, '
+        '+${preference.minBuybackProfitIncrease.toStringAsFixed(0)} € ${t('LIVE-Ankaufgewinn', 'LIVE buyback profit')} ${t('oder', 'or')} '
+        '+${preference.minRoiIncrease.toStringAsFixed(0)} %-Pkt. ROI';
 
     return Container(
       key: const ValueKey('v153-deal-alert-result'),

@@ -98,6 +98,7 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
     if (current == null || !current.enabled) return;
     await _persist(current.copyWith(
       minProfitIncrease: threshold,
+      minBuybackProfitIncrease: threshold,
       minRoiIncrease: threshold,
       updatedAt: DateTime.now(),
     ));
@@ -105,13 +106,13 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
 
   String _sensitivityLabel(DealAlertPreference preference) {
     final threshold = preference.minProfitIncrease;
-    if ((threshold - 2).abs() < 0.01 && (preference.minRoiIncrease - 2).abs() < 0.01) {
+    if ((threshold - 2).abs() < 0.01 && (preference.minBuybackProfitIncrease - 2).abs() < 0.01 && (preference.minRoiIncrease - 2).abs() < 0.01) {
       return t('Sensibel', 'Sensitive');
     }
-    if ((threshold - 10).abs() < 0.01 && (preference.minRoiIncrease - 10).abs() < 0.01) {
+    if ((threshold - 10).abs() < 0.01 && (preference.minBuybackProfitIncrease - 10).abs() < 0.01 && (preference.minRoiIncrease - 10).abs() < 0.01) {
       return t('Stark', 'Strong');
     }
-    if ((threshold - 5).abs() < 0.01 && (preference.minRoiIncrease - 5).abs() < 0.01) {
+    if ((threshold - 5).abs() < 0.01 && (preference.minBuybackProfitIncrease - 5).abs() < 0.01 && (preference.minRoiIncrease - 5).abs() < 0.01) {
       return t('Standard', 'Standard');
     }
     return t('Eigene Schwelle', 'Custom threshold');
@@ -142,8 +143,8 @@ class _DealAlertToggleState extends State<DealAlertToggle> {
           Text(
             enabled && preference != null
                 ? t(
-                    '${_sensitivityLabel(preference)}: ab +${preference.minProfitIncrease.toStringAsFixed(0)} € Gewinn oder +${preference.minRoiIncrease.toStringAsFixed(0)} %-Pkt. ROI.',
-                    '${_sensitivityLabel(preference)}: from +€${preference.minProfitIncrease.toStringAsFixed(0)} profit or +${preference.minRoiIncrease.toStringAsFixed(0)}pp ROI.',
+                    '${_sensitivityLabel(preference)}: ab +${preference.minProfitIncrease.toStringAsFixed(0)} € Privat-/LIVE-Ankaufgewinn oder +${preference.minRoiIncrease.toStringAsFixed(0)} %-Pkt. ROI.',
+                    '${_sensitivityLabel(preference)}: from +€${preference.minProfitIncrease.toStringAsFixed(0)} private/LIVE buyback profit or +${preference.minRoiIncrease.toStringAsFixed(0)}pp ROI.',
                   )
                 : t('Beim Recheck deutlich bessere Deals markieren.', 'Flag meaningfully better deals on recheck.'),
             style: const TextStyle(fontSize: 9.8, color: Color(0xFF707481)),

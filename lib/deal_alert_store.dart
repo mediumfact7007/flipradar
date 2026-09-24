@@ -77,6 +77,7 @@ class DealAlertStore {
             flipId: id,
             enabled: preference.enabled,
             minProfitIncrease: preference.minProfitIncrease,
+            minBuybackProfitIncrease: preference.minBuybackProfitIncrease,
             minRoiIncrease: preference.minRoiIncrease,
             updatedAt: preference.updatedAt,
           );

@@ -1667,6 +1667,16 @@ class _V13CheckPageState extends State<V13CheckPage> {
     );
   }
 
+  BuybackOffer? get currentComparableBuybackOffer {
+    final condition = buybackCondition;
+    if (condition == null) return null;
+    return bestComparableBuybackOffer(
+      buybackOffers,
+      condition: condition,
+      now: DateTime.now(),
+    );
+  }
+
   void _retryFailed() {
     if (failed.isEmpty) return;
     final q = normalizeV13Search(query.text).query;
@@ -2029,6 +2039,15 @@ class _V13CheckPageState extends State<V13CheckPage> {
                 currentRoi: roi,
               ),
             ),
+          ],
+          if (widget.existingSnapshot?.isSaved == true &&
+              ((expectedSale != null &&
+                  (widget.existingSnapshot!.maxBuyAtCheck > 0 ||
+                      widget.existingSnapshot!.profitAtCheck != 0 ||
+                      widget.existingSnapshot!.roiAtCheck != 0)) ||
+                (widget.existingSnapshot!.buybackQuoteKindAtCheck == 'live_provider' &&
+                    widget.existingSnapshot!.buybackPriceAtCheck > 0 &&
+                    currentComparableBuybackOffer != null))) ...[
             const SizedBox(height: 8),
             DealAlertResultCard(
               flipId: widget.existingSnapshot!.id,
@@ -2037,6 +2056,25 @@ class _V13CheckPageState extends State<V13CheckPage> {
               currentProfit: profit,
               previousRoi: widget.existingSnapshot!.roiAtCheck,
               currentRoi: roi,
+              hasPrivateComparison: expectedSale != null &&
+                  (widget.existingSnapshot!.maxBuyAtCheck > 0 ||
+                      widget.existingSnapshot!.profitAtCheck != 0 ||
+                      widget.existingSnapshot!.roiAtCheck != 0),
+              previousBuybackProfit:
+                  widget.existingSnapshot!.buybackQuoteKindAtCheck == 'live_provider'
+                      ? widget.existingSnapshot!.buybackPriceAtCheck -
+                          widget.existingSnapshot!.buy -
+                          widget.existingSnapshot!.costs
+                      : null,
+              currentBuybackProfit:
+                  widget.existingSnapshot!.buybackQuoteKindAtCheck == 'live_provider' &&
+                          currentComparableBuybackOffer != null
+                      ? currentComparableBuybackOffer!.price - buyPrice - extraCosts
+                      : null,
+              verifiedBuybackComparison:
+                  widget.existingSnapshot!.buybackQuoteKindAtCheck == 'live_provider' &&
+                      widget.existingSnapshot!.buybackPriceAtCheck > 0 &&
+                      currentComparableBuybackOffer != null,
             ),
           ],
           const SizedBox(height: 8),

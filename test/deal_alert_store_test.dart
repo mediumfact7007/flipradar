@@ -61,6 +61,7 @@ void main() {
       flipId: '  flip-1  ',
       enabled: false,
       minProfitIncrease: 9,
+      minBuybackProfitIncrease: 11,
       minRoiIncrease: 7,
       updatedAt: DateTime.utc(2026, 9, 21, 8),
     );
@@ -71,6 +72,7 @@ void main() {
     expect(loaded.single.flipId, 'flip-1');
     expect(loaded.single.enabled, isFalse);
     expect(loaded.single.minProfitIncrease, 9);
+    expect(loaded.single.minBuybackProfitIncrease, 11);
     expect(loaded.single.minRoiIncrease, 7);
   });
 

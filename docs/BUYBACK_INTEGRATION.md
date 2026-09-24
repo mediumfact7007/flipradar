@@ -92,6 +92,12 @@ must not call it LIVE or verified, and must preserve this provenance in saved
 deal snapshots. A later verified feed quote must not silently turn a previous
 manual value into historical LIVE evidence.
 
+Deal alerts may compare a saved buyback margin with a later quote only when
+both values originate from the validated LIVE-provider path. A manual user
+entry must never trigger a LIVE buyback alert. The alert UI labels this signal
+separately from private-market profit and continues to require a fresh,
+eligible exact-condition offer.
+
 ## Free / Pro direction
 
 Do not lock the basic usefulness of a deal check behind Pro. A possible later split, to validate with real usage data:

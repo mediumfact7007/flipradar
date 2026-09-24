@@ -6,6 +6,7 @@ void main() {
     final alert = DealAlertPreference.defaults('flip-1', now: DateTime(2026, 9, 17, 12));
     expect(alert.enabled, isTrue);
     expect(alert.minProfitIncrease, 5);
+    expect(alert.minBuybackProfitIncrease, 5);
     expect(alert.minRoiIncrease, 5);
     expect(shouldTriggerDealAlert(preference: alert, previousProfit: 30, currentProfit: 33, previousRoi: 25, currentRoi: 28), isFalse);
   });
@@ -79,15 +80,79 @@ void main() {
     expect(shouldTriggerDealAlert(preference: alert, previousProfit: 10, currentProfit: 100, previousRoi: 10, currentRoi: 100), isFalse);
   });
 
+  test('verified LIVE buyback profit improvement triggers independently', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(
+      preference: alert,
+      previousProfit: 20,
+      currentProfit: 20,
+      previousRoi: 10,
+      currentRoi: 10,
+      previousBuybackProfit: 4,
+      currentBuybackProfit: 11,
+      verifiedBuybackComparison: true,
+    );
+    expect(evaluation.triggered, isTrue);
+    expect(evaluation.buybackProfitIncrease, 7);
+    expect(evaluation.buybackProfitThresholdReached, isTrue);
+    expect(evaluation.buybackBecameProfitable, isFalse);
+    expect(evaluation.profitThresholdReached, isFalse);
+    expect(evaluation.roiThresholdReached, isFalse);
+  });
+
+  test('manual or otherwise unverified buyback values never trigger', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(
+      preference: alert,
+      previousProfit: 20,
+      currentProfit: 20,
+      previousRoi: 10,
+      currentRoi: 10,
+      previousBuybackProfit: -10,
+      currentBuybackProfit: 50,
+      verifiedBuybackComparison: false,
+    );
+    expect(evaluation.triggered, isFalse);
+    expect(evaluation.buybackProfitIncrease, 0);
+    expect(evaluation.buybackProfitThresholdReached, isFalse);
+    expect(evaluation.buybackBecameProfitable, isFalse);
+  });
+
+  test('verified LIVE buyback crossing into profit is actionable', () {
+    final alert = DealAlertPreference.defaults('flip-1');
+    final evaluation = evaluateDealAlert(
+      preference: alert,
+      previousProfit: double.nan,
+      currentProfit: double.nan,
+      previousRoi: double.nan,
+      currentRoi: double.nan,
+      previousBuybackProfit: -2,
+      currentBuybackProfit: 1,
+      verifiedBuybackComparison: true,
+    );
+    expect(evaluation.triggered, isTrue);
+    expect(evaluation.buybackBecameProfitable, isTrue);
+  });
+
   test('preference survives json roundtrip', () {
-    final original = DealAlertPreference(flipId: 'flip-7', enabled: true, minProfitIncrease: 8, minRoiIncrease: 12, updatedAt: DateTime.parse('2026-09-17T10:00:00Z').toLocal());
+    final original = DealAlertPreference(flipId: 'flip-7', enabled: true, minProfitIncrease: 8, minBuybackProfitIncrease: 9, minRoiIncrease: 12, updatedAt: DateTime.parse('2026-09-17T10:00:00Z').toLocal());
     final restored = DealAlertPreference.fromJson(original.toJson());
     expect(restored, isNotNull);
     expect(restored!.flipId, original.flipId);
     expect(restored.enabled, original.enabled);
     expect(restored.minProfitIncrease, original.minProfitIncrease);
+    expect(restored.minBuybackProfitIncrease, original.minBuybackProfitIncrease);
     expect(restored.minRoiIncrease, original.minRoiIncrease);
     expect(restored.updatedAt.toUtc(), original.updatedAt.toUtc());
+  });
+
+  test('legacy preference applies its profit threshold to LIVE buyback too', () {
+    final restored = DealAlertPreference.fromJson({
+      'flip_id': 'flip-7', 'enabled': true, 'min_profit_increase': 8,
+      'min_roi_increase': 12, 'updated_at': '2026-09-17T10:00:00Z',
+    });
+    expect(restored, isNotNull);
+    expect(restored!.minBuybackProfitIncrease, 8);
   });
 
   test('persisted alert key is normalized for reliable rechecks', () {
