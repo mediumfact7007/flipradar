@@ -145,7 +145,7 @@ async function fetchBuybackOffers(query, condition, { fetchImpl = fetch, now = D
   const normalizedQuery = String(query || '').trim().replace(/\s+/g, ' ').slice(0, 160);
   if (normalizedQuery.length < 3) return { configured: true, items: [], best: null };
   const normalizedCondition = String(condition || '').trim().slice(0, 32);
-  if (normalizedCondition && !CONDITIONS.has(normalizedCondition)) {
+  if (!CONDITIONS.has(normalizedCondition)) {
     return { configured: true, items: [], best: null };
   }
 
@@ -191,10 +191,14 @@ async function requestBuybackOffers(normalizedQuery, normalizedCondition, { fetc
     const payload = await response.json();
     const rawItems = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
     const allowedProviders = currentProviderApprovals(now);
-    const items = normalizeBuybackPayload(rawItems.filter((item) => {
+    const normalizedItems = normalizeBuybackPayload(rawItems.filter((item) => {
       const providerId = String(item?.provider_id || '').trim().toLowerCase();
       return allowedProviders.has(providerId) && matchesBuybackQuery(normalizedQuery, item);
     }), { now });
+    // The requested condition is part of the product identity. Some partner
+    // feeds return a condition matrix even when one state was requested; never
+    // let those other rows reach the app or influence the visible best offer.
+    const items = normalizedItems.filter((item) => item.condition === normalizedCondition);
     return {
       configured: true,
       items,

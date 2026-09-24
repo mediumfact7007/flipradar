@@ -180,6 +180,20 @@ void main() {
                 'requires_inspection': true,
                 'match_confidence': 0.98,
               },
+              {
+                'provider_id': 'rebuy',
+                'provider_name': 'reBuy',
+                'product_id': 'iphone-15-pro-256',
+                'matched_title': 'Apple iPhone 15 Pro 256 GB',
+                'condition': 'like_new',
+                'price': 700,
+                'currency': 'EUR',
+                'offer_url': 'https://example.com/rebuy-like-new',
+                'checked_at': '2026-09-22T12:00:00Z',
+                'price_kind': 'indicative_buyback',
+                'requires_inspection': true,
+                'match_confidence': 0.99,
+              },
             ],
           }),
           200,
@@ -198,6 +212,7 @@ void main() {
     expect(result.live, isTrue);
     expect(result.unavailable, isFalse);
     expect(result.offers.single.providerId, 'rebuy');
+    expect(result.offers.single.condition, BuybackCondition.usedGood);
   });
 
   test('distinguishes disabled, empty and unavailable buyback sources', () async {

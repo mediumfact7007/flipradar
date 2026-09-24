@@ -54,6 +54,9 @@ Required fields: provider, matched product, normalized condition, price/currency
 - Display when the price was checked.
 - Product identity must include relevant variants where available (storage, model generation, network/version, color only where price-relevant).
 - Only compare offers with compatible normalized conditions.
+- A provider response may contain a full condition matrix, but the server only
+  returns rows for the exact condition requested by the user. The app repeats
+  this filter as a defensive boundary before display and comparison.
 - Low-confidence product matches must not participate in `best buyback` calculations.
 - The server checks provider titles against query model, variant and storage before accepting provider-reported match confidence. Barcode-only searches require the provider to return a matching EAN/GTIN or product ID; ambiguous or broad searches yield no comparable price.
 - Missing data is shown as unavailable, never estimated as if it were a live provider quote.

@@ -154,6 +154,12 @@ function approvedEnv(overrides = {}) {
   assert.deepStrictEqual(invalidConditionResult, { configured: true, items: [], best: null });
   assert.strictEqual(fetchCalls, 0, 'invalid conditions must not consume partner requests');
 
+  const missingConditionResult = await loaded.source.fetchBuybackOffers('iPhone 15', '', {
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('must not fetch without an exact condition'); },
+  });
+  assert.deepStrictEqual(missingConditionResult, { configured: true, items: [], best: null });
+  assert.strictEqual(fetchCalls, 0, 'missing conditions must not consume partner requests');
+
   const outageResult = await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new', {
     fetchImpl: async () => { throw new Error('partner offline'); },
   });
@@ -221,11 +227,14 @@ function approvedEnv(overrides = {}) {
         return { items: [good, {
           ...good, provider_id: 'wrong-variant', product_id: 'iphone-15-pro-max-256',
           matched_title: 'Apple iPhone 15 Pro Max 256 GB', price: 900, match_confidence: 1,
+        }, {
+          ...good, condition: 'used_good', price: 850,
         }] };
       },
     }),
   });
   assert.strictEqual(mixed.items.length, 1, 'higher priced wrong model must not enter the comparison');
+  assert.strictEqual(mixed.items[0].condition, 'like_new', 'only the explicitly requested condition may reach the app');
   assert.strictEqual(mixed.best.provider_id, 'clevertronic');
   loaded.restore();
 
