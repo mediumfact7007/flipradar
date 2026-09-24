@@ -127,14 +127,28 @@ function hasPublicSourceHost(hostname) {
     (a === 203 && b === 0 && c === 113) || a >= 224);
 }
 
-function configured(now = Date.now()) {
-  if (!BUYBACK_SOURCE_URL || !hasCurrentApproval(now)) return false;
+function sourceReadiness(now = Date.now()) {
+  if (!BUYBACK_SOURCE_URL) return 'missing_source_url';
+  let url;
   try {
-    const url = new URL(BUYBACK_SOURCE_URL);
-    return url.protocol === 'https:' && !url.username && !url.password && hasPublicSourceHost(url.hostname);
+    url = new URL(BUYBACK_SOURCE_URL);
   } catch (_) {
-    return false;
+    return 'invalid_source_url';
   }
+  if (url.protocol !== 'https:' || url.username || url.password ||
+      !hasPublicSourceHost(url.hostname)) return 'invalid_source_url';
+  if (BUYBACK_SOURCE_POLICY_ACK !== REQUIRED_POLICY_ACK) return 'missing_policy_ack';
+  const approvals = currentProviderApprovals(now);
+  if (!approvals.size) return 'missing_current_provider_approval';
+  if (![...approvals.values()].some((approval) =>
+    approval.feedHosts.has(url.hostname.toLowerCase()))) {
+    return 'source_host_not_approved';
+  }
+  return 'ready';
+}
+
+function configured(now = Date.now()) {
+  return sourceReadiness(now) === 'ready';
 }
 
 function hasApprovedOfferUrl(value, allowedHosts) {
@@ -268,9 +282,10 @@ function sourceStatus(now = Date.now()) {
     cache_ttl_seconds: BUYBACK_SOURCE_CACHE_TTL_MS / 1000,
     minimum_match_confidence: 0.9,
     rights_gate: isConfigured ? 'approved' : 'not_approved_or_expired',
+    readiness: sourceReadiness(now),
     approval_model: 'per_provider_hosts_v2',
     approved_provider_count: isConfigured ? approvals.size : 0,
   };
 }
 
-module.exports = { configured, fetchBuybackOffers, sourceStatus, hasCurrentApproval };
+module.exports = { configured, fetchBuybackOffers, sourceStatus, hasCurrentApproval, sourceReadiness };

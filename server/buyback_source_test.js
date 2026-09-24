@@ -63,6 +63,7 @@ function approvedEnv(overrides = {}) {
 (async () => {
   let loaded = loadSource();
   assert.strictEqual(loaded.source.configured(), false);
+  assert.strictEqual(loaded.source.sourceStatus().readiness, 'missing_source_url');
   assert.deepStrictEqual(await loaded.source.fetchBuybackOffers('iPhone 15', 'like_new'), {
     configured: false,
     items: [],
@@ -72,15 +73,18 @@ function approvedEnv(overrides = {}) {
 
   loaded = loadSource({ url: 'http://partner.example/quotes' });
   assert.strictEqual(loaded.source.configured(), false, 'plain HTTP must never become a live source');
+  assert.strictEqual(loaded.source.sourceStatus().readiness, 'invalid_source_url');
   loaded.restore();
 
   loaded = loadSource({ url: 'https://partner.example/quotes' });
   assert.strictEqual(loaded.source.configured(), false, 'a URL alone must never enable live provider prices');
   assert.strictEqual(loaded.source.sourceStatus().rights_gate, 'not_approved_or_expired');
+  assert.strictEqual(loaded.source.sourceStatus().readiness, 'missing_policy_ack');
   loaded.restore();
 
   loaded = loadSource(approvedEnv({ url: 'https://unapproved-feed.example/quotes' }));
   assert.strictEqual(loaded.source.configured(), false, 'approval must be bound to the configured feed host');
+  assert.strictEqual(loaded.source.sourceStatus().readiness, 'source_host_not_approved');
   loaded.restore();
 
   const wildcardHostApproval = JSON.parse(approvedEnv().approvals);
@@ -307,6 +311,7 @@ function approvedEnv(overrides = {}) {
     cache_ttl_seconds: 0,
     minimum_match_confidence: 0.9,
     rights_gate: 'approved',
+    readiness: 'ready',
     approval_model: 'per_provider_hosts_v2',
     approved_provider_count: 2,
   });

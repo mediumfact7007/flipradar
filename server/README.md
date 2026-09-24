@@ -52,7 +52,7 @@ BUYBACK_SOURCE_TOKEN=...
 BUYBACK_SOURCE_TIMEOUT_MS=6000
 BUYBACK_SOURCE_CACHE_TTL_MS=60000
 BUYBACK_SOURCE_POLICY_ACK=approved-feed-and-price-display-v1
-BUYBACK_SOURCE_APPROVALS_JSON=[{"provider_id":"zoxs","approval_reference":"internal-contract-reference","reviewed_at":"2026-09-24T00:00:00Z","valid_until":"2027-12-31T23:59:59Z","feed_access":true,"price_display":true,"offer_links":true,"provider_identity_display":true}]
+BUYBACK_SOURCE_APPROVALS_JSON=[{"provider_id":"zoxs","approval_reference":"internal-contract-reference","reviewed_at":"2026-09-24T00:00:00Z","valid_until":"2027-12-31T23:59:59Z","feed_access":true,"price_display":true,"offer_links":true,"provider_identity_display":true,"feed_hosts":["partner-adapter.example"],"offer_hosts":["www.zoxs.de"]}]
 ```
 
 The adapter must return the normalized fields documented in
@@ -62,9 +62,13 @@ deep-link access alone is not permission to scrape or republish prices.
 The backend fails closed unless the exact policy acknowledgement and at least one
 current per-provider approval record are present. Each record separately confirms
 feed access, price display, offer links and provider-identity display, with an
-internal approval reference plus reviewed/expiry timestamps. Feed rows for other,
-expired or partially approved providers are discarded even if the adapter returns
-them. Renew or disable each record before its configured expiry; never use these
+internal approval reference, reviewed/expiry timestamps, exact adapter/feed
+hosts and exact permitted offer-link hosts. Feed rows for other, expired or
+partially approved providers are discarded even if the adapter returns them.
+Use `docs/buyback-source-approval.example.json` as the non-secret template.
+The public `/v1/status` response exposes a `readiness` reason such as
+`missing_policy_ack`, `source_host_not_approved` or `ready` without
+revealing credentials or internal contract references. Renew or disable each record before its configured expiry; never use these
 flags as a substitute for the underlying written rights. Keep this JSON and all
 credentials in deployment configuration, not in the APK or repository.
 

@@ -1,0 +1,18 @@
+[
+  {
+    "provider_id": "example-provider",
+    "approval_reference": "contract-or-feed-terms-reference",
+    "reviewed_at": "2026-09-24T00:00:00Z",
+    "valid_until": "2027-09-24T00:00:00Z",
+    "feed_access": true,
+    "price_display": true,
+    "offer_links": true,
+    "provider_identity_display": true,
+    "feed_hosts": [
+      "approved-adapter.example"
+    ],
+    "offer_hosts": [
+      "provider.example"
+    ]
+  }
+]
