@@ -15,6 +15,11 @@ assert.equal(matches('Nintendo Switch OLED weiß', offer('Nintendo Switch OLED K
 assert.equal(matches('Nintendo Switch OLED', offer('Nintendo Switch Lite')), false);
 assert.equal(matches('Bosch GSR 12V 15', offer('Bosch GSR 18V 21')), false);
 assert.equal(matches('Bosch GSR 12V 15', offer('Bosch GSR 12V 15 Akku Bohrschrauber')), true);
+assert.equal(matches('Dyson V15 Detect Absolute', offer('Dyson V12 Detect Absolute')), false, 'numeric model tokens are exact identity constraints');
+assert.equal(matches('Dyson V15 Detect Absolute', offer('Dyson V15 Detect Absolute Staubsauger')), true);
+assert.equal(matches('Samsung Galaxy S24+', offer('Samsung Galaxy S24 Plus')), true, 'symbol and word variants normalize consistently');
+assert.equal(matches('PlayStation 5 Slim', offer('Sony PS5 Slim Konsole')), true, 'common console aliases normalize consistently');
+assert.equal(matches('PlayStation 5 Slim', offer('Sony PS5 Standard Konsole')), false);
 assert.equal(matches('4006381333931', offer('iPhone 15 Pro', { ean: '4006381333931' })), true);
 assert.equal(matches('4006381333931', offer('iPhone 15 Pro')), false);
 assert.equal(matches('iPhone', offer('iPhone 15 Pro 256GB')), false);

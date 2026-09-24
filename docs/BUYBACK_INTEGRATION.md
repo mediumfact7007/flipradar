@@ -53,6 +53,9 @@ Required fields: provider, matched product, normalized condition, price/currency
 - A buyback price is an **indicative exit price**, not guaranteed profit. Providers may inspect the item and revise/reject an offer.
 - Display when the price was checked.
 - Product identity must include relevant variants where available (storage, model generation, network/version, color only where price-relevant).
+- Numeric model tokens and named variants are hard constraints across product
+  categories. Common spelling aliases such as `S24+`/`S24 Plus` and
+  `PlayStation 5`/`PS5` are normalized before comparison.
 - Only compare offers with compatible normalized conditions.
 - A provider response may contain a full condition matrix, but the server only
   returns rows for the exact condition requested by the user. The app repeats

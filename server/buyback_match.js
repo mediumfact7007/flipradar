@@ -1,11 +1,15 @@
 'use strict';
 
-const VARIANTS = new Set(['pro', 'max', 'plus', 'ultra', 'mini', 'air', 'oled', 'lite', 'fe']);
+const VARIANTS = new Set(['pro', 'max', 'plus', 'ultra', 'mini', 'air', 'oled', 'lite', 'fe', 'slim']);
 const NOISE = new Set(['apple', 'samsung', 'google', 'mit', 'und', 'ohne', 'ovp', 'neu', 'gebraucht', 'top', 'zustand', 'versand', 'abholung', 'verkauf', 'original', 'inkl', 'in', 'der', 'das', 'die', 'the', 'with', 'for', 'new', 'used', 'black', 'white', 'schwarz', 'weiss']);
 const FAMILIES = new Set(['iphone', 'ipad', 'galaxy', 'pixel', 'switch', 'macbook', 'playstation', 'ps5', 'ps4']);
 
 function tokens(value) {
   const normalized = String(value || '').normalize('NFKD').toLowerCase()
+    .replace(/\bplay\s*station\s*5\b/g, 'ps5')
+    .replace(/\bps\s*5\b/g, 'ps5')
+    .replace(/\bpromax\b/g, 'pro max')
+    .replace(/([a-z0-9])\+/g, '$1 plus')
     .replace(/(\d+)\s*(tb|gb)\b/g, (_, size, unit) => `${Number(size) * (unit === 'tb' ? 1024 : 1)}gb`)
     .replace(/[^a-z0-9]+/g, ' ').trim();
   return normalized ? normalized.split(/\s+/) : [];
@@ -13,6 +17,10 @@ function tokens(value) {
 
 function storage(parts) {
   return parts.filter((part) => /^\d+gb$/.test(part));
+}
+
+function criticalIdentity(parts) {
+  return [...new Set(parts.filter((part) => /\d/.test(part) || VARIANTS.has(part)))];
 }
 
 // A partner's confidence is a claim about its own lookup, not evidence that
@@ -28,6 +36,12 @@ function matchesBuybackQuery(query, offer) {
     return [offer.ean, offer.gtin, offer.product_id]
       .some((value) => String(value || '').trim() === String(query).trim());
   }
+
+  // Model numbers and named variants are hard identity constraints for every
+  // category, not just the explicitly modelled phone/console families. This
+  // prevents a mostly similar title (for example Dyson V12 vs V15) from
+  // passing the generic token threshold.
+  if (criticalIdentity(searched).some((part) => !title.includes(part))) return false;
 
   const family = searched.find((part) => FAMILIES.has(part));
   if (family) {
