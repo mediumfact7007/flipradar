@@ -72,6 +72,21 @@ revealing credentials or internal contract references. Renew or disable each rec
 flags as a substitute for the underlying written rights. Keep this JSON and all
 credentials in deployment configuration, not in the APK or repository.
 
+Before enabling the mobile client against a newly approved source, run one
+exact product/condition probe from the deployed server environment:
+
+```bash
+BUYBACK_VERIFY_QUERY="Apple iPhone 15 Pro 256 GB" \\
+BUYBACK_VERIFY_CONDITION="like_new" npm run verify:buyback-source
+```
+
+The command exits successfully only when the rights gate is ready and at least
+one fresh, exact-condition offer survives the full validation path. Its JSON
+output contains provider IDs, counts and the newest check time, but never emits
+tokens, internal approval references, prices or offer URLs. A successful probe
+verifies technical readiness; it does not replace the underlying contractual
+approval.
+
 Identical product/condition requests are coalesced and cached briefly on the
 server (60 seconds by default, never more than five minutes). Unavailable
 responses are not cached, and a cache entry can never outlive the 24-hour quote
